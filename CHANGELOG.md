@@ -8,9 +8,9 @@ All notable changes to this project are recorded here. The format follows
 
 ### Changed
 
-- The guides prefer the native file tools and ask for model-facing output to be
-  serialized with `to text` or `to json` instead of a wide table. They also
-  state that the bundle fails closed when Nushell cannot be resolved.
+- The guides ask for model-facing output to be serialized with `to text` or
+  `to json` instead of a wide table. They also state that the bundle fails closed
+  when Nushell cannot be resolved.
 
 ### Fixed
 

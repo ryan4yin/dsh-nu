@@ -10,7 +10,6 @@ Shell calls run through Nushell as `nu --no-config-file -c "<command>"`. Each ca
 
 ## Pipelines and tables
 
-- Prefer the native read, grep, glob, write, and edit tools; use these shell forms only when the work is already inside a shell command.
 - `ls`, `ps`, and `open file.json` produce structured values. Filter with `where`, project with `select`, extract with `get`, transform with `each`, order with `sort-by`.
 - `where size > 1mb` compares typed sizes; quote strings (`where name == "a.md"`). Convert at the boundary with `to json` / `to csv` / `to text`; those return text, not a table. A raw list or table as the final value renders as a wide table, so serialize it deliberately: `to text` for lines or `to json` for structure.
 

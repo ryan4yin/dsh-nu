@@ -65,10 +65,9 @@ test('the guide does not claim double-quoted strings interpolate', () => {
   assert.match(text, /to json.*returns text|return text, not a table/)
 })
 
-test('the guides prefer native tools and serialize final output', () => {
+test('the guides serialize final output and state fail-closed behavior', () => {
   for (const variant of ['full', 'compact'] as const) {
     const text = buildGuide({ variant })
-    assert.match(text, /native read, grep, glob, write, and edit tools/)
     assert.match(text, /to text[\s\S]*(?:to json|for lines)/i)
   }
   const full = buildGuide({ variant: 'full' })
@@ -76,7 +75,6 @@ test('the guides prefer native tools and serialize final output', () => {
   assert.doesNotMatch(full, /Single and double quotes are literal/)
   assert.match(full, /Single quotes are literal; double quotes process escapes/)
   const tool = buildToolDescription()
-  assert.match(tool, /native read, grep, glob, write, and edit tools/)
   assert.match(tool, /to text[\s\S]*(?:to json|for lines)/i)
 })
 
