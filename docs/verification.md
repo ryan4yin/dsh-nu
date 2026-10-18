@@ -49,10 +49,13 @@ so when it skips.
 ## Integration probe
 
 The release gate requires a probe against the pinned dsh: mount the executor and
-the teaching layer in a composition, confirm that a shell call runs through
-Nushell, that a `bash -c` call is refused, and that the model-facing shell tool
-text mentions Nushell. The probe is tracked before the 0.1.0 tag; until it
-lands, the unit and differential suites are the local gate.
+the teaching layer in a composition, confirm that the executor and teaching rows
+are present, and confirm that the platform shell executor rows are disabled.
+`npm run probe` does this against the real dsh CLI: it builds a temporary
+profile that names this package after dsh-base, boots the profile with
+`--dump-config`, and inspects the composed tree. It needs a dsh executable
+(`DSH_INTEGRATION_CLI` or `dsh` on PATH), the linked peers, and a built
+`dist/`. It does not call a model.
 
 ## CI matrix
 

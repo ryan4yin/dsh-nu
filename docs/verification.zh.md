@@ -32,7 +32,7 @@ npm pack --dry-run
 
 ## 集成探针
 
-发布门槛要求针对固定版本 dsh 的探针：在 composition 中挂载执行器和教学层，确认 shell 调用经过 Nushell、`bash -c` 被拒绝、模型侧 shell 工具文本提到 Nushell。该探针在 0.1.0 tag 之前补齐；在它落地之前，本地门槛是单元测试和差分测试。
+发布门槛要求针对固定版本 dsh 的探针：在 composition 中挂载执行器和教学层，确认执行器与教学层行存在、平台 shell 执行器行已禁用。`npm run probe` 会用真实 dsh CLI 做这件事：构造一个临时 profile，在 dsh-base 之后命名本包，用 `--dump-config` 启动并检查组合后的插件树。它需要 dsh 可执行文件（`DSH_INTEGRATION_CLI` 或 PATH 上的 `dsh`）、已链接的 peer 包，以及构建好的 `dist/`。它不会调用模型。
 
 ## CI 矩阵
 
