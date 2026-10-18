@@ -2,11 +2,11 @@
 
 English | [中文](docs/zh/README.md)
 
-dsh-nu forces DeepSeek Harness to run every shell command in Nushell, with the `bash` / `pwsh` executors disabled. How it works:
+dsh-nu forces DeepSeek Harness to run every shell command in Nushell, with the `bash` / `pwsh` executors disabled. It does three things:
 
-- Through the low-level extension point DeepSeek Harness exposes, it replaces the `bash` / `pwsh` executor with a Nushell executor at runtime (commands run as `nu --no-config-file -c "<command>"`). dsh still sees the same `bash` / `pwsh` tool with the same calling convention, so the Nushell executor plugs into dsh and stays compatible with every other plugin and feature. The oddity is cosmetic: the model calls a tool named `bash` and passes it Nushell script.
-- It adds a short Nushell rules section and syntax guide to the system prompt. That teaching text costs context but matters: with it turned off, the model hits frequent errors when calling the shell tool.
-- When a Nushell command hands work to another shell, the preflight refuses it before a process starts; bash and PowerShell habits are refused the same way, with the Nushell spelling to use instead.
+- **Swap the executor**: Through the low-level extension point DeepSeek Harness exposes, it replaces the `bash` / `pwsh` executor with a Nushell executor at runtime (commands run as `nu --no-config-file -c "<command>"`). dsh still sees the same `bash` / `pwsh` tool with the same calling convention, so the Nushell executor plugs into dsh and stays compatible with every other plugin and feature. The oddity is cosmetic: the model calls a tool named `bash` / `pwsh` and passes it Nushell script.
+- **Teach the model**: It adds a short Nushell rules section and syntax guide to the system prompt. That teaching text costs some context but matters: with it turned off, the model hits frequent errors when calling the shell tool.
+- **Refuse handoffs**: When a Nushell command hands work to another shell, the preflight refuses it before a process starts; `bash` and PowerShell habits are refused the same way, with the Nushell spelling in the error.
 
 ## Status
 

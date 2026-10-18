@@ -2,11 +2,11 @@
 
 [English](../../README.md) | 中文
 
-dsh-nu 强制 DeepSeek Harness 用 Nushell 执行所有 shell 命令，禁用 `bash` / `pwsh` 执行器。具体实现方式：
+dsh-nu 强制 DeepSeek Harness 用 Nushell 执行所有 shell 命令，禁用 `bash` / `pwsh` 执行器。它主要做三件事：
 
-- 通过 DeepSeek Harness 提供的底层扩展接口，在运行时把 `bash` / `pwsh` 执行器换成 Nushell 执行器（命令通过 `nu --no-config-file -c "<command>"` 执行）。dsh 侧看到的仍然是同一个 `bash` / `pwsh` 工具，调用方式不变；这让 Nushell 执行器能无缝接入 dsh，兼容其他插件与功能，代价是看起来有点奇怪：调用 `bash` 工具，传入的却是 Nushell 脚本。
-- 在 system prompt 里加入一小节 Nushell 规则和语法指南；这部分教学内容会占用上下文，但很关键，关掉后模型调用 shell 工具时会频繁报错。
-- Nushell 命令如果把工作交给其他 shell，预检会在进程启动前拒绝它；bash 和 PowerShell 习惯也会在启动前被拦下，并给出对应的 Nushell 写法。
+- **换执行器**：通过 DeepSeek Harness 提供的底层扩展接口，在运行时把 `bash` / `pwsh` 执行器换成 Nushell 执行器（命令通过 `nu --no-config-file -c "<command>"` 执行）。dsh 侧看到的仍然是同一个 `bash` / `pwsh` 工具，调用方式不用变；这让 Nushell 执行器能无缝接入 dsh，兼容其他插件与功能。代价是看起来会有点奇怪：调用 `bash`/`pwsh` 工具，传入的却是 Nushell 脚本。
+- **教模型**：在 system prompt 里加入一小节 Nushell 规则和语法指南；这部分教学内容会占用一定上下文，但很关键，关掉后模型调用 shell 工具时会频繁报错。
+- **拦 handoff**：Nushell 命令如果把工作交给其他 shell，预检会在进程启动前拒绝它；`bash` 和 PowerShell 习惯也会在启动前被拦截，并在错误信息中给出对应的 Nushell 写法。
 
 ## 状态
 
