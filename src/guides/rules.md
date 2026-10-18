@@ -1,9 +1,11 @@
 Shell: Nushell only
 
-Every shell call runs through Nushell as `nu --no-config-file -c "<command>"`. There is no bash or PowerShell fallback, so do not write bash/PowerShell syntax and do not hand work to another shell.
+Every shell call runs through Nushell as `nu --no-config-file -c "<command>"`. There is no bash or PowerShell fallback, so do not write bash/PowerShell syntax and do not hand work to another shell. If Nushell cannot be resolved, the bundle fails closed; it does not substitute another shell.
 
 - One process per call: variables, aliases, and `cd` do not persist. Pass `workdir` instead of changing directory.
+- Prefer the native read, grep, glob, write, and edit tools; use the shell forms below only when the work is already inside a shell command.
 - Values are structured: pipelines pass tables and records. Use `where`, `select`, `get`, `each`, and `sort-by` instead of parsing text. Optional field access is `$rec.field?`.
+- A raw list or table as the final value renders as a wide table. Serialize it deliberately: `to text` for line-oriented output, `to json` for structure.
 - Redirect stdout with `o> f`, stderr with `e> f`, both with `o+e> f`; discard a stream with `e>| ignore` or `o+e>| ignore`; capture a record with `(do { cmd } | complete)`.
 - Variables are `let x = ...` and `mut x = ...`; the environment is `$env.NAME` (optional read: `$env.NAME?`).
 - Control flow is `if` / `for x in $xs { }` / `match`. `for` is for side effects and cannot be piped; build a list with `... | each {|x| ... }`.

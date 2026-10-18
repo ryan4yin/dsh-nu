@@ -5,14 +5,14 @@ Shell calls run through Nushell as `nu --no-config-file -c "<command>"`. Each ca
 ## Values and quoting
 
 - Bare words are strings or numbers; lists are `[1 2 3]` and records are `{ name: "x", size: 3 }`.
-- Single and double quotes are literal; double quotes still process escapes such as `
-`. Interpolation is only `$"text (expr)"`; a raw string keeps everything literal.
+- Single quotes are literal; double quotes process escapes such as `\n`. Interpolation is only `$"text (expr)"`; a raw string keeps everything literal.
 - Interpolation uses `$"text (expr)"`; subexpressions use parentheses: `(ls | length)`. Optional field access is `$rec.field?`; a missing required field errors.
 
 ## Pipelines and tables
 
+- Prefer the native read, grep, glob, write, and edit tools; use these shell forms only when the work is already inside a shell command.
 - `ls`, `ps`, and `open file.json` produce structured values. Filter with `where`, project with `select`, extract with `get`, transform with `each`, order with `sort-by`.
-- `where size > 1mb` compares typed sizes; quote strings (`where name == "a.md"`). Convert at the boundary with `to json` / `to csv` / `to text`; those return text, not a table.
+- `where size > 1mb` compares typed sizes; quote strings (`where name == "a.md"`). Convert at the boundary with `to json` / `to csv` / `to text`; those return text, not a table. A raw list or table as the final value renders as a wide table, so serialize it deliberately: `to text` for lines or `to json` for structure.
 
 ## Variables and environment
 
@@ -47,5 +47,7 @@ Shell calls run through Nushell as `nu --no-config-file -c "<command>"`. Each ca
 - Do not find a process with `ps | grep`; it matches the grep itself. Capture the job handle or PID when you start the process, and stop that handle.
 
 ## When Nushell refuses
+
+This bundle fails closed when Nushell cannot be resolved; it never substitutes another shell.
 
 The dialect preflight refuses bash/PowerShell habits before running them: numbered redirection, `$env:VAR`, bare assignment, `foreach`, cmdlets, `&&` / `||`, command substitution, `$?`, comma-separated columns, and bash flags on Nushell builtins. Fix the fragment the refusal names instead of working around it.

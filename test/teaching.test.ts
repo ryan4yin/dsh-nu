@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { buildGuide, NUSHELL_COMMAND_DESCRIPTION } from '../src/guide.ts'
+import { buildGuide, buildToolDescription, NUSHELL_COMMAND_DESCRIPTION } from '../src/guide.ts'
 import {
   apply,
   GUIDE_SECTION,
@@ -63,6 +63,21 @@ test('the guide does not claim double-quoted strings interpolate', () => {
   assert.match(text, /Interpolation is only/)
   assert.doesNotMatch(text, /double quotes interpolate/i)
   assert.match(text, /to json.*returns text|return text, not a table/)
+})
+
+test('the guides prefer native tools and serialize final output', () => {
+  for (const variant of ['full', 'compact'] as const) {
+    const text = buildGuide({ variant })
+    assert.match(text, /native read, grep, glob, write, and edit tools/)
+    assert.match(text, /to text[\s\S]*(?:to json|for lines)/i)
+  }
+  const full = buildGuide({ variant: 'full' })
+  assert.match(full, /fails closed/)
+  assert.doesNotMatch(full, /Single and double quotes are literal/)
+  assert.match(full, /Single quotes are literal; double quotes process escapes/)
+  const tool = buildToolDescription()
+  assert.match(tool, /native read, grep, glob, write, and edit tools/)
+  assert.match(tool, /to text[\s\S]*(?:to json|for lines)/i)
 })
 
 test('guide off drops the guide and rules false drops the rules', () => {
