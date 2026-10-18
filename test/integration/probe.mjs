@@ -63,6 +63,11 @@ export async function apply(ctx) {
   await background.done
   record('a killed background call settles as killed', background.status === 'killed', background.status)
 
+  if (process.platform !== 'win32') {
+    const denied = await run(shell, '^nu --no-config-file -c "print probe" o> /etc/dsh-nu-integration-denied')
+    record('a write outside the workspace is denied with a hint', denied.exitCode !== 0 && /Nushell hint \((permission-denied|read-only-filesystem)\)/.test(denied.stderr.text), 'exit ' + denied.exitCode + ' ' + denied.stderr.text.replace(/\s+/g, ' ').slice(0, 160))
+  }
+
   const failed = await run(shell, 'ls /definitely-missing-dsh-nu-probe')
   record('a failed command carries one Nushell hint', /Nushell hint \(path-not-found\)/.test(failed.stderr.text), failed.stderr.text)
 
