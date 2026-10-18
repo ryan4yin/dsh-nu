@@ -4,8 +4,10 @@ import {
   chooseBinary,
   commandArgv,
   DEFAULT_NU_ARGS,
+  dshVersionWarning,
   normalizePrefix,
   parseVersion,
+  TESTED_DSH,
   TESTED_NUSHELL,
 } from '../src/nu.ts'
 
@@ -42,6 +44,14 @@ test('parseVersion accepts banner variants and rejects junk', () => {
   assert.equal(parseVersion('no version here'), undefined)
 })
 
-test('the tested Nushell pin matches the manifest', () => {
+test('the tested pins match the manifest', () => {
   assert.equal(TESTED_NUSHELL, '0.115.1')
+  assert.equal(TESTED_DSH, '0.2.1-rc.2')
+})
+
+test('the dsh compatibility warning only fires on a mismatch', () => {
+  assert.ok(TESTED_DSH !== undefined)
+  assert.equal(dshVersionWarning(undefined), undefined)
+  assert.equal(dshVersionWarning(TESTED_DSH), undefined)
+  assert.match(dshVersionWarning('0.0.1') ?? '', /differs from the tested/)
 })

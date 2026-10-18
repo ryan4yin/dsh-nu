@@ -3,7 +3,9 @@
  * becomes an argv, and what the boot probe learned.
  */
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
 
 /** The flags every command runs behind; the command itself is appended last. */
 export const DEFAULT_NU_ARGS = ['--no-config-file', '-c'] as const
@@ -39,18 +41,53 @@ export const nuFacts: NuFacts = {
   problem: undefined,
 }
 
-/** The Nushell version this release is tested against, read from the manifest. */
-export const TESTED_NUSHELL: string | undefined = (() => {
+/** One field of the manifest's testedWith record, read next to the built module. */
+function testedWith(key: 'dsh' | 'nushell'): string | undefined {
   try {
     const manifest: unknown = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
     const value = typeof manifest === 'object' && manifest !== null
-      ? (manifest as { testedWith?: { nushell?: unknown } }).testedWith?.nushell
+      ? (manifest as { testedWith?: Record<string, unknown> }).testedWith?.[key]
       : undefined
     return typeof value === 'string' && value.length > 0 ? value : undefined
   } catch {
     return undefined
   }
-})()
+}
+
+/** The Nushell version this release is tested against, read from the manifest. */
+export const TESTED_NUSHELL: string | undefined = testedWith('nushell')
+
+/** The dsh version this release is tested against, read from the manifest. */
+export const TESTED_DSH: string | undefined = testedWith('dsh')
+
+/** A warning when the installed dsh is outside the tested pair; quiet when unknown. */
+export function dshVersionWarning(version: string | undefined): string | undefined {
+  if (version === undefined || TESTED_DSH === undefined || version === TESTED_DSH) return undefined
+  return 'dsh ' + version + ' differs from the tested ' + TESTED_DSH + '; the peer ranges were written against that pair'
+}
+
+/** The installed dsh version, resolved from the shell peer package; undefined when absent. */
+export function resolveDshVersion(): string | undefined {
+  try {
+    const require = createRequire(import.meta.url)
+    let dir = dirname(require.resolve('@deepseek-ai/dsh-system-prompt'))
+    for (let depth = 0; depth < 8; depth++) {
+      const manifestPath = join(dir, 'package.json')
+      if (existsSync(manifestPath)) {
+        const manifest: unknown = JSON.parse(readFileSync(manifestPath, 'utf8'))
+        const name = typeof manifest === 'object' && manifest !== null ? (manifest as { name?: unknown }).name : undefined
+        const version = typeof manifest === 'object' && manifest !== null ? (manifest as { version?: unknown }).version : undefined
+        if (typeof name === 'string' && name.startsWith('@deepseek-ai/dsh') && typeof version === 'string') return version
+      }
+      const parent = dirname(dir)
+      if (parent === dir) break
+      dir = parent
+    }
+  } catch {
+    // The peer is optional; no version to compare.
+  }
+  return undefined
+}
 
 /** Pick the executable: explicit config, then DSH_NU_PATH, then PATH lookup. */
 export function chooseBinary(configured: unknown, env: Record<string, string | undefined> = process.env): NuChoice {
