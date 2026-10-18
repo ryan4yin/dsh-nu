@@ -65,7 +65,9 @@ profile, and boots the real dsh. The probe runs Nushell builtins through the
 live shell seam, asserts that a foreign shell and a bash redirection are refused
 before a process exists, checks the failure hint, and inspects the assembled
 prompt and tool description. It needs the same prerequisites as the probe and a
-POSIX host for the current probe; CI runs it on Linux.
+POSIX host for the current probe; CI runs it on Linux. It boots twice by default:
+native mode checks the tool description, and PTC mode checks the generated `tools:sdk`
+declarations as well. Pass `--native` or `--ptc` to run one mode.
 
 ## CI matrix
 

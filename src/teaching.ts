@@ -127,6 +127,8 @@ function rewriteTool(raw: unknown, options: Options): unknown {
 const SDK_REPLACEMENTS: ReadonlyArray<readonly [RegExp, string]> = [
   [/Execute a bash command/gi, 'Execute a Nushell command'],
   [/Execute a PowerShell command/gi, 'Execute a Nushell command'],
+  [/The bash command to execute\./gi, NUSHELL_COMMAND_DESCRIPTION],
+  [/The PowerShell command to execute\./gi, NUSHELL_COMMAND_DESCRIPTION],
   [/The bash command to execute/gi, NUSHELL_COMMAND_DESCRIPTION],
   [/The PowerShell command to execute/gi, NUSHELL_COMMAND_DESCRIPTION],
   [/bash -c/gi, 'nu --no-config-file -c'],

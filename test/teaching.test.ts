@@ -103,6 +103,11 @@ test('totality: settings are validated at boot', () => {
   assert.throws(() => normalizeConfig({ toolNames: [1] }), /toolNames/)
 })
 
+test('the SDK rewrite does not double a sentence period', () => {
+  const text = rewriteSdkText('The bash command to execute. Runs bash -c.')
+  assert.doesNotMatch(text, /\.\./)
+})
+
 test('the SDK rewrite is idempotent', () => {
   const once = rewriteSdkText('Execute a bash command with bash -c')
   const twice = rewriteSdkText(once)

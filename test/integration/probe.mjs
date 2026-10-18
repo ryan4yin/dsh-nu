@@ -71,7 +71,18 @@ export async function apply(ctx) {
   record('the prompt carries the shell rules', prompt.includes('Shell: Nushell only'))
   record('the prompt carries the syntax guide', prompt.includes('Nushell syntax guide'))
   const tool = assembly.tools?.find((entry) => entry.name === 'bash' || entry.name === 'pwsh')
-  record('the shell tool description is Nushell', tool !== undefined && /dialect is Nushell/.test(tool.description), tool?.name)
+  if (tool !== undefined) record('the shell tool description is Nushell', /dialect is Nushell/.test(tool.description), tool.name)
+
+  const sdk = assembly.sections.find((section) => section.name === 'tools:sdk')
+  if (process.env.DSH_NU_PROBE_PTC === '1') {
+
+    record('the PTC SDK section is generated', sdk !== undefined)
+    if (sdk !== undefined) {
+      record('the PTC SDK declarations describe Nushell', /Execute a Nushell command/.test(sdk.text))
+      record('the PTC SDK declarations never claim bash', !/Execute a bash command/.test(sdk.text) && !/The bash command/.test(sdk.text) && !/bash -c/.test(sdk.text))
+      record('the PTC SDK sentence keeps one period', !/PowerShell\)\.\./.test(sdk.text))
+    }
+  }
 
   const failures = results.filter((entry) => !entry.ok)
   if (failures.length === 0) console.log('PROBE OK')
