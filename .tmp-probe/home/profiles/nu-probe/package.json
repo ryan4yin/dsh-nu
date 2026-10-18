@@ -1,0 +1,15 @@
+{
+  "name": "nu-probe",
+  "private": true,
+  "dependencies": {
+    "dsh-nu": "file:../../.."
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "dsh-nu"
+      ]
+    }
+  }
+}

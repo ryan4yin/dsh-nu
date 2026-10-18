@@ -22,6 +22,7 @@ const PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['docs/why.md', 'docs/zh/why.md'],
   ['docs/troubleshooting.md', 'docs/zh/troubleshooting.md'],
   ['docs/verification.md', 'docs/zh/verification.md'],
+  ['docs/nushell-friction-review.md', 'docs/zh/nushell-friction-review.md'],
 ]
 
 const FILES = [
@@ -33,6 +34,8 @@ const FILES = [
   'docs/zh/troubleshooting.md',
   'docs/verification.md',
   'docs/zh/verification.md',
+  'docs/nushell-friction-review.md',
+  'docs/zh/nushell-friction-review.md',
   'docs/adr/0001-distribution-and-support.md',
   'examples/preset-nu-shell.md',
   'cordis.patch.yml',

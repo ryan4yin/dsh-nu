@@ -41,6 +41,7 @@ bundle patch 是 `cordis.patch.yml`。`examples/preset-nu-shell.md` 列出了需
 - [为什么只要 Nushell](why.md)
 - [故障排查](troubleshooting.md)
 - [验证](verification.md)
+- [Nushell 摩擦审查](nushell-friction-review.md)
 - [分发与支持（ADR）](../adr/0001-distribution-and-support.md)
 
 ## 致谢
