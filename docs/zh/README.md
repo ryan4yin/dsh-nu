@@ -54,8 +54,10 @@ npm run build
 
 ## 配置
 
+bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch 按 id 覆盖其中任意一行。下面这个 profile patch 列出所有字段及其默认值：
+
 ```yaml
-- id: nushell-executor
+- id: nu-executor
   name: dsh-nu/executor
   config:
     nuPath: ""
@@ -67,7 +69,7 @@ npm run build
     verifyNu: true
     foreignShellAllowlist: []
 
-- id: nushell-teaching
+- id: nu-teaching
   name: dsh-nu/teaching
   config:
     guide: full          # full | compact | off
@@ -95,7 +97,7 @@ npm run build
 - `compact` 覆盖常见写法，prompt token 更少；评测里大多数样本没有触发拒绝。
 - `full` 保留完整语法参考，覆盖不常见写法和边界情况。
 
-沙箱预算（`cwd`、`timeoutMs` 等）配在 `nushell-executor` 行上，不放进 dsh 共享的 `shell` 设置。要覆盖某一行，在 profile 自己的 `cordis.patch.yml` 里按 id 改。`examples/preset-nu-shell.md` 列出了需要关闭的 preset 级 shell 绕过项。
+沙箱预算（`cwd`、`timeoutMs` 等）配在 `nu-executor` 行上，不放进 dsh 共享的 `shell` 设置。要覆盖某一行，在 profile 自己的 `cordis.patch.yml` 里按 id 改。`examples/preset-nu-shell.md` 列出了需要关闭的 preset 级 shell 绕过项。
 
 ## “只要 Nushell”覆盖不到的地方
 
