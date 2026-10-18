@@ -97,7 +97,7 @@ npm run build
 
 - `off` 只用于诊断对照：它去掉规则和指南，评测中出现了明显更多的预检拒绝和重试，正常会话不要用。
 - `compact` 覆盖常见写法，prompt token 更少；评测里大多数样本没有触发拒绝。
-- `full` 保留引号、表格、控制流和重定向的详细说明，适合复杂或更地道的 Nushell 脚本。
+- `full` 保留完整语法参考，覆盖不常见写法和边界情况。
 
 沙箱预算（`cwd`、`timeoutMs` 等）配在 `nushell-executor` 行上，不放进 dsh 共享的 `shell` 设置。要覆盖某一行，在 profile 自己的 `cordis.patch.yml` 里按 id 改。`examples/preset-nu-shell.md` 列出了需要关闭的 preset 级 shell 绕过项。
 

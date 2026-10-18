@@ -99,7 +99,7 @@ Choose the guide by goal:
 
 - `off` is a diagnostic baseline only. It removes the rules and guide, and the eval recorded many preflight refusals and extra retries; do not use it in normal sessions.
 - `compact` covers the common idioms and uses fewer prompt tokens. It handled most eval samples without a refusal.
-- `full` keeps the detailed quoting, table, control-flow, and redirection guidance for complex or idiomatic Nushell scripts.
+- `full` keeps the detailed syntax reference for uncommon syntax and edge cases.
 
 Sandbox budgets (`cwd`, `timeoutMs`, …) stay on the `nushell-executor` row, not in dsh's shared `shell` settings namespace. Override any row by id in the profile's own `cordis.patch.yml`. `examples/preset-nu-shell.md` lists the preset-level shell bypasses to disable.
 
