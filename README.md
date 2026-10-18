@@ -2,15 +2,11 @@
 
 English | [中文](docs/zh/README.md)
 
-dsh-nu forces DeepSeek Harness to run every shell command in Nushell, with the bash and pwsh executors disabled.
+dsh-nu forces DeepSeek Harness to run every shell command in Nushell, with the `bash` / `pwsh` executors disabled. How it works:
 
-It uses the low-level extension point DeepSeek Harness exposes to replace the `bash` / `pwsh` executor with a Nushell executor at runtime. Every shell call runs as one isolated process:
-
-```text
-nu --no-config-file -c "<command>"
-```
-
-dsh still uses the same `bash` / `pwsh` tool with the same calling convention, and the sandbox (`dsh-sandbox-local` and `dsh-sandbox-policy`) keeps working, so no other dsh plugin needs code changes. The bundle replaces the model-facing shell tool descriptions with Nushell ones and adds a short rules section and a syntax guide to the system prompt; that teaching text costs context, and with it turned off the model hits frequent errors when calling the shell tool. A command that hands work to another shell is rejected before a process starts, and bash or PowerShell habits are refused locally, with the Nushell spelling to use instead.
+- Through the low-level extension point DeepSeek Harness exposes, it replaces the `bash` / `pwsh` executor with a Nushell executor at runtime (commands run as `nu --no-config-file -c "<command>"`). dsh still sees the same `bash` / `pwsh` tool with the same calling convention, so the Nushell executor plugs into dsh and stays compatible with every other plugin and feature. The oddity is cosmetic: the model calls a tool named `bash` and passes it Nushell script.
+- It adds a short Nushell rules section and syntax guide to the system prompt. That teaching text costs context but matters: with it turned off, the model hits frequent errors when calling the shell tool.
+- When a Nushell command hands work to another shell, the preflight refuses it before a process starts; bash and PowerShell habits are refused the same way, with the Nushell spelling to use instead.
 
 ## Status
 

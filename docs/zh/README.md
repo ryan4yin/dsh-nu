@@ -2,15 +2,11 @@
 
 [English](../../README.md) | 中文
 
-dsh-nu 强制 DeepSeek Harness 用 Nushell 执行所有 shell 命令，禁用 `bash` / `pwsh` 执行器。
+dsh-nu 强制 DeepSeek Harness 用 Nushell 执行所有 shell 命令，禁用 `bash` / `pwsh` 执行器。具体实现方式：
 
-它通过 DeepSeek Harness 提供的底层扩展接口，在运行时把 `bash` / `pwsh` 执行器换成 Nushell 执行器。每次 shell 调用都是一个独立进程：
-
-```text
-nu --no-config-file -c "<command>"
-```
-
-dsh 侧仍是同一个 `bash` / `pwsh` 工具，调用方式不变；沙箱（`dsh-sandbox-local` 与 `dsh-sandbox-policy`）也照常工作，其他 dsh 插件无需改代码。插件把模型看到的 shell 工具描述换成 Nushell 版本，并在 system prompt 里加入一小节规则和语法指南；这部分教学内容会占用上下文，关掉后模型调用 shell 工具时会频繁报错。命令如果把工作交给其他 shell，预检会在进程启动前拒绝它；bash 和 PowerShell 习惯也会在启动前被拦下，并给出对应的 Nushell 写法。
+- 通过 DeepSeek Harness 提供的底层扩展接口，在运行时把 `bash` / `pwsh` 执行器换成 Nushell 执行器（命令通过 `nu --no-config-file -c "<command>"` 执行）。dsh 侧看到的仍然是同一个 `bash` / `pwsh` 工具，调用方式不变；这让 Nushell 执行器能无缝接入 dsh，兼容其他插件与功能，代价是看起来有点奇怪：调用 `bash` 工具，传入的却是 Nushell 脚本。
+- 在 system prompt 里加入一小节 Nushell 规则和语法指南；这部分教学内容会占用上下文，但很关键，关掉后模型调用 shell 工具时会频繁报错。
+- Nushell 命令如果把工作交给其他 shell，预检会在进程启动前拒绝它；bash 和 PowerShell 习惯也会在启动前被拦下，并给出对应的 Nushell 写法。
 
 ## 状态
 
