@@ -8,8 +8,55 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.changed.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: changed
+        name: Decide whether code changed
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch --no-tags origin "${{ github.base_ref }}"
+          code=false
+          while IFS= read -r file; do
+            case "$file" in
+              src/*|test/*|dev/*|package.json|package-lock.json|tsconfig*.json|cordis.patch.yml|.github/workflows/*)
+                code=true
+                break
+                ;;
+            esac
+          done <<< "$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
+  docs:
+    name: docs
+    needs: changes
+    if: needs.changes.outputs.code != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Documentation tests
+        run: node --import tsx --test test/docs.test.ts
+
   test:
     name: test (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
