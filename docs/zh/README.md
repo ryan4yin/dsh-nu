@@ -89,8 +89,6 @@ npm run build
 | `requireNu` / `verifyNu` | `true` / `true` | nu 无法解析或 `--version` 探测失败时，启动直接失败 |
 | `verifyTimeoutMs` | `10000` | 版本探测的超时时间 |
 
-旧名 `dialectLint` / `dialectHints` 仍作为已弃用别名接受。
-
 按目标选 guide：
 
 - `off` 只用于诊断对照：它去掉规则和指南，评测中出现了明显更多的预检拒绝和重试，正常会话不要用。

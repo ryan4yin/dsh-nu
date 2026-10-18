@@ -62,10 +62,6 @@ export interface NushellConfig {
   enforceNushellOnly?: boolean
   syntaxLint?: boolean
   syntaxHints?: boolean
-  /** @deprecated Use syntaxLint. */
-  dialectLint?: boolean
-  /** @deprecated Use syntaxHints. */
-  dialectHints?: boolean
   requireNu?: boolean
   verifyNu?: boolean
   verifyTimeoutMs?: number
@@ -110,12 +106,8 @@ export class NushellExecutor extends BaseExecutor {
     nuPath: z.string().default(''),
     nuArgs: z.array(z.string()).default([...DEFAULT_NU_ARGS]),
     enforceNushellOnly: z.boolean().default(true),
-    // No schema default: the constructor resolves syntaxLint/syntaxHints, then
-    // the deprecated dialectLint/dialectHints, then true.
-    syntaxLint: z.boolean(),
-    syntaxHints: z.boolean(),
-    dialectLint: z.boolean(),
-    dialectHints: z.boolean(),
+    syntaxLint: z.boolean().default(true),
+    syntaxHints: z.boolean().default(true),
     requireNu: z.boolean().default(true),
     verifyNu: z.boolean().default(true),
     verifyTimeoutMs: z.number().default(10_000),
@@ -133,8 +125,8 @@ export class NushellExecutor extends BaseExecutor {
       prefix: normalizePrefix(config.nuArgs),
       allow: compileAllowlist(config.foreignShellAllowlist),
       enforce: config.enforceNushellOnly !== false,
-      lint: config.syntaxLint ?? config.dialectLint ?? true,
-      hints: config.syntaxHints ?? config.dialectHints ?? true,
+      lint: config.syntaxLint !== false,
+      hints: config.syntaxHints !== false,
       require: config.requireNu !== false,
       verify: config.verifyNu !== false,
       verifyTimeoutMs: typeof config.verifyTimeoutMs === 'number' && config.verifyTimeoutMs > 0 ? config.verifyTimeoutMs : 10_000,

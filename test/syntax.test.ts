@@ -4,7 +4,6 @@ import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { assertNuDialect as legacyAssertNuDialect, findHabit as legacyFindHabit } from '../src/dialect.ts'
 import { assertNushellSyntax, findSyntaxIssue, hintFor, HINT_IDS, RULE_IDS } from '../src/syntax.ts'
 
 const REFUSED: ReadonlyArray<readonly [string, string]> = [
@@ -119,11 +118,6 @@ test('valid Nushell and quoted syntax are not refused', () => {
 test('the allowlist exempts exact commands and refusal names the fix', () => {
   assert.doesNotThrow(() => assertNushellSyntax('echo hi 2>&1', { allow: [/^echo hi 2>&1$/] }))
   assert.throws(() => assertNushellSyntax('echo hi 2>&1'), (error: Error) => error.message.includes('stderr-redirect') && error.message.includes('o+e>'))
-})
-
-test('the deprecated module re-exports the syntax functions', () => {
-  assert.equal(legacyAssertNuDialect, assertNushellSyntax)
-  assert.equal(legacyFindHabit, findSyntaxIssue)
 })
 
 test('hints stay silent without a recognized Nushell error', () => {

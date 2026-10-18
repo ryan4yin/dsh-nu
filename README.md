@@ -91,8 +91,6 @@ Real-model teaching evals are separate from `npm test`; see [`eval/README.md`](.
 | `requireNu` / `verifyNu` | `true` / `true` | Fail boot when `nu` cannot be resolved or fails its `--version` probe |
 | `verifyTimeoutMs` | `10000` | Bound for that probe |
 
-The old `dialectLint` / `dialectHints` names are still accepted as deprecated aliases.
-
 Choose the guide by goal:
 
 - `off` is a diagnostic baseline only. It removes the rules and guide, and the eval recorded many preflight refusals and extra retries; do not use it in normal sessions.

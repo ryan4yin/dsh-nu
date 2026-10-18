@@ -54,11 +54,6 @@ test('the guard and the syntax preflight run before a command becomes argv', () 
   )
 })
 
-test('the deprecated dialectLint: false still disables the syntax preflight', () => {
-  const executor = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu', dialectLint: false }) as never)
-  assert.doesNotThrow(() => executor.nuArgv('print hi 2>&1'))
-})
-
 test('syntaxLint: false disables the syntax preflight', () => {
   const executor = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu', syntaxLint: false }) as never)
   assert.doesNotThrow(() => executor.nuArgv('print hi 2>&1'))

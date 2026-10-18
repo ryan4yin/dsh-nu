@@ -23,8 +23,8 @@ All notable changes to this project are recorded here. The format follows
   `dialectHints` are now `syntaxLint` / `syntaxHints`; the module path
   `dsh-nu/dialect` is now `dsh-nu/syntax`, and the exported functions
   `assertNuDialect` / `findHabit` are now `assertNushellSyntax` /
-  `findSyntaxIssue`. The old config keys, module path, and function names remain
-  as deprecated aliases. The release that includes this rename will be 0.3.0.
+  `findSyntaxIssue`. No compatibility aliases are kept. The release that
+  includes this rename will be 0.3.0.
 
 ## 0.2.1 (2026-10-18)
 

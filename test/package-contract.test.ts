@@ -59,13 +59,9 @@ test('exported entry points resolve to built files after a build', { skip: !exis
   }
 })
 
-test('the syntax and deprecated dialect entry points both resolve after a build', { skip: !existsSync(resolve(ROOT, 'dist')) }, () => {
+test('the syntax entry point resolves after a build', { skip: !existsSync(resolve(ROOT, 'dist')) }, () => {
   const syntax = manifest.exports['./syntax']
-  const dialect = manifest.exports['./dialect']
   assert.ok(syntax !== undefined && typeof syntax !== 'string', './syntax export')
-  assert.ok(dialect !== undefined && typeof dialect !== 'string', './dialect export')
   assert.equal(syntax.types, './dist/syntax.d.ts')
   assert.equal(syntax.default, './dist/syntax.js')
-  assert.equal(dialect.types, './dist/dialect.d.ts')
-  assert.equal(dialect.default, './dist/dialect.js')
 })
