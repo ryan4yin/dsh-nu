@@ -91,8 +91,9 @@ const RULES: readonly Rule[] = [
   },
   {
     id: 'bare-assignment',
-    // `$x =~ ...` is a comparison, not an assignment.
-    match: /(?:^|[\s;|(])\$[A-Za-z_][A-Za-z0-9_]*\s*=(?![=~])/,
+    // `$x =~ ...` is a comparison and `$x => ...` is a match-arm binding;
+    // neither is an assignment.
+    match: /(?:^|[\s;|(])\$[A-Za-z_][A-Za-z0-9_]*\s*=(?![=~>])/,
     fix: 'Nushell has no bare $x = assignment: bind with let x = ... (immutable) or mut x = ... (reassignable); the environment is $env.x = ....',
   },
   {
