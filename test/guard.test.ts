@@ -44,6 +44,26 @@ test('refuses launchers that would start a foreign shell', () => {
   }
 })
 
+test('refuses a handoff nested in a block or a subexpression', () => {
+  for (const command of [
+    'do { bash -c "echo hi" }',
+    'let x = (sh -c "echo hi")',
+    'if true { zsh -c "echo hi" }',
+    'for x in [1] { pwsh -Command Get-ChildItem }',
+  ]) {
+    assert.notEqual(findHandoff(command), undefined, command)
+  }
+  for (const command of [
+    'command -v bash',
+    'print "do { bash -c x }"',
+    'let r = { bash: 1 }',
+    '[1 2] | each { |sh| $sh }',
+    'def bash [] { print hi }',
+  ]) {
+    assert.equal(findHandoff(command), undefined, command)
+  }
+})
+
 test('allows quoted, commented, raw, and external lookalikes', () => {
   for (const command of [
     'print "bash -c echo hi"',

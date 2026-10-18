@@ -22,7 +22,7 @@ Raw events and model configuration stayed in a local untracked workspace.
 `answerMatched` ignores the budget.
 
 | actor | arm | task success | answer matched | first clean | violations | refused | tokens |
-|---|---|---|---:|---:|---:|---:|---:|---:|
+|---|---|---|---:|---:|---:|---:|---:|
 | GPT-6 Luna | full | 17/18 | 18/18 | 18 | 0 | 0 | 733,098 |
 | GPT-6 Luna | off | 16/18 | 18/18 | 11 | 10 | 10 | 847,774 |
 | DeepSeek Flash | full | 17/18 | 18/18 | 18 | 0 | 0 | 750,825 |
@@ -30,7 +30,7 @@ Raw events and model configuration stayed in a local untracked workspace.
 
 Both arms eventually produced the right answer for every sample. The difference is
 how they got there: the `off` arm repeatedly wrote shapes the guard refused (ten
-and fourteen times), spent extra turns recovering, and consumed 11-19% more
+and fourteen times), spent extra turns recovering, and consumed 15-23% more
 tokens. The only strict task failures in the `full` arm were call-budget misses:
 one Markdown sample used three calls instead of the requested one, and one stderr
 sample used five; their answers were correct.
