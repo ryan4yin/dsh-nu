@@ -1,0 +1,42 @@
+# Agent guide
+
+This repository is a DeepSeek Harness bundle that makes Nushell the only shell
+and teaches the model to write it. The user-facing docs are the README and
+`docs/`; this file is for agents changing the code.
+
+## Commands
+
+```sh
+npm install
+node dev/link-peers.mjs --root <dsh-install-root>
+npm run typecheck
+npm test                        # unit, differential, hints, claims, docs, manifest
+npm run build
+npm run test:integration        # real dsh boot: native + PTC (POSIX)
+npm run probe                   # composed config probe against the real dsh
+npm pack --dry-run
+```
+
+## Architecture map
+
+- `src/executor.ts` — the single `ctx.shell` provider; extends the first-party
+  sandbox executor and replaces only the argv with `nu --no-config-file -c`.
+- `src/guard.ts` — foreign-shell detection over a quoted/comment-blanked view.
+- `src/dialect.ts` — preflight rules, failure hints, and their ids.
+- `src/guide.ts` — rules section, syntax guide, tool description text.
+- `src/teaching.ts` — system-prompt sections and the PTC `tools:sdk` rewrite.
+- `src/nu.ts` — executable choice, argv prefix, tested pins, version helpers.
+- `cordis.patch.yml` — disables the platform shell rows and mounts this bundle.
+
+## Rules
+
+- Do not copy files or code blocks from the archived implementation. Use it as
+  a capability checklist and reimplement from observed behaviour.
+- A model-facing claim that can be executed must have a test that executes it;
+  a hint or rule must have a real failing Nushell sample.
+- Keep the tested pair in `package.json` `testedWith` and the peer ranges in
+  sync; `test/package-contract.test.ts` enforces it.
+- Run the local suite before opening a PR; CI is the platform matrix gate, not
+  the debugging loop.
+- Every commit and generated PR description carries the
+  `Assisted-by: DeepSeek Harness (<model>)` trailer.
