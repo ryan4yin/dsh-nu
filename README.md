@@ -38,6 +38,8 @@ npm run build
 
 `dev/link-peers.mjs` links the dsh peer packages into `node_modules` so the test suite can drive the real seams without publishing.
 
+The suite runs on Node 24. The package allows Node 22.19 and newer, but versions other than 24 are untested.
+
 ## Configuration
 
 ```yaml

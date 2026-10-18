@@ -12,8 +12,13 @@ const manifest = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8'))
   peerDependenciesMeta: Record<string, { optional?: boolean }>
   exports: Record<string, { default: string } | string>
   files: string[]
+  engines: { node: string }
   dsh: { bundle: { patch: string } }
 }
+
+test('the package allows Node 22 but is tested on Node 24', () => {
+  assert.equal(manifest.engines.node, '>=22.19.0')
+})
 
 test('the dsh peer ranges and the tested pair agree', () => {
   assert.match(manifest.testedWith.dsh, /^\d+\.\d+\.\d+(-rc\.\d+)?$/)
