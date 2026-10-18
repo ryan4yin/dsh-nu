@@ -22,15 +22,25 @@ dsh-nu supports only that pair. The peer ranges cover the dsh family, and boot l
 
 ## Install
 
-Install the package from npm:
+Requires dsh `0.2.1-rc.2` and Nushell `0.115.1` on `PATH`.
+
+Add the bundle to a dsh profile:
 
 ```sh
-npm install dsh-nu
+dsh plugin --profile tui add dsh-nu@0.1.0
 ```
 
-Then mount `dsh-nu/executor` and `dsh-nu/teaching` in the dsh profile and disable the platform shell executor rows. See the configuration below and [`examples/preset-nu-shell.md`](examples/preset-nu-shell.md).
+Use `--profile web` for the browser app. The first `dsh plugin` call creates the profile; the bundle's patch disables the platform shell executors and mounts the Nushell executor and teaching layer. Start the profile with `dsh tui` (or `dsh web`).
 
 ## Development
+
+The repository ships a flake with the tested Node and Nushell versions:
+
+```sh
+nix develop
+```
+
+Inside the shell, or with your own Node 24 and Nushell 0.115.1:
 
 ```sh
 npm install

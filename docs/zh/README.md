@@ -22,15 +22,25 @@ dsh-nu 只支持这一组合。peer 依赖只覆盖 dsh 家族；启动时如果
 
 ## 安装
 
-从 npm 安装：
+需要 `PATH` 上有 dsh `0.2.1-rc.2` 和 Nushell `0.115.1`。
+
+把 bundle 装进 dsh profile：
 
 ```sh
-npm install dsh-nu
+dsh plugin --profile tui add dsh-nu@0.1.0
 ```
 
-然后在 dsh profile 里挂载 `dsh-nu/executor` 和 `dsh-nu/teaching`，并关闭平台 shell 执行器行。配置见下方，也可以参考 [`examples/preset-nu-shell.md`](../../examples/preset-nu-shell.md)。
+浏览器界面把 `--profile` 换成 `web`。第一次运行 `dsh plugin` 会创建 profile；bundle 的 patch 会停用平台 shell 执行器，挂载 Nushell 执行器和教学层。用 `dsh tui`（或 `dsh web`）启动。
 
 ## 开发
+
+仓库自带 flake，提供测试过的 Node 和 Nushell 版本：
+
+```sh
+nix develop
+```
+
+进入 shell 后，或者本机已有 Node 24 和 Nushell 0.115.1 时：
 
 ```sh
 npm install
