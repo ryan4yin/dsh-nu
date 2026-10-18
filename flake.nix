@@ -1,5 +1,5 @@
 {
-  description = "dsh-nu development environment";
+  description = "dsh-nu: Nushell-only shell bundle for DeepSeek Harness";
 
   # Pinned to the nixpkgs revision that packages the tested Nushell 0.115.1.
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/55ba7f49ef2962b42cbd126522b7df5f95037679";
@@ -16,6 +16,22 @@
     ];
     forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
   in {
+    lib = {
+      # Build the plugin from this checkout against the dsh installation it
+      # plugs into. The caller supplies both, so this flake does not depend on
+      # how dsh itself is packaged. Use the result with
+      # `dsh.withPlugins [ (dsh-nu.lib.mkDshNuPackage { inherit pkgs dsh; }) ]`.
+      mkDshNuPackage = {
+        pkgs,
+        dsh,
+        nushell ? pkgs.nushell,
+      }:
+        pkgs.callPackage ./nix/dsh-nu.nix {
+          inherit dsh nushell;
+          src = self.outPath;
+        };
+    };
+
     devShells = forAllSystems (system: let
       pkgs = import nixpkgs {inherit system;};
     in {

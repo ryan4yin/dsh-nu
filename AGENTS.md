@@ -27,6 +27,7 @@ npm pack --dry-run
 - `src/teaching.ts`: system-prompt sections and the PTC `tools:sdk` rewrite.
 - `src/nu.ts`: executable choice, argv prefix, tested pins, and version helpers.
 - `cordis.patch.yml`: disables the platform shell rows and mounts this bundle.
+- `nix/dsh-nu.nix`: the flake package, reached through `lib.mkDshNuPackage`; the caller supplies `pkgs` and the `dsh` installation it plugs into, so no release tarball or NUR copy is involved.
 - `eval/`: manual real-model harness with `full`, `compact`, and `off` arms, cross-model judging, and dated reports. Raw samples stay out of the repository.
 
 ## Rules
