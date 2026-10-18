@@ -2,6 +2,19 @@
   "name": "dsh-nu",
   "version": "0.2.1",
   "description": "Nushell as the only shell for DeepSeek Harness: every shell call runs nu, foreign shells are refused before they spawn, and the model is taught Nushell.",
+  "keywords": [
+    "nushell",
+    "nu",
+    "shell",
+    "deepseek",
+    "deepseek-harness",
+    "dsh",
+    "agent",
+    "coding-agent",
+    "plugin",
+    "bundle",
+    "sandbox"
+  ],
   "license": "MIT",
   "author": "ryan4yin",
   "repository": {
