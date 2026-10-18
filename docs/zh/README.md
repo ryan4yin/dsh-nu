@@ -2,9 +2,9 @@
 
 [English](../../README.md) | 中文
 
-dsh-nu 强制 DeepSeek Harness 用 Nushell 执行所有 shell 命令，禁用 bash/pwsh 执行器。
+dsh-nu 强制 DeepSeek Harness 用 Nushell 执行所有 shell 命令，禁用 `bash` / `pwsh` 执行器。
 
-它通过 DeepSeek Harness 提供的底层扩展接口，在运行时把 `bash` / `pwsh` 工具的执行层换成 Nushell。每次 shell 调用都是一个独立进程：
+它通过 DeepSeek Harness 提供的底层扩展接口，在运行时把 `bash` / `pwsh` 执行器换成 Nushell 执行器。每次 shell 调用都是一个独立进程：
 
 每次 shell 调用都是一个独立进程：
 

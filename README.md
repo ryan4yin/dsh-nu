@@ -4,7 +4,7 @@ English | [中文](docs/zh/README.md)
 
 dsh-nu forces DeepSeek Harness to run every shell command in Nushell, with the bash and pwsh executors disabled.
 
-It uses the low-level extension point DeepSeek Harness exposes to swap the `bash` / `pwsh` tool's execution layer for Nushell at runtime. Every shell call runs as one isolated process:
+It uses the low-level extension point DeepSeek Harness exposes to replace the `bash` / `pwsh` executor with a Nushell executor at runtime. Every shell call runs as one isolated process:
 
 Every shell call runs as one isolated process:
 
