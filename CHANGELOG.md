@@ -4,7 +4,7 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 0.1.0 (unreleased)
+## 0.1.0 (2026-10-18)
 
 First release of `dsh-nu`, a clean-room implementation of the Nushell-only shell
 bundle for DeepSeek Harness.

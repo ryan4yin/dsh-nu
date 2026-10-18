@@ -14,7 +14,7 @@ The bundle registers the single `ctx.shell` provider, replaces the model-facing 
 
 ## Status
 
-Pre-release. dsh `0.2.1-rc.2` and Nushell `0.115.1` are the tested pair, recorded in `package.json` under `testedWith`.
+0.1.0 is published on npm. dsh `0.2.1-rc.2` and Nushell `0.115.1` are the tested pair, recorded in `package.json` under `testedWith`.
 
 ## Compatibility
 
@@ -22,7 +22,13 @@ dsh-nu supports only that pair. The peer ranges cover the dsh family, and boot l
 
 ## Install
 
-The package is published on npm. Until the first public release, install it from a release tarball or a local checkout.
+Install the package from npm:
+
+```sh
+npm install dsh-nu
+```
+
+Then mount `dsh-nu/executor` and `dsh-nu/teaching` in the dsh profile and disable the platform shell executor rows. See the configuration below and [`examples/preset-nu-shell.md`](examples/preset-nu-shell.md).
 
 ## Development
 

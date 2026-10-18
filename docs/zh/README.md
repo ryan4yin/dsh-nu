@@ -14,7 +14,7 @@ dsh-nu 注册唯一的 `ctx.shell` provider，把模型看到的 shell 工具描
 
 ## 状态
 
-预发布。当前测试组合是 dsh `0.2.1-rc.2` 与 Nushell `0.115.1`，记录在 `package.json` 的 `testedWith` 里。
+0.1.0 已发布到 npm。当前测试组合是 dsh `0.2.1-rc.2` 与 Nushell `0.115.1`，记录在 `package.json` 的 `testedWith` 里。
 
 ## 兼容性
 
@@ -22,7 +22,13 @@ dsh-nu 只支持这一组合。peer 依赖只覆盖 dsh 家族；启动时如果
 
 ## 安装
 
-本包通过 npm 发布。首次公开发布之前，请从 release tarball 或本地 checkout 安装。
+从 npm 安装：
+
+```sh
+npm install dsh-nu
+```
+
+然后在 dsh profile 里挂载 `dsh-nu/executor` 和 `dsh-nu/teaching`，并关闭平台 shell 执行器行。配置见下方，也可以参考 [`examples/preset-nu-shell.md`](../../examples/preset-nu-shell.md)。
 
 ## 开发
 
