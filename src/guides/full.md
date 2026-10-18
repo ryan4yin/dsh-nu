@@ -6,7 +6,7 @@ Shell calls run through Nushell as `nu --no-config-file -c "<command>"`. Each ca
 
 The preflight refuses these spellings before a process starts. Rewrite them:
 
-- `cmd 2>/dev/null` → `cmd e>| ignore`; `cmd 2>&1` → `cmd o+e> f`, or `(do { cmd } | complete)` to capture both streams.
+- `cmd 2>/dev/null` → `cmd e>| ignore` (even when the task says to ignore errors); `cmd 2>&1` → `cmd o+e> f`, or `(do { cmd } | complete)` to capture both streams.
 - `cmd > f` / `cmd 2> f` / `cmd &> f` → `cmd o> f` / `cmd e> f` / `cmd o+e> f`; append with `o>>` and `e>>`.
 - `a && b` → `a; b`; a failing external aborts the rest, so use `do -i { a }` when it may fail. `a || b` → `try { a } catch { b }`.
 - `mkdir -p a/b` → `mkdir a/b`; `ls -la` → `ls --all --long`; `ls -R` → `ls **/*`.
@@ -16,6 +16,8 @@ The preflight refuses these spellings before a process starts. Rewrite them:
 - `echo hi` → `print "hi"`; a bare `>` is comparison, so `cmd > f` writes no file.
 
 `where $it =~ "x"` is a comparison, not an assignment, and is accepted.
+
+Before sending a command, scan it for `2>`, `&>`, `&&`, a bash flag on a Nushell builtin, a bare `$name =`, and `sh -c` or `bash -c`; the preflight refuses each.
 
 ## Values and quoting
 
