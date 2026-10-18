@@ -10,8 +10,10 @@ guess about Nushell.
 The guard and the dialect preflight refused commands written by the agent that
 built this project. Each refusal was checked against the real shell:
 
-- `2>/dev/null` is not a Nushell redirection. Nushell parses `2>` as
-  `nu::parser::shell_err`; the guard refuses it before a process exists.
+- `2>/dev/null` and `2>nul` are not redirections. Nushell accepts them as
+  ordinary arguments, exits 0, and silently does nothing; the preflight refuses
+  them so the silent no-op never reaches the model as a success. `2> file` with
+  a real target is the parser error `nu::parser::shell_err`.
 - `2>&1` is `nu::parser::shell_outerr` (`o+e>` in Nushell). Refused.
 - `mkdir -p` and `ls -R` fail with `nu::shell::unknown_flag`; Nushell parents
   are implicit and recursion is a glob. Refused with the replacement.
@@ -25,9 +27,10 @@ built this project. Each refusal was checked against the real shell:
 These are the cases a scanner must not "fix" by rewriting; they are real
 behaviour and belong in the guide and the hints instead:
 
-- `print "x" | str length` fails with `nu::shell::pipeline_mismatch` because
-  `print` writes to stdout but returns nothing. The friction corpus now uses
-  `"x" | str length`.
+- `print "x" | str length` fails with `nu::parser::input_type_mismatch`
+  because `print` writes to stdout but returns nothing, so the next stage gets
+  no value. The friction corpus now uses `"x" | str length`, and the teaching
+  layer says to put `print` last or let the final value stand.
 - `>` is comparison in Nushell. A shell-looking `cmd > file` silently writes
   nothing; this is why the guide names `o>`, `e>`, and `o+e>`.
 - `mut x = 1` is required before `$x = 2`; the bare-assignment rule skips a
@@ -57,3 +60,7 @@ behaviour and belong in the guide and the hints instead:
 - Windows has no permission-denied hint sample in CI; the sample is skipped there.
 - The corpus covers common agent commands, not every Nushell feature. A command
   outside it that the guard refuses wrongly should become a corpus entry.
+- A bare `>` is comparison in Nushell, and `cmd > file` silently writes nothing
+  while exiting 0. No preflight rule catches it: the same token is a legitimate
+  comparison, and a heuristic would refuse valid code. The guide warns about it;
+  this stays a documented limitation.
