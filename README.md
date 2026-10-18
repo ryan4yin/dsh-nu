@@ -74,27 +74,27 @@ dsh-nu does not package dsh itself. This flake builds the plugin from the checko
     };
   };
 
-  outputs = { self, nixpkgs, nur-ryan4yin, dsh-nu }: {
-    nixosConfigurations.example = nixpkgs.lib.nixosSystem {
+  outputs = { self, nixpkgs, nur-ryan4yin, dsh-nu }:
+    let
       system = "x86_64-linux";
-      modules = [
-        ({ pkgs, ... }:
-          let
-            dsh = nur-ryan4yin.packages.${pkgs.stdenv.hostPlatform.system}.dsh;
-          in {
-            environment.systemPackages = [
-              (dsh.withPlugins [
-                (dsh-nu.lib.mkDshNuPackage { inherit pkgs dsh; })
-              ])
-            ];
-          })
+      pkgs = nixpkgs.legacyPackages.${system};
+
+      # dsh from nur-ryan4yin; withPlugins applies the bundle patch.
+      dsh = nur-ryan4yin.packages.${system}.dsh;
+      dshWithNu = dsh.withPlugins [
+        (dsh-nu.lib.mkDshNuPackage { inherit pkgs dsh; })
       ];
+    in {
+      packages.${system}.default = dshWithNu;
+
+      # Install `dshWithNu` wherever dsh would go, for example:
+      #   environment.systemPackages = [ dshWithNu ];
+      #   home.packages = [ dshWithNu ];
     };
-  };
 }
 ```
 
-`mkDshNuPackage` needs only the dsh installation's `@deepseek-ai` peer packages, so `llm-agents.nix`'s dsh works there too. Applying the bundle needs a wrapper that adds `--patch`, which `nur-ryan4yin`'s `withPlugins` provides. Bump the bundle with `nix flake update dsh-nu`.
+`nix build` produces that `dsh` binary. `mkDshNuPackage` needs only the dsh installation's `@deepseek-ai` peer packages, so `llm-agents.nix`'s dsh works there too; applying the bundle still needs a wrapper that adds `--patch`, which `nur-ryan4yin`'s `withPlugins` provides. Bump the bundle with `nix flake update dsh-nu`.
 
 ## Configuration
 
