@@ -20,7 +20,7 @@ model-facing names, so saved sessions and prompt caches stay valid.
     - id: nu-executor
       name: dsh-nu/executor
       config:
-        nuPath: /run/current-system/sw/bin/nu
+        nuPath: ""          # or an absolute path when nu is not on PATH
         enforceNushellOnly: true
         syntaxLint: true
     - id: nu-teaching
@@ -42,8 +42,8 @@ can still reach bash through the preset:
   disabled: true
 ```
 
-Replace the ids above with the preset's real entry ids (list them with
-`dsh plugin list --profile <name>`). dsh fails the profile when two shell
+Replace the ids above with the preset's real entry ids (inspect them with
+`dsh --profile <name> --dump-config`). dsh fails the profile when two shell
 providers register the same service, so a missing disable is visible at boot.
 
 ## Configuration
