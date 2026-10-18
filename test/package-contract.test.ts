@@ -45,6 +45,12 @@ test('the published file list ships the runtime artifacts', () => {
   }
 })
 
+test('the published guides ship with the runtime', { skip: !existsSync(resolve(ROOT, 'dist')) }, () => {
+  for (const name of ['compact.md', 'full.md', 'rules.md', 'tool-description.md']) {
+    assert.ok(existsSync(resolve(ROOT, 'dist/guides', name)), name)
+  }
+})
+
 test('exported entry points resolve to built files after a build', { skip: !existsSync(resolve(ROOT, 'dist')) }, () => {
   for (const [key, target] of Object.entries(manifest.exports)) {
     const entry = typeof target === 'string' ? target : target.default

@@ -56,7 +56,7 @@ npm run build
 
 The suite runs on Node 24. The package allows Node 22.19 and newer, but versions other than 24 are untested.
 
-Real-model teaching evals are separate from `npm test`; see [`eval/README.md`](./eval/README.md) for the two-arm harness, cross-model scoring, and the first-round results.
+Real-model teaching evals are separate from `npm test`; see [`eval/README.md`](./eval/README.md) for the three-arm harness, cross-model judging, and the dated results.
 
 ## Configuration
 
@@ -94,6 +94,12 @@ Real-model teaching evals are separate from `npm test`; see [`eval/README.md`](.
 | `rewriteToolDescriptions` | `true` | Rewrite the `bash` / `pwsh` tool descriptions |
 | `requireNu` / `verifyNu` | `true` / `true` | Fail boot when `nu` cannot be resolved or fails its `--version` probe |
 | `verifyTimeoutMs` | `10000` | Bound for that probe |
+
+Choose the guide by goal:
+
+- `off` is a diagnostic baseline only. It removes the rules and guide, and the eval recorded many preflight refusals and extra retries; do not use it in normal sessions.
+- `compact` covers the common idioms and uses fewer prompt tokens. It handled most eval samples without a refusal.
+- `full` keeps the detailed syntax reference for uncommon syntax and edge cases.
 
 Sandbox budgets (`cwd`, `timeoutMs`, …) stay on the `nushell-executor` row, not in dsh's shared `shell` settings namespace. Override any row by id in the profile's own `cordis.patch.yml`. `examples/preset-nu-shell.md` lists the preset-level shell bypasses to disable.
 

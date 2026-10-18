@@ -23,7 +23,7 @@ npm pack --dry-run
 - `src/executor.ts`: the single `ctx.shell` provider. It extends the first-party sandbox executor and replaces only the argv with `nu --no-config-file -c`.
 - `src/guard.ts`: foreign-shell detection over a quoted/comment-blanked view.
 - `src/dialect.ts`: preflight rules, failure hints, and their ids.
-- `src/guide.ts`: rules section, syntax guide, and tool description text.
+- `src/guide.ts`: reads the model-facing rules, syntax guides, and tool descriptions from `src/guides/*.md`; the build copies the four model-facing files to `dist/guides`. `src/guides/README.md` records sources and maintenance steps.
 - `src/teaching.ts`: system-prompt sections and the PTC `tools:sdk` rewrite.
 - `src/nu.ts`: executable choice, argv prefix, tested pins, and version helpers.
 - `cordis.patch.yml`: disables the platform shell rows and mounts this bundle.
