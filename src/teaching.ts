@@ -135,6 +135,13 @@ const SDK_REPLACEMENTS: ReadonlyArray<readonly [RegExp, string]> = [
   [/pwsh -Command/gi, 'nu --no-config-file -c'],
   [/Bash shell/gi, 'Nushell'],
   [/PowerShell shell/gi, 'Nushell'],
+  // Host-shell claims in the generated descriptions that the terms above miss.
+  [/An unset variable expands to an empty string, so guard variables in such paths with `\$\{VAR:\?\}`\./g, 'Reading an unset variable with `$env.NAME` is an error; read `$env.NAME?` and check for null before using it in a path.'],
+  [/Do not assign to automatic variables such as `\$HOME`; variable names are case-insensitive, so `\$home` is the same read-only variable\./g, 'Variable names are case-sensitive.'],
+  [/Under the Windows sandbox, read-only pwsh runs in PowerShell ConstrainedLanguage mode[\s\S]*?core cmdlets work\. /g, ''],
+  [/fresh pwsh process/gi, 'fresh Nushell process'],
+  [/PowerShell's own pipelines/gi, "Nushell's own pipelines"],
+  [/\$env:/g, '$env.'],
 ]
 
 /** Rewrite the generated PTC SDK section text; idempotent. */

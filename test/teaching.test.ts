@@ -60,7 +60,7 @@ test('registers the rules and guide sections after the shell tool', () => {
 
 test('the guide does not claim double-quoted strings interpolate', () => {
   const text = buildGuide({ variant: 'full' })
-  assert.match(text, /Interpolation is only/)
+  assert.match(text, /Interpolation is `\$"text \(expr\)"` or `\$'text \(expr\)'`/)
   assert.doesNotMatch(text, /double quotes interpolate/i)
   assert.match(text, /to json.*returns text|return text, not a table/)
 })
@@ -126,6 +126,24 @@ test('totality: settings are validated at boot', () => {
 test('the SDK rewrite does not double a sentence period', () => {
   const text = rewriteSdkText('The bash command to execute. Runs bash -c.')
   assert.doesNotMatch(text, /\.\./)
+})
+
+test('the SDK rewrite removes host-shell claims from the generated text', () => {
+  const text = [
+    'An unset variable expands to an empty string, so guard variables in such paths with `${VAR:?}`.',
+    'Each call runs in a fresh pwsh process; read environment variables with `$env:NAME`. Managed `$env:DSH_*` variables are set.',
+    'Do not assign to automatic variables such as `$HOME`; variable names are case-insensitive, so `$home` is the same read-only variable.',
+    'Under the Windows sandbox, read-only pwsh runs in PowerShell ConstrainedLanguage mode, while workspace-write stays in FullLanguage unless host policy says otherwise. In read-only, prefer cmdlets and core types (`[string]`); .NET static calls fail with "only core types" errors. `-f` formatting, property access, and core cmdlets work. In both confined modes, programs cannot open named pipes.',
+    "PowerShell's own pipelines are unaffected.",
+  ].join(' ')
+  const rewritten = rewriteSdkText(text)
+  assert.doesNotMatch(rewritten, /\$\{VAR:\?\}|\$env:|case-insensitive|ConstrainedLanguage|pwsh process|PowerShell/)
+  assert.match(rewritten, /\$env\.NAME/)
+  assert.match(rewritten, /\$env\.DSH_\*/)
+  assert.match(rewritten, /fresh Nushell process/)
+  assert.match(rewritten, /Variable names are case-sensitive\./)
+  assert.match(rewritten, /Nushell's own pipelines/)
+  assert.equal(rewriteSdkText(rewritten), rewritten)
 })
 
 test('the SDK rewrite is idempotent', () => {

@@ -32,16 +32,17 @@ function ok(result: Run, command: string): string {
 test('every teaching claim holds in the real Nushell', { skip: !nuAvailable }, () => {
   const cwd = mkdtempSync(join(tmpdir(), 'dsh-nu-claims-'))
   try {
-    // Quotes are literal; only $"..." interpolates.
+    // Quotes are literal; $"..." and $'...' interpolate.
     assert.equal(ok(run('let name = "world"; print "hi $name"', cwd), 'double-quoted literal'), 'hi $name')
     assert.equal(ok(run('let name = "world"; print $"hi ($name)"', cwd), 'interpolation'), 'hi world')
+    assert.equal(ok(run("let name = \"world\"; print $'hi ($name)'", cwd), 'single-quoted interpolation'), 'hi world')
     assert.equal(ok(run("print r#'hi $name'#", cwd), 'raw string'), 'hi $name')
 
     // to json and to text are boundary conversions that return text, not a table.
     assert.equal(ok(run('[[a]; [1]] | to json | describe', cwd), 'to json type'), 'string')
     assert.equal(ok(run('[[a]; [1]] | to text | describe', cwd), 'to text type'), 'string')
 
-    // Double-quoted strings process escapes; only $"..." interpolates.
+    // Double-quoted strings process escapes; interpolation is opt-in.
     assert.equal(ok(run('"a\\nb" | str length', cwd), 'double-quoted escapes'), '3')
 
     // and / or are boolean operators, not command separators.
