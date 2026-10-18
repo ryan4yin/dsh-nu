@@ -99,7 +99,7 @@ const prompt = [
   'Judge only the final result and the command/result evidence. Do not infer from the actor model name.',
   'Return only a JSON array with one object per sample: {"id":"sample-N","score":0,"reason":"short"}. No markdown fences.',
   'Samples:',
-  JSON.stringify(samples.map(({ actor, ...rest }) => rest), null, 2),
+  JSON.stringify(samples.map(({ actor, arm, ...rest }) => rest), null, 2),
 ].join('\n')
 
 const args = ['--profile', profile, '--patch', modelPatch, '--patch', teachingOff, '--json', '-']
