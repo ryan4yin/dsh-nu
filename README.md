@@ -56,8 +56,10 @@ Real-model teaching evals are separate from `npm test`; see [`eval/README.md`](.
 
 ## Configuration
 
+The bundle's patch mounts one executor row and one teaching row; a profile patch overrides either by id. This profile patch spells out every field and its default:
+
 ```yaml
-- id: nushell-executor
+- id: nu-executor
   name: dsh-nu/executor
   config:
     nuPath: ""
@@ -69,7 +71,7 @@ Real-model teaching evals are separate from `npm test`; see [`eval/README.md`](.
     verifyNu: true
     foreignShellAllowlist: []
 
-- id: nushell-teaching
+- id: nu-teaching
   name: dsh-nu/teaching
   config:
     guide: full          # full | compact | off
@@ -97,7 +99,7 @@ Choose the guide by goal:
 - `compact` covers the common idioms and uses fewer prompt tokens. It handled most eval samples without a refusal.
 - `full` keeps the detailed syntax reference for uncommon syntax and edge cases.
 
-Sandbox budgets (`cwd`, `timeoutMs`, …) stay on the `nushell-executor` row, not in dsh's shared `shell` settings namespace. Override any row by id in the profile's own `cordis.patch.yml`. `examples/preset-nu-shell.md` lists the preset-level shell bypasses to disable.
+Sandbox budgets (`cwd`, `timeoutMs`, …) stay on the `nu-executor` row, not in dsh's shared `shell` settings namespace. Override any row by id in the profile's own `cordis.patch.yml`. `examples/preset-nu-shell.md` lists the preset-level shell bypasses to disable.
 
 ## What "only Nushell" does not cover
 

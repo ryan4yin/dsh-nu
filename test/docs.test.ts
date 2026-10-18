@@ -70,6 +70,18 @@ test('the tested versions are repeated in the places the user reads', () => {
   assert.equal(manifest.testedWith.nushell, '0.115.1')
 })
 
+test('the README configuration example names the bundle rows', () => {
+  const patch = read('cordis.patch.yml')
+  for (const file of ['README.md', 'docs/zh/README.md']) {
+    const text = read(file)
+    for (const id of ['nu-executor', 'nu-teaching']) {
+      assert.match(text, new RegExp('- id: ' + id + '\\b'), file + ' mounts ' + id)
+      assert.ok(patch.includes('- id: ' + id), 'cordis.patch.yml mounts ' + id)
+    }
+    assert.doesNotMatch(text, /- id: nushell-(?:executor|teaching)\b/, file)
+  }
+})
+
 test('relative markdown links resolve', () => {
   for (const file of FILES.filter((entry) => entry.endsWith('.md'))) {
     const text = read(file)

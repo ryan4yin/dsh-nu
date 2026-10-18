@@ -50,11 +50,6 @@ if (resolve(source) === resolve(target)) {
   process.exit(0)
 }
 
-if (source === undefined) {
-  console.error('dsh-nu: no dsh package scope found under ' + base + '; looked in:' + candidates.map((candidate) => '\n  ' + candidate).join(''))
-  process.exit(1)
-}
-
 let entries
 try {
   entries = (await readdir(source)).filter((name) => !name.startsWith('.'))
