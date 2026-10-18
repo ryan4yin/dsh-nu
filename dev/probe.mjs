@@ -12,7 +12,8 @@ const WORK = join(ROOT, '.tmp-probe')
 const HOME = join(WORK, 'home')
 const PROFILE = 'nu-probe'
 const PROFILE_DIR = join(HOME, 'profiles', PROFILE)
-const CLI = process.env.DSH_INTEGRATION_CLI ?? 'dsh'
+const LOCAL_DSH = join(ROOT, 'node_modules', '.bin', process.platform === 'win32' ? 'dsh.cmd' : 'dsh')
+const CLI = process.env.DSH_INTEGRATION_CLI ?? (existsSync(LOCAL_DSH) ? LOCAL_DSH : 'dsh')
 
 function fail(message) {
   console.error('probe: ' + message)
