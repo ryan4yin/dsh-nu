@@ -10,7 +10,7 @@ let
 in
 # The plugin is installed as a directory holding package.json, cordis.patch.yml,
 # and dist/, which is what dsh.withPlugins consumes through passthru.pluginPatch.
-buildNpmPackage {
+buildNpmPackage (finalAttrs: {
   pname = "dsh-nu";
   inherit version;
 
@@ -74,7 +74,7 @@ buildNpmPackage {
 
   passthru = {
     # Rendered patch used by dsh.withPlugins.
-    pluginPatch = "${placeholder "out"}/cordis.patch.yml";
+    pluginPatch = "${finalAttrs.finalPackage}/cordis.patch.yml";
   };
 
   meta = {
@@ -84,4 +84,4 @@ buildNpmPackage {
     license = lib.licenses.mit;
     platforms = lib.platforms.all;
   };
-}
+})
