@@ -10,7 +10,7 @@ dsh-nu forces DeepSeek Harness to run every shell command in Nushell, with the `
 
 ## Status
 
-0.3.0 is published on npm. dsh `0.2.1-rc.2` and Nushell `0.115.1` are the tested pair, recorded in `package.json` under `testedWith`.
+0.3.1 is published on npm. dsh `0.2.1-rc.2` and Nushell `0.115.1` are the tested pair, recorded in `package.json` under `testedWith`.
 
 ## Compatibility
 
@@ -23,7 +23,7 @@ Requires Node 22.19+, `pnpm` on `PATH` (the `dsh plugin` installer runs it), dsh
 Add the bundle to a dsh profile:
 
 ```sh
-dsh plugin --profile tui add dsh-nu@0.3.0
+dsh plugin --profile tui add dsh-nu@0.3.1
 ```
 
 Use `--profile web` for the browser app. The first `dsh plugin` call creates the profile; the bundle's patch disables the platform shell executors and mounts the Nushell executor and teaching layer. Start the profile with `dsh tui` (or `dsh web`).
