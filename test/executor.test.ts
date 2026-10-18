@@ -28,6 +28,7 @@ function executorConfig(overrides: Record<string, unknown>) {
     maxOutputBytes: volatile(64_000),
     maxSpillBytes: volatile(1_048_576),
     graceMs: volatile(1_000),
+    pwshPath: volatile('pwsh'),
     ...overrides,
   }
 }
