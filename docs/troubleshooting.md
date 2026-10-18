@@ -1,5 +1,7 @@
 # Troubleshooting
 
+English | [中文](zh/troubleshooting.md)
+
 ## Boot fails: cannot resolve nu
 
 The executor fails closed when `requireNu` is true and the executable cannot

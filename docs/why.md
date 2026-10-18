@@ -1,5 +1,7 @@
 # Why a Nushell-only shell
 
+English | [中文](zh/why.md)
+
 ## The problem with mixed shells
 
 A coding agent that can start bash, zsh, fish, and PowerShell tends to write the

@@ -1,5 +1,7 @@
 # Verification
 
+English | [中文](zh/verification.md)
+
 ## What the suite covers
 
 `npm test` runs four kinds of tests:

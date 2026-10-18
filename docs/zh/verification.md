@@ -1,5 +1,7 @@
 # 验证
 
+[English](../verification.md) | 中文
+
 ## 测试套件覆盖什么
 
 `npm test` 包含四类测试：

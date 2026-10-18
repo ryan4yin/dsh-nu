@@ -1,5 +1,7 @@
 # dsh-nu
 
+English | [中文](docs/zh/README.md)
+
 A DeepSeek Harness bundle that makes **Nushell the only shell** a coding agent can use, and teaches the model to write Nushell instead of bash or PowerShell.
 
 Every shell call runs as one isolated process:
@@ -33,6 +35,13 @@ npm run build
 ## Configuration
 
 The bundle patch is `cordis.patch.yml`. `examples/preset-nu-shell.md` lists the preset-level shell bypasses to disable.
+
+## Documentation
+
+- [Why a Nushell-only shell](docs/why.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Verification](docs/verification.md)
+- [Distribution and support (ADR)](docs/adr/0001-distribution-and-support.md)
 
 ## Acknowledgements
 
