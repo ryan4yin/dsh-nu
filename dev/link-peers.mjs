@@ -36,6 +36,7 @@ const candidates = [
   join(base, 'lib', 'node_modules', SCOPE, 'dsh', 'node_modules', SCOPE),
   join(base, 'node_modules', SCOPE, 'dsh', 'node_modules', SCOPE),
   join(base, 'lib', 'node_modules', SCOPE),
+  join(base, 'node_modules', SCOPE),
 ]
 const source = candidates.find((candidate) => existsSync(join(candidate, 'dsh-shell'))) ?? candidates.find((candidate) => existsSync(candidate))
 const target = join(process.cwd(), 'node_modules', SCOPE)
