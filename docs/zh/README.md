@@ -2,7 +2,7 @@
 
 [English](../../README.md) | 中文
 
-dsh-nu 是 DeepSeek Harness 的插件包，把编码 agent 能用的 shell 限定为 Nushell，同时引导模型用 Nushell 写命令，而不是 bash 或 PowerShell。
+dsh-nu 是 DeepSeek Harness 的插件包：它只让编码 agent 用 Nushell 作为 shell，并引导模型用 Nushell 写命令，而不是 bash 或 PowerShell。
 
 每次 shell 调用都是一个独立进程：
 
@@ -10,7 +10,7 @@ dsh-nu 是 DeepSeek Harness 的插件包，把编码 agent 能用的 shell 限�
 nu --no-config-file -c "<command>"
 ```
 
-dsh-nu 注册唯一的 `ctx.shell` provider，把模型看到的 shell 工具描述换成 Nushell 版本，并在 system prompt 里加入一小节规则和语法指南。命令如果把工作交给其他 shell，会在进程启动前被拒绝；bash 和 PowerShell 习惯也会在本地被拦下，并给出对应的 Nushell 写法。
+dsh-nu 注册唯一的 `ctx.shell` provider，把模型看到的 shell 工具描述换成 Nushell 版本，并在 system prompt 里加入一小节规则和语法指南。命令如果把工作交给其他 shell，预检会在进程启动前拒绝它；bash 和 PowerShell 习惯也会在启动前被拦下，并给出对应的 Nushell 写法。
 
 ## 状态
 
@@ -18,7 +18,7 @@ dsh-nu 注册唯一的 `ctx.shell` provider，把模型看到的 shell 工具描
 
 ## 兼容性
 
-dsh-nu 只支持这一组合。peer 依赖的版本范围限定在 dsh 家族内；启动时如果安装的 dsh 或 Nushell 与测试组合不同，会输出警告。其他版本没有测试过。
+dsh-nu 只支持这一组合。peer 依赖只覆盖 dsh 家族；启动时如果安装的 dsh 或 Nushell 与测试组合不同，会输出警告。其他版本没有测试过。
 
 ## 安装
 
@@ -36,7 +36,7 @@ npm run build
 
 `dev/link-peers.mjs` 会把 dsh 的 peer 包链接到 `node_modules`，测试因此能直接使用真实的 shell seam，不需要先发布。
 
-测试使用的运行时是 Node 24。包允许 Node 22.19 及以上，但除 24 之外的版本没有测试过。
+测试跑在 Node 24 上。npm 允许安装到 Node 22.19 及以上，但除 24 之外的版本没有测试过。
 
 ## 配置
 
@@ -80,8 +80,8 @@ npm run build
 ## “只要 Nushell”覆盖不到的地方
 
 - preset 自己启动 shell 的行，例如直接调用 `ctx.subprocess.spawn` 的插件，或 PTY 常驻 shell 组。严格部署时应关闭，见 `examples/preset-nu-shell.md`。
-- 引号参数里的 shell 名称。那是数据，不是命令位置。guard 会拦下命令位置和包装链里的交接，但它不是沙箱。
-- 其他 shell seam。hook 桥、常驻终端和 tmux context 使用各自的服务或脚本，不在 dsh-nu 的范围内。严格部署时应保持关闭。
+- 引号参数里的 shell 名称只是数据，不是命令位置。guard 会拦下命令位置和包装链里的交接，但它本身不是沙箱。
+- 其他 shell seam 不在 dsh-nu 的范围内：hook 桥、常驻终端和 tmux context 使用各自的服务或脚本。严格部署时应保持关闭。
 - dsh-nu 不改沙箱本身：`danger-full-access` 直接运行，受限模式通过 `ctx.sandbox.confine()` 包装 Nushell argv，`mode` / `denied` / `enforcement` 的报告方式保持不变。
 
 ## 文档
