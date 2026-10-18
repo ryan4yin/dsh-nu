@@ -18,7 +18,7 @@ dsh-nu supports only that pair. The peer ranges cover the dsh family, and boot l
 
 ## Install
 
-Requires dsh `0.2.1-rc.2` and Nushell `0.115.1` on `PATH`.
+Requires Node 22.19+, `pnpm` on `PATH` (the `dsh plugin` installer runs it), dsh `0.2.1-rc.2`, and Nushell `0.115.1` on `PATH`.
 
 Add the bundle to a dsh profile:
 
@@ -64,6 +64,7 @@ The bundle's patch mounts one executor row and one teaching row; a profile patch
   config:
     nuPath: ""
     nuArgs: ["--no-config-file", "-c"]
+    timeoutMs: 60000
     enforceNushellOnly: true
     syntaxLint: true
     syntaxHints: true
@@ -78,6 +79,7 @@ The bundle's patch mounts one executor row and one teaching row; a profile patch
     guide: full          # full | compact | off
     rules: true
     rewriteToolDescriptions: true
+    toolNames: ["bash", "pwsh"]
 ```
 
 | Field | Default | Meaning |
@@ -91,12 +93,14 @@ The bundle's patch mounts one executor row and one teaching row; a profile patch
 | `guide` | `full` | Prompt guide: `full`, `compact`, or `off` |
 | `rules` | `true` | Prepend the shell-rules section |
 | `rewriteToolDescriptions` | `true` | Rewrite the `bash` / `pwsh` tool descriptions |
+| `toolNames` | `["bash","pwsh"]` | Tool schemas whose shell text is rewritten |
+| `timeoutMs` | `60000` | Default per-call timeout; `maxTimeoutMs` caps overrides |
 | `requireNu` / `verifyNu` | `true` / `true` | Fail boot when `nu` cannot be resolved or fails its `--version` probe |
 | `verifyTimeoutMs` | `10000` | Bound for that probe |
 
 Choose the guide by goal:
 
-- `off` is a diagnostic baseline only. It removes the rules and guide, and the eval recorded many preflight refusals and extra retries; do not use it in normal sessions.
+- `off` disables the guide only; the rules stay on unless `rules: false`. It is a diagnostic baseline: the eval recorded many preflight refusals and extra retries, so do not use it in normal sessions.
 - `compact` covers the common idioms and uses fewer prompt tokens. It handled most eval samples without a refusal.
 - `full` keeps the detailed syntax reference for uncommon syntax and edge cases.
 
