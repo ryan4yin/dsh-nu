@@ -93,6 +93,36 @@
     "maxShellCalls": 3
   },
   {
+    "id": "nested-dirs",
+    "prompt": "Use one bash call to create the nested directories build/out/bin and print the paths under build in sorted order. End your answer with RESULT: <paths>.",
+    "fixtures": {},
+    "expect": {
+      "finalMatches": "RESULT:.*build/out/bin"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 2
+  },
+  {
+    "id": "stderr-only",
+    "prompt": "Use one bash call to run ^nu --no-config-file -c 'print visible; print -e hidden' and show only its stderr line. End your answer with RESULT: hidden.",
+    "fixtures": {},
+    "expect": {
+      "finalMatches": "RESULT:\\s*hidden"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 2
+  },
+  {
+    "id": "sequence-after-failure",
+    "prompt": "Use exactly one bash call to run ^nu --no-config-file -c 'exit 4' and then write 'after' to after.txt even though it fails. End your answer with RESULT: after.",
+    "fixtures": {},
+    "expect": {
+      "finalMatches": "RESULT:\\s*after"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 1
+  },
+  {
     "id": "readiness-wait",
     "prompt": "Start nu ready.nu as a background shell job. It takes about two seconds to write ready.txt. Wait until ready.txt exists, then read it. End your answer with RESULT: ready.",
     "fixtures": {
