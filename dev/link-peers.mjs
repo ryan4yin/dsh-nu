@@ -42,6 +42,15 @@ const source = candidates.find((candidate) => existsSync(join(candidate, 'dsh-sh
 const target = join(process.cwd(), 'node_modules', SCOPE)
 
 if (source === undefined) {
+  console.error('dsh-nu: no dsh package scope found under ' + base)
+  process.exit(1)
+}
+if (resolve(source) === resolve(target)) {
+  console.log('dsh-nu: peers already installed at ' + source)
+  process.exit(0)
+}
+
+if (source === undefined) {
   console.error('dsh-nu: no dsh package scope found under ' + base + '; looked in:' + candidates.map((candidate) => '\n  ' + candidate).join(''))
   process.exit(1)
 }
