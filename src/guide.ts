@@ -25,7 +25,7 @@ export function buildRules(): string {
     '- Redirect stdout with `o> f`, stderr with `e> f`, both with `o+e> f`; capture a record with `(do { cmd } | complete)`.',
     '- Variables are `let x = ...` and `mut x = ...`; the environment is `$env.NAME` (optional read: `$env.NAME?`).',
     '- Control flow is `if` / `for x in $xs { }` / `match`; transform lists with `... | each { |x| ... }`.',
-    '- External programs start with their name; prefix with `^` when a Nushell command shadows it (`^cat`, `^grep`).',
+    '- External programs start with their name; prefix with `^` to force the external binary when a Nushell command has the same name (`^ls`).',
     '- Non-zero exits are reported as `[exit code: N]`; a failed call may carry one `Nushell hint (...)` line naming the fix. Read it before retrying the same shape.',
   ].join('\n')
 }
@@ -43,7 +43,7 @@ export function buildGuide(options: GuideOptions = {}): string {
       'Pipelines pass structured values: `ls | where type == file | select name size`.',
       'Files: `open --raw notes.txt | lines`, `save -f out.txt`, `glob **/*.md`, `mkdir a/b`.',
       'Text: `"a,b" | split row ","`, `$"hi ($name)"`, `str trim`, `str replace -r "\\d+" "#"`.',
-      'Variables: `let x = 1`, `mut x = 2`, `$env.NAME`, `$env.NAME?`; chain with `;` or `and` / `or`.',
+      'Variables: `let x = 1`, `mut x = 2`, `$env.NAME`, `$env.NAME?`; sequence commands with `;`; combine conditions with `and` / `or`.',
       'Redirect: `cmd o> out.txt`, `cmd e> err.txt`, `cmd o+e> all.txt`; capture with `(do { cmd } | complete)`.',
       'A failure prints `[exit code: N]` and possibly one `Nushell hint (...)` line.',
     ].join('\n')
@@ -56,13 +56,13 @@ export function buildGuide(options: GuideOptions = {}): string {
     '## Values and quoting',
     '',
     '- Bare words are strings or numbers; lists are `[1 2 3]` and records are `{ name: "x", size: 3 }`.',
-    '- Single quotes are literal; double quotes interpolate `$name` and support escapes; a raw string keeps everything literal.',
+    '- Single and double quotes are literal; double quotes still process escapes such as `\n`. Interpolation is only `$"text (expr)"`; a raw string keeps everything literal.',
     '- Interpolation uses `$"text (expr)"`; subexpressions use parentheses: `(ls | length)`.',
     '',
     '## Pipelines and tables',
     '',
-    '- `ls`, `ps`, `open file.json`, and `to json` produce structured values. Filter with `where`, project with `select`, extract with `get`, transform with `each`, order with `sort-by`.',
-    '- `where size > 1mb` compares typed sizes; quote strings (`where name == "a.md"`). Convert at the boundary with `to json` / `to csv` / `to text`.',
+    '- `ls`, `ps`, and `open file.json` produce structured values. Filter with `where`, project with `select`, extract with `get`, transform with `each`, order with `sort-by`.',
+    '- `where size > 1mb` compares typed sizes; quote strings (`where name == "a.md"`). Convert at the boundary with `to json` / `to csv` / `to text`; those return text, not a table.',
     '',
     '## Variables and environment',
     '',
@@ -72,7 +72,7 @@ export function buildGuide(options: GuideOptions = {}): string {
     '',
     '## Control flow',
     '',
-    '- `if $cond { ... } else { ... }`; branch with `match $value { ... }`; chain commands with `;` or `and` / `or`.',
+    '- `if $cond { ... } else { ... }`; branch with `match $value { ... }`; sequence commands with `;`; combine conditions with `and` / `or`.',
     '- `for x in $xs { ... }` iterates; `... | each { |x| ... }` maps; `... | reduce` folds.',
     '- `try { ... } catch { |err| $err.msg }` handles errors; `do { ... }` scopes one.',
     '',
@@ -80,8 +80,9 @@ export function buildGuide(options: GuideOptions = {}): string {
     '',
     '- Read: `open --raw notes.txt` for text, `open data.json` for structure, `lines` to split.',
     '- Write: `save -f out.txt` overwrites; `save -a out.txt` appends; `mkdir a/b` creates parents.',
-    '- Redirect: `cmd o> out.txt`, `cmd e> err.txt`, `cmd o+e> all.txt`, append with `o>>` / `e>>`.',
-    '- A bare `>` is comparison, not redirection, and `2>` is not a redirect. Capture a failed call with `(do { cmd } | complete).exit_code`.',
+    '- Redirect: `cmd o> out.txt`, `cmd e> err.txt`, `cmd o+e> all.txt`; append with `cmd o>> out.txt` / `cmd e>> err.txt`.',
+    '- A bare `>` is comparison, not redirection; `2>` is not a redirect either, and `2>/dev/null` / `2>nul` are accepted as ordinary arguments and silently do nothing. Capture a failed call with `(do { cmd } | complete).exit_code`.',
+    '- `print` writes a line to stdout but returns nothing, so do not pipe after it; let the final value stand when you want structured output.',
     '',
     '## External commands',
     '',
@@ -91,7 +92,7 @@ export function buildGuide(options: GuideOptions = {}): string {
     '',
     '## When Nushell refuses',
     '',
-    'The dialect preflight refuses bash/PowerShell habits before running them: numbered redirection, `$env:VAR`, bare assignment, `foreach`, cmdlets, `&&`, bash flags on Nushell builtins. Fix the fragment the refusal names instead of working around it.',
+    'The dialect preflight refuses bash/PowerShell habits before running them: numbered redirection, `$env:VAR`, bare assignment, `foreach`, cmdlets, `&&` / `||`, command substitution, `$?`, comma-separated columns, and bash flags on Nushell builtins. Fix the fragment the refusal names instead of working around it.',
   ].join('\n')
 }
 
@@ -112,7 +113,7 @@ export function buildToolDescription(options: ToolDescriptionOptions = {}): stri
     '',
     'A command that hands work to another shell is refused before it runs. Bash/PowerShell habits get a Nushell spelling in the error. A failing command may carry one `Nushell hint (...)` line on stderr; read it before retrying.',
     '',
-    'When you need output, print it or let the final pipeline value stand; a failing command is reported as `[exit code: N]`.',
+    'When you need output, let the final pipeline value stand, or put `print` last: it returns nothing, so a pipeline after it has no input. A failing command is reported as `[exit code: N]`.',
   ].join('\n')
 }
 

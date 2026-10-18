@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { NUSHELL_COMMAND_DESCRIPTION } from '../src/guide.ts'
+import { buildGuide, NUSHELL_COMMAND_DESCRIPTION } from '../src/guide.ts'
 import {
   apply,
   GUIDE_SECTION,
@@ -56,6 +56,13 @@ test('registers the rules and guide sections after the shell tool', () => {
   assert.match(sections[0]!.text as string, /Shell: Nushell only/)
   const guide = sections[1]!.text as () => string
   assert.match(guide(), /Nushell syntax guide/)
+})
+
+test('the guide does not claim double-quoted strings interpolate', () => {
+  const text = buildGuide({ variant: 'full' })
+  assert.match(text, /Interpolation is only/)
+  assert.doesNotMatch(text, /double quotes interpolate/i)
+  assert.match(text, /to json.*returns text|return text, not a table/)
 })
 
 test('guide off drops the guide and rules false drops the rules', () => {
