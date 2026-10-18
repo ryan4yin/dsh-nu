@@ -93,6 +93,12 @@ npm run build
 | `requireNu` / `verifyNu` | `true` / `true` | nu 无法解析或 `--version` 探测失败时，启动直接失败 |
 | `verifyTimeoutMs` | `10000` | 版本探测的超时时间 |
 
+按目标选 guide：
+
+- `off` 只用于诊断对照：它去掉规则和指南，评测中出现了明显更多的预检拒绝和重试，正常会话不要用。
+- `compact` 覆盖常见写法，prompt token 更少；评测里大多数样本没有触发拒绝。
+- `full` 保留引号、表格、控制流和重定向的详细说明，适合复杂或更地道的 Nushell 脚本。
+
 沙箱预算（`cwd`、`timeoutMs` 等）配在 `nushell-executor` 行上，不放进 dsh 共享的 `shell` 设置。要覆盖某一行，在 profile 自己的 `cordis.patch.yml` 里按 id 改。`examples/preset-nu-shell.md` 列出了需要关闭的 preset 级 shell 绕过项。
 
 ## “只要 Nushell”覆盖不到的地方
