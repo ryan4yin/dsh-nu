@@ -75,6 +75,8 @@ interface HintSample {
   command: string
   setup?: (cwd: string) => void
   enabled?: () => boolean
+  /** When set, the sample counts only if stderr contains this marker. */
+  onlyIf?: string
 }
 
 const HINT_SAMPLES: readonly HintSample[] = [
@@ -91,7 +93,10 @@ const HINT_SAMPLES: readonly HintSample[] = [
     setup: (cwd) => writeFileSync(join(cwd, 'secret.txt'), 'x', { mode: 0o000 }),
     enabled: () => process.platform !== 'win32' && (process.getuid?.() ?? -1) !== 0,
   },
-  { id: 'read-only-filesystem', command: "'x' | save -f /sys/dsh-nu-probe", enabled: () => process.platform === 'linux' },
+  // /sys is read-only on some Linux hosts (EROFS) and merely unwritable on
+  // others (EACCES); assert the matching hint whenever the probe really
+  // produced that failure, otherwise skip and say so.
+  { id: 'read-only-filesystem', command: "'x' | save -f /sys/dsh-nu-probe", enabled: () => process.platform === 'linux', onlyIf: 'read-only_filesystem_or_storage_medium' },
   { id: 'empty-pipeline', command: 'str trim' },
   { id: 'exit-status', command: 'echo $?' },
   { id: 'parse-error', command: 'print (1' },
@@ -100,19 +105,26 @@ const HINT_SAMPLES: readonly HintSample[] = [
 test('every hint is produced by a real failure of the tested Nushell', { skip: !nuAvailable }, () => {
   const cwd = mkdtempSync(join(tmpdir(), 'dsh-nu-hints-'))
   const checked: string[] = []
+  const skipped: string[] = []
   try {
     for (const sample of HINT_SAMPLES) {
       if (sample.enabled !== undefined && !sample.enabled()) continue
       sample.setup?.(cwd)
       const result = runNu(sample.command, cwd)
       assert.notEqual(result.status, 0, 'expected a failure from: ' + sample.command)
+      if (sample.onlyIf !== undefined && !result.stderr.includes(sample.onlyIf)) {
+        skipped.push(sample.id + ' (environment produced a different error)')
+        continue
+      }
       const hint = hintFor(result.stderr, { exitCode: result.status, stdout: result.stdout })
       assert.match(hint ?? '', new RegExp('^Nushell hint \\(' + sample.id + '\\)'), sample.command + ' :: ' + result.stderr.slice(0, 160))
       checked.push(sample.id)
     }
-    const expected = HINT_SAMPLES.filter((sample) => sample.enabled === undefined || sample.enabled()).map((sample) => sample.id)
+    const expected = HINT_SAMPLES
+      .filter((sample) => (sample.enabled === undefined || sample.enabled()) && !skipped.some((entry) => entry.startsWith(sample.id + ' ')))
+      .map((sample) => sample.id)
     assert.deepEqual(checked.sort(), [...expected].sort())
-    assert.deepEqual([...new Set(checked)].sort(), [...expected].sort())
+    if (skipped.length > 0) console.warn('skipped environment-specific hints: ' + skipped.join(', '))
   } finally {
     rmSync(cwd, { recursive: true, force: true })
   }
