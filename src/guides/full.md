@@ -2,6 +2,23 @@ Nushell syntax guide
 
 Shell calls run through Nushell as `nu --no-config-file -c "<command>"`. Each call is one isolated process; the working directory is the tool call's `workdir`.
 
+## Coming from bash or PowerShell
+
+The preflight refuses these spellings before a process starts. Rewrite them:
+
+- `cmd 2>/dev/null` → `cmd e>| ignore` (even when the task says to ignore errors); `cmd 2>&1` → `cmd o+e> f`, or `(do { cmd } | complete)` to capture both streams.
+- `cmd > f` / `cmd 2> f` / `cmd &> f` → `cmd o> f` / `cmd e> f` / `cmd o+e> f`; append with `o>>` and `e>>`.
+- `a && b` → `a; b`; a failing external aborts the rest, so use `do -i { a }` when it may fail. `a || b` → `try { a } catch { b }`.
+- `mkdir -p a/b` → `mkdir a/b`; `ls -la` → `ls --all --long`; `ls -R` → `ls **/*`.
+- `cd d; cmd` → pass the call's `workdir`; `cd` does not persist between calls.
+- `for f in ...; do ...; done` → `for f in [...] { }` or `... | each { |f| ... }`; `test -d p` → `$p | path exists`.
+- `$env:VAR` → `$env.VAR`; `$?` → `(do { cmd } | complete).exit_code`; `$x = 1` → `let x = 1` or `mut x = 1`.
+- `echo hi` → `print "hi"`; a bare `>` is comparison, so `cmd > f` writes no file.
+
+`where $it =~ "x"` is a comparison, not an assignment, and is accepted.
+
+Before sending a command, scan it for `2>`, `&>`, `&&`, `mkdir -p`, `ls -R`, a bare `$name =`, and `sh -c` or `bash -c`; the preflight refuses each.
+
 ## Values and quoting
 
 - Bare words are strings or numbers; lists are `[1 2 3]` and records are `{ name: "x", size: 3 }`.
@@ -49,4 +66,4 @@ Shell calls run through Nushell as `nu --no-config-file -c "<command>"`. Each ca
 
 This bundle fails closed when Nushell cannot be resolved; it never substitutes another shell.
 
-The syntax preflight refuses bash/PowerShell syntax before running them: numbered redirection, shell-style `>` and `2>` redirects, `$env:VAR`, bare assignment, `foreach`, cmdlets, `&&` / `||`, command substitution, `$?`, comma-separated columns, and bash flags on Nushell builtins. Fix the fragment the refusal names instead of working around it.
+The preflight also refuses other bash/PowerShell forms: `foreach`, cmdlets, command substitution, comma-separated columns, and bash flags on Nushell builtins. Fix the fragment the refusal names instead of working around it; `^program` runs an external binary, whose own flags are accepted.

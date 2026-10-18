@@ -61,6 +61,14 @@ test('every teaching claim holds in the real Nushell', { skip: !nuAvailable }, (
     // mkdir creates parents; path exists reports it.
     assert.equal(ok(run('mkdir a/b/c; "a/b/c" | path exists', cwd), 'mkdir parents'), 'true')
 
+    // where accepts the $it shorthand and a closure with an explicit parameter.
+    assert.equal(ok(run('[a b] | where $it =~ "a" | length', cwd), 'where $it'), '1')
+    assert.equal(ok(run('[a b] | where {|l| $l =~ "a"} | length', cwd), 'where closure'), '1')
+
+    // ls keeps its Nushell flags; **/* recurses without ls -R.
+    assert.equal(ok(run('(ls --all --long | length) >= 1', cwd), 'ls flags'), 'true')
+    assert.equal(ok(run('(ls **/* | length) >= 1', cwd), 'ls recursive'), 'true')
+
     // An optional environment read yields null instead of failing.
     assert.equal(ok(run('print ($env.DSH_NU_UNSET_XYZ? == null)', cwd), 'optional env'), 'true')
 
@@ -107,6 +115,11 @@ test('every teaching claim holds in the real Nushell', { skip: !nuAvailable }, (
 
     // External-command redirection captures stdout.
     assert.equal(ok(run('^nu --no-config-file -c "print x" o+e> all.txt; open --raw all.txt | str contains "x"', cwd), 'o+e redirect'), 'true')
+
+    // e> captures stderr; e>| ignore discards it; complete exposes both.
+    assert.equal(ok(run('^nu --no-config-file -c "print -e err" e> err.txt; open --raw err.txt | str contains "err"', cwd), 'e> redirect'), 'true')
+    assert.equal(ok(run('^nu --no-config-file -c "print -e err" e>| ignore; print "after"', cwd), 'discard stderr'), 'after')
+    assert.equal(ok(run('(do { ^nu --no-config-file -c "print out; print -e err" } | complete).stderr | str contains "err"', cwd), 'complete stderr'), 'true')
 
     // reduce folds a list.
     assert.equal(ok(run('[1 2 3] | reduce { |it, acc| $it + $acc }', cwd), 'reduce'), '6')

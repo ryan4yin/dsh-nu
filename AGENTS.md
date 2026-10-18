@@ -34,6 +34,7 @@ npm pack --dry-run
 - Do not copy files or code blocks from the archived implementation. Treat it as a capability checklist and reimplement from observed behaviour.
 - A model-facing claim that can be executed needs a test that executes it. A hint or rule needs a real failing Nushell sample.
 - Teaching changes need an eval case when the effect is observable; run three samples per case and arm before deciding a wording. The eval is manual, not PR CI.
+- Run evals in layers: small model and the failing case first, expand cases and models only after that passes, and reserve the full matrix for acceptance. See `eval/README.md`.
 - Keep the tested pair in `package.json` `testedWith` and the peer ranges in sync. `test/package-contract.test.ts` enforces both.
 - Run the local suite before opening a PR. CI is the platform matrix gate, not the debugging loop.
 - Every commit and generated PR description carries the `Assisted-by: DeepSeek Harness (<model>)` trailer.
