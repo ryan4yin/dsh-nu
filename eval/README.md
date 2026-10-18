@@ -55,9 +55,9 @@ npm run eval -- \
   --model-patch /path/to/model.yml \
   --dsh dsh \
   --profile dsh-nu-eval \
-  --label actor-a \
+  --label gpt-6-luna \
   --samples 3 \
-  --out .work/eval-runs/actor-a
+  --out .work/eval-runs/gpt-6-luna
 ```
 
 The runner creates `summary.json` and `summary.md` beside `samples/` and
@@ -78,21 +78,21 @@ the other models to score the anonymised samples:
 
 ```sh
 npm run eval:judge -- \
-  --run .work/eval-runs/actor-a \
-  --run .work/eval-runs/actor-b \
+  --run .work/eval-runs/gpt-6-luna \
+  --run .work/eval-runs/deepseek-flash \
   --dsh-home "$DSH_HOME" \
   --model-patch /path/to/judge-model.yml \
   --profile dsh-nu-eval \
-  --label actor-a \
-  --out .work/eval-judge/actor-a
+  --label gpt-6-luna \
+  --out .work/eval-judge/gpt-6-luna
 ```
 
 Then combine the judge outputs (each judge excludes its own actor):
 
 ```sh
 npm run eval:cross -- \
-  --dir .work/eval-judge/actor-a \
-  --dir .work/eval-judge/actor-b \
+  --dir .work/eval-judge/gpt-6-luna \
+  --dir .work/eval-judge/deepseek-flash \
   --out .work/eval-cross
 ```
 

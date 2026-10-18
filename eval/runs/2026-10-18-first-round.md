@@ -11,7 +11,7 @@ Date: 2026-10-18
 - Arms: `full` (shipped teaching) and `off` (`guide: off`, `rules: false`,
   `rewriteToolDescriptions: false`). Both keep the guard and dialect preflight.
 - Samples: three per case and arm for each actor, 36 samples per actor.
-- Actors: actor-a and actor-b (the two requested hosted models). Judges: each actor scored the anonymised
+- Actors: GPT-6 Luna and DeepSeek Flash. Judges: each actor scored the anonymised
   samples from both actors, excluding its own actor from the summary.
 
 Raw events and model configuration stayed in a local untracked workspace.
@@ -23,10 +23,10 @@ Raw events and model configuration stayed in a local untracked workspace.
 
 | actor | arm | task success | answer matched | first clean | violations | refused | tokens |
 |---|---|---|---:|---:|---:|---:|---:|---:|
-| actor-a | full | 17/18 | 18/18 | 18 | 0 | 0 | 733,098 |
-| actor-a | off | 16/18 | 18/18 | 11 | 10 | 10 | 847,774 |
-| actor-b | full | 17/18 | 18/18 | 18 | 0 | 0 | 750,825 |
-| actor-b | off | 13/18 | 18/18 | 8 | 14 | 14 | 924,422 |
+| GPT-6 Luna | full | 17/18 | 18/18 | 18 | 0 | 0 | 733,098 |
+| GPT-6 Luna | off | 16/18 | 18/18 | 11 | 10 | 10 | 847,774 |
+| DeepSeek Flash | full | 17/18 | 18/18 | 18 | 0 | 0 | 750,825 |
+| DeepSeek Flash | off | 13/18 | 18/18 | 8 | 14 | 14 | 924,422 |
 
 Both arms eventually produced the right answer for every sample. The difference is
 how they got there: the `off` arm repeatedly wrote shapes the guard refused (ten
@@ -41,10 +41,10 @@ Mean score from the other actor, 0-2, per anonymised sample set:
 
 | actor | arm | samples | mean |
 |---|---|---:|---:|
-| actor-a | full | 18 | 1.89 |
-| actor-a | off | 18 | 1.56 |
-| actor-b | full | 18 | 1.67 |
-| actor-b | off | 18 | 1.06 |
+| GPT-6 Luna | full | 18 | 1.89 |
+| GPT-6 Luna | off | 18 | 1.56 |
+| DeepSeek Flash | full | 18 | 1.67 |
+| DeepSeek Flash | off | 18 | 1.06 |
 
 ## Reading
 
