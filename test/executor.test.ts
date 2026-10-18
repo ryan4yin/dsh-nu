@@ -125,6 +125,71 @@ test('verifyNu false skips the version probe', async () => {
   assert.equal(spawns.length, 0)
 })
 
+test('boot rejects an executable that does not report a version', async () => {
+  const context = bootContext({ spawn: () => probeHandle('this is not nu') })
+  const strict = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu' }) as never)
+  await assert.rejects((strict as unknown as Record<symbol, () => Promise<void>>)[Service.init]!(), /did not report a version/)
+  const lenientContext = bootContext({ spawn: () => probeHandle('this is not nu') })
+  const lenient = new NushellExecutor(lenientContext as never, executorConfig({ nuPath: 'nu', requireNu: false }) as never)
+  await (lenient as unknown as Record<symbol, () => Promise<void>>)[Service.init]!()
+})
+
+test('the confinement seam accepts the Windows spec-shaped argument', async () => {
+  const context = fakeContext() as unknown as Record<string, unknown>
+  context.sandbox = { confine: async (argv: string[]) => ({ argv, enforcement: 'full', denialSignatures: [], runnerFailureRules: [] }) }
+  const executor = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu' }) as never)
+  const spec = { command: 'print hi', workdir: process.cwd(), timeoutMs: 1, onExpiry: 'kill' as const, stdoutMaxBytes: 1 }
+  const result = await (executor as unknown as {
+    confine: (spec: unknown, policy: never) => Promise<{ argv: unknown[] }>
+  }).confine(spec, { mode: 'workspace-write' } as never)
+  assert.deepEqual(result.argv, ['nu', '--no-config-file', '-c', 'print hi'])
+  assert.ok(result.argv.every((entry) => typeof entry === 'string'))
+})
+
+test('a successful command carries no hint', async () => {
+  const context = fakeContext() as unknown as Record<string, unknown>
+  context.subprocess = {
+    resolveExecutable: async (binary: string) => binary,
+    spawn: () => ({
+      done: Promise.resolve({ exitCode: 0, signal: null }),
+      collected: {
+        stdout: { readFrom: () => ({ text: 'ok\n', lossy: false, nextOffset: 0 }) },
+        stderr: { readFrom: () => ({ text: 'Error: nu::parser::unknown_flag\n', lossy: false, nextOffset: 0 }) },
+      },
+    }),
+  }
+  const executor = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu' }) as never)
+  const handle = await executor.execute({
+    command: 'print ok',
+    workdir: process.cwd(),
+    timeoutMs: 1_000,
+    onExpiry: 'kill' as const,
+    stdoutMaxBytes: 64_000,
+    sandboxPolicy: { mode: 'danger-full-access' as const, workspaceRoot: process.cwd() },
+  })
+  const result = await handle.result()
+  assert.equal(result.exitCode, 0)
+  assert.doesNotMatch(result.stderr.text, /Nushell hint/)
+})
+
+test('a sandbox denial keeps the host wording and adds no hint', () => {
+  const executor = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu' }) as never)
+  const result = {
+    exitCode: 1,
+    signal: null,
+    timedOut: false,
+    aborted: false,
+    timeoutMs: 1,
+    stdout: { text: '', lossy: false, nextOffset: 0 },
+    stderr: { text: 'Error: nu::shell::io::permission_denied\n', lossy: false, nextOffset: 0 },
+    sandbox: { mode: 'workspace-write', denied: true },
+  }
+  const decorated = (executor as unknown as {
+    withHint: (result: unknown, spec: unknown) => { stderr: { text: string } }
+  }).withHint(result, {})
+  assert.doesNotMatch(decorated.stderr.text, /Nushell hint/)
+})
+
 test('the confinement seam wraps the Nu argv', async () => {
   const confined: string[][] = []
   const context = fakeContext() as unknown as Record<string, unknown>

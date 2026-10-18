@@ -217,7 +217,12 @@ export class NushellExecutor extends BaseExecutor {
     const stdout = handle.collected?.stdout?.readFrom(0).text ?? ''
     const stderr = handle.collected?.stderr?.readFrom(0).text ?? ''
     const version = parseVersion(stdout + stderr)
-    if (version === undefined && (stdout + stderr).trim().length === 0) throw new Error('nu --version printed nothing')
+    if (version === undefined) {
+      const output = (stdout + stderr).trim()
+      throw new Error(output.length === 0
+        ? 'nu --version printed nothing'
+        : 'nu --version did not report a version: ' + output.slice(0, 200))
+    }
     return version
   }
 
@@ -236,7 +241,9 @@ export class NushellExecutor extends BaseExecutor {
 
   /** The confinement seam, shared by the POSIX and Windows families. */
   // @ts-expect-error -- the parent declares this seam private; overriding it is the provider extension point.
-  async confine(command: string, policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv> {
+  async confine(commandOrSpec: string | ShellExecSpec, policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv> {
+    // POSIX parents pass the command string; the Windows parent passes the spec.
+    const command = typeof commandOrSpec === 'string' ? commandOrSpec : commandOrSpec.command
     const prepared = await this.ctx.sandbox.confine(this.nuArgv(command), policy, signal)
     return {
       ...prepared,
@@ -259,6 +266,12 @@ export class NushellExecutor extends BaseExecutor {
   private withHint(result: ShellRunResult, _spec: ShellExecSpec, sandbox?: ShellSandboxInfo): ShellRunResult {
     const projected = sandbox === undefined ? result : { ...result, sandbox }
     if (!this.settings.hints) return projected
+    // The docs promise a hint on a failing command; exit 0 (and a timeout with
+    // no exit code) is not a syntax failure, and stderr may still carry text
+    // that happens to look like a Nu error.
+    if (typeof projected.exitCode !== 'number' || projected.exitCode === 0) return projected
+    // A sandbox denial already carries the host's own denial/escalation wording.
+    if (projected.sandbox?.denied === true) return projected
     const text = projected.stderr?.text
     if (typeof text !== 'string' || text.length === 0) return projected
     const hint = hintFor(text, { exitCode: projected.exitCode, stdout: projected.stdout?.text })
