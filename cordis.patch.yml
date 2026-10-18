@@ -23,6 +23,9 @@
       name: dsh-nu/executor
       config:
         nuPath: !!js process.env.DSH_NU_PATH ?? ''
+        # dsh-base set 60000 on the platform executor row this bundle disables;
+        # restate it here so the shell tool keeps the same default timeout.
+        timeoutMs: 60000
         enforceNushellOnly: true
         syntaxLint: true
         syntaxHints: true
