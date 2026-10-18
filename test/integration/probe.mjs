@@ -66,7 +66,9 @@ export async function apply(ctx) {
 
   if (process.platform !== 'win32') {
     const denied = await run(shell, '^nu --no-config-file -c "print probe" o> /etc/dsh-nu-integration-denied')
-    record('a write outside the workspace is denied with a hint', denied.exitCode !== 0 && /Nushell hint \((permission-denied|read-only-filesystem)\)/.test(denied.stderr.text), 'exit ' + denied.exitCode + ' ' + denied.stderr.text.replace(/\s+/g, ' ').slice(0, 160))
+    // A sandbox denial already carries the host's own denial wording, so the
+    // syntax hint is suppressed for it; the sandbox facts below prove the mode.
+    record('a write outside the workspace is denied without a syntax hint', denied.exitCode !== 0 && !/Nushell hint \(/.test(denied.stderr.text), 'exit ' + denied.exitCode + ' ' + denied.stderr.text.replace(/\s+/g, ' ').slice(0, 160))
     if (denied.sandbox?.mode !== 'danger-full-access') {
       record('the denial keeps sandbox facts', denied.sandbox?.denied === true, JSON.stringify(denied.sandbox))
     }
@@ -79,8 +81,10 @@ export async function apply(ctx) {
   const prompt = assembly.sections.map((section) => (typeof section.text === 'string' ? section.text : '')).join('\n\n')
   record('the prompt carries the shell rules', prompt.includes('Shell: Nushell only'))
   record('the prompt carries the syntax guide', prompt.includes('Nushell syntax guide'))
+  const ptc = process.env.DSH_NU_PROBE_PTC === '1'
   const tool = assembly.tools?.find((entry) => entry.name === 'bash' || entry.name === 'pwsh')
-  record('the shell tool is assembled', tool !== undefined)
+  // PTC exposes run_code and the SDK binding instead of a direct shell schema.
+  if (!ptc) record('the shell tool is assembled', tool !== undefined)
   if (tool !== undefined) {
     // The rewrite replaces the whole description with the guide's text, so pin
     // that contract instead of matching one sentence that may be trimmed.
@@ -88,7 +92,7 @@ export async function apply(ctx) {
   }
 
   const sdk = assembly.sections.find((section) => section.name === 'tools:sdk')
-  if (process.env.DSH_NU_PROBE_PTC === '1') {
+  if (ptc) {
 
     record('the PTC SDK section is generated', sdk !== undefined)
     if (sdk !== undefined) {
