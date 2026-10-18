@@ -4,11 +4,11 @@
 
 ## 启动失败：找不到 nu
 
-`requireNu` 为 true 时，执行器找不到可执行文件就会启动失败。安装 Nushell，把 `nu` 放进 `PATH`，或者在插件配置里设置 `nuPath`，也可以在环境里设置 `DSH_NU_PATH`。设成 `requireNu: false` 仍然能启动，但在可执行文件出现之前，每次 shell 调用都会失败。
+`requireNu` 为 true 时，执行器找不到可执行文件就会启动失败。安装 Nushell，把 `nu` 加进 `PATH`；也可以在插件配置里设 `nuPath`，或在环境里设 `DSH_NU_PATH`。设成 `requireNu: false` 仍然能启动，但在可执行文件出现之前，每次 shell 调用都会失败。
 
 ## 启动警告：Nushell 版本不同
 
-`nu --version` 不是固定版本时，dsh-nu 会输出警告。方言规则、hint 和指南都按固定版本调过，模型被要求写的命令不一定还能照常工作。可以安装固定版本，也可以接受警告并自行检查失败行为。
+`nu --version` 不是固定版本时，dsh-nu 会输出警告。方言规则、hint 和指南都按固定版本调过，模型按固定版本写出的命令，不一定还能照常工作。可以安装固定版本，也可以接受警告并自行检查失败行为。
 
 ## 被拒绝：外部 shell
 
@@ -16,7 +16,7 @@
 
 ## 被拒绝：bash 或 PowerShell 习惯
 
-拒绝信息会指出片段和对应的 Nushell 写法，包括编号重定向、`$env:NAME`、裸赋值、`foreach`、PowerShell cmdlet、`&&` / `||`、`$?`，以及 Nushell 内置命令上的未知 flag。按提示改掉那段写法；给它加引号只会把它变成数据。如果预检对某个调用点判断错了，把那条命令加进 allowlist，或者设置 `dialectLint: false`。
+拒绝信息会指出片段和对应的 Nushell 写法，包括编号重定向、`$env:NAME`、裸赋值、`foreach`、PowerShell cmdlet、`&&` / `||`、`$?`、Nushell 内置命令上的未知 flag。按提示改掉那段写法；给它加引号只会把它变成数据。如果预检对某个调用点判断错了，把那条命令加进 allowlist，或者设置 `dialectLint: false`。
 
 ## 失败信息中带 Nushell hint
 
@@ -33,4 +33,4 @@ dsh 包是 peer 依赖。先运行 `npm install`，再运行
 
 ## CI 只在 pull request 上运行
 
-CI 是阶段性验收：一个 pull request 跑一次 Linux、macOS、Windows 矩阵。日常开发请本地运行 `npm run typecheck`、`npm test` 和 `npm run build`，详见 `docs/verification.md`。
+CI 是阶段性验收：有代码改动的 pull request 跑一次 Linux、macOS、Windows 矩阵，纯文档 PR 只跑 Docs workflow。日常开发请本地运行 `npm run typecheck`、`npm test` 和 `npm run build`，详见 `docs/verification.md`。

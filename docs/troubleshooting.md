@@ -33,4 +33,4 @@ The dsh packages are peers. Run `npm install`, then
 
 ## CI runs only for pull requests
 
-CI is the milestone gate: a pull request runs the Linux, macOS, and Windows matrix once. For the fast loop, run `npm run typecheck`, `npm test`, and `npm run build` locally. See `docs/verification.md`.
+CI is the milestone gate: a code pull request runs the Linux, macOS, and Windows matrix once, and a docs-only pull request runs the Docs workflow. For the fast loop, run `npm run typecheck`, `npm test`, and `npm run build` locally. See `docs/verification.md`.

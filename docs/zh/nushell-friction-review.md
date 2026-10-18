@@ -1,13 +1,13 @@
 # Nushell 摩擦审查
 
-真实 Nushell 0.115.1 的表现，以及构建这个项目时踩到的失败，改变了哪些设计；还有哪些已知缺口。下面每一条都对应一条实际运行过的命令。
+这一页记录 Nushell 0.115.1 的实际表现、构建时踩到的失败、由此改掉的设计和仍然存在的缺口。下面每一条都对应一条实际运行过的命令。
 
 ## 构建时被拒绝的命令
 
-构建本项目的 agent 写过一些命令，被 guard 和方言预检挡了下来。每次拒绝都拿真实 shell 验证过：
+构建本项目的 agent 写过一些命令，guard 和方言预检把它们挡了下来。每次拒绝都拿真实 shell 验证过：
 
-- `2>/dev/null` 和 `2>nul` 不是重定向。Nushell 把它们当普通参数收下，退出码 0，实际什么都没做；预检拒绝这种写法，免得静默无效被模型当成成功。带真实目标的 `2> file` 才是 `nu::parser::shell_err`。
-- `2>&1` 会报 `nu::parser::shell_outerr`（Nushell 写作 `o+e>`），所以被拒绝。
+- `2>/dev/null` 和 `2>nul` 不是重定向。Nushell 把它们当普通参数收下，退出码 0，实际什么都没做；预检拒绝这种写法，免得静默无效让模型误以为成功。带真实目标的 `2> file` 才是 `nu::parser::shell_err`。
+- `2>&1` 会报 `nu::parser::shell_outerr`（Nushell 写作 `o+e>`），预检直接拒绝。
 - `mkdir -p` 和 `ls -R` 报 `nu::shell::unknown_flag`。Nushell 会自动创建父目录，递归用 glob 代替；拒绝信息里给出了替代写法。
 - `$?` 不是变量，Nushell 报 `Incomplete variable`，guard 指向 `(do { cmd } | complete).exit_code`。
 - `Start-Sleep` 是 PowerShell cmdlet，不是 Nushell 命令。cmdlet 规则命中后指向 `sleep 2sec`。
@@ -31,8 +31,8 @@
 
 ## 已知缺口
 
-- 预检是启发式扫描器，不是解析器。字符串、注释或原始字符串里的习惯会被当作数据放行；特殊构造可能需要 allowlist。
+- 预检是启发式扫描器，不是解析器。字符串、注释或原始字符串里的习惯，预检会当作数据放行；特殊构造仍可能需要 allowlist。
 - hint 只在 Nushell 报错后出现；启动前就被拒绝的命令没有 hint。
 - Windows CI 上没有权限类差分 hint 样本，这个样本会跳过。
-- 语料覆盖的是常见 agent 命令，不是 Nushell 的全部功能。语料之外被 guard 误拒的命令，应该补成语料。
-- Nushell 里裸 `>` 是比较，`cmd > file` 会返回 0 但什么都不写。没有预检规则能拦它：同一个符号也是合法比较，启发式规则会误伤正常代码。指南会提醒这一点，这仍然是一个记录在案的局限。
+- 语料覆盖的是常见 agent 命令，不是 Nushell 的全部功能。语料之外若被 guard 误拒，应该补一条语料。
+- Nushell 里裸 `>` 是比较，`cmd > file` 会返回 0 但什么都不写。没有预检规则能拦它：同一个符号也是合法比较，启发式规则会误伤正常代码。指南会提醒这一点，它仍记在已知限制里。

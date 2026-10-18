@@ -17,19 +17,19 @@ dsh-nu 是跟着 harness 规则一起长出来的。这些规则前后改了好�
 
 ## Nushell 改了什么
 
-Nushell 只给模型一套执行模型，不再是一堆方言。管道传的是结构化数据，`ls | where size > 1mb` 直接过滤数据，`open --raw file | lines | where { |l| $l =~ "x" }` 直接过滤行。重定向和变量各只有一种写法，替换之后不会再做分词或路径展开。duration 有类型，`sleep 2sec` 一眼能看出单位，出错时会报错，不会只留一个沉默的退出码。每次调用都是一个独立进程，`cd` 和 shell 变量不会带到下一次调用；工作目录由工具参数 `workdir` 决定。
+Nushell 给模型一套统一的执行模型，不再是一堆方言。管道传的是结构化数据，`ls | where size > 1mb` 直接过滤数据，`open --raw file | lines | where { |l| $l =~ "x" }` 直接过滤行。重定向和变量各只有一种写法，替换之后不会再做分词或路径展开。时长有类型，`sleep 2sec` 一眼能看出单位；出错时会报错，不会只留一个沉默的退出码。每次调用都是一个独立进程，`cd` 和 shell 变量不会带到下一次调用；工作目录由工具参数 `workdir` 决定。
 
 Nushell 是更好的 shell，但它仍然只是 shell，不负责调度。
 
 ## dsh-nu 做了什么
 
 - 每次 shell 调用都变成 `nu --no-config-file -c "<command>"`，harness 不会为模型启动 bash 或 PowerShell。
-- 命令如果把工作交给其他 shell，会在进程启动前被拒绝，并引用出问题的语句。
-- 在 Nushell 里跑不通的 bash、PowerShell 习惯会被拦下，并给出对应的 Nushell 写法。
+- 命令如果把工作交给其他 shell，预检会在进程启动前拒绝它，并引用出问题的语句。
+- 预检也会拦下在 Nushell 里跑不通的 bash、PowerShell 习惯，并给出对应的 Nushell 写法。
 - Nushell 真实报错后，会追加一行说明怎么改。
 - shell 工具描述、PTC SDK 文本和 prompt 里的一小段规则都按 Nushell 写，工具 schema 也就不会继续把旧方言教给模型。
 
-规则和 hint 都是拿固定版本的 Nushell 实际验证过的，不靠猜。
+规则和 hint 都拿固定版本的 Nushell 实际验证过。
 
 ## Nushell 解决不了什么
 

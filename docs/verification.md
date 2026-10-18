@@ -43,7 +43,7 @@ The release gate needs a probe against the pinned dsh. It mounts the executor an
 
 ## CI matrix
 
-CI runs on pull requests for Ubuntu, macOS, and Windows with the pinned Nushell installed. It is the milestone gate, not the fast loop: run the local commands above while working, and let a pull request verify the platform matrix once.
+A code pull request runs Ubuntu, macOS, and Windows with the pinned Nushell installed. A docs-only pull request runs the Docs workflow instead. CI is the milestone gate, not the fast loop: run the local commands above while working, and let a pull request verify the platform matrix once.
 
 ## Known limits
 
