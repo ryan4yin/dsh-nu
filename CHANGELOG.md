@@ -27,10 +27,10 @@ All notable changes to this project are recorded here. The format follows
 
 ### Changed
 
-- The README intros and `cordis.patch.yml` state that the bundle replaces the
-  shell executor, not the shell interface, so dsh's sandbox and the model-facing
-  tool names are inherited. The disabled `bash-sandbox` / `pwsh-sandbox` rows
-  are shell executors, not the sandbox itself.
+- The README intros and `cordis.patch.yml` state that the model keeps calling
+  the same `bash` / `pwsh` tool while each command runs as `nu`, and that dsh's
+  sandbox is untouched. The disabled `bash-sandbox` / `pwsh-sandbox` rows are
+  shell executors, not the sandbox itself.
 
 ## 0.2.0 (2026-10-18)
 

@@ -2,7 +2,7 @@
 
 [English](../../README.md) | 中文
 
-dsh-nu 让 Nushell 成为 DeepSeek Harness 编码 agent 唯一能用的 shell。它替换的是 shell 执行器（真正运行命令的那个程序），而不是 shell 接口：模型调用的工具仍叫 `bash` / `pwsh`，dsh 的沙箱（`dsh-sandbox-local` 与 `dsh-sandbox-policy`）保持挂载，因此 `read-only` / `workspace-write` / `danger-full-access` 三种模式以及 `mode` / `denied` / `enforcement` 报告都被原样继承。插件同时引导模型用 Nushell 写命令，而不是 bash 或 PowerShell。
+dsh-nu 让 Nushell 成为 DeepSeek Harness 编码 agent 唯一能用的 shell。模型看到的仍是同一个 `bash` / `pwsh` 工具，调用方式也不变；真正执行时，每条命令都通过 `nu --no-config-file -c` 运行。dsh 的沙箱（`dsh-sandbox-local` 与 `dsh-sandbox-policy`）保持原样，`read-only`、`workspace-write`、`danger-full-access` 三种模式与 `mode` / `denied` / `enforcement` 报告都和不装插件时一致。插件同时引导模型用 Nushell 写命令，而不是 bash 或 PowerShell。
 
 每次 shell 调用都是一个独立进程：
 

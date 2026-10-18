@@ -2,7 +2,7 @@
 
 English | [中文](docs/zh/README.md)
 
-dsh-nu makes Nushell the only shell a DeepSeek Harness coding agent can use. It replaces the shell executor — the program a shell call actually runs — rather than the shell interface: the tool the model calls keeps its `bash` / `pwsh` name, and dsh's sandbox (`dsh-sandbox-local` and `dsh-sandbox-policy`) stays mounted, so `read-only` / `workspace-write` / `danger-full-access` and their `mode` / `denied` / `enforcement` reporting are inherited unchanged. The bundle also teaches the model to write Nushell instead of bash or PowerShell.
+dsh-nu makes Nushell the only shell a DeepSeek Harness coding agent can use. The model still sees the same `bash` / `pwsh` tool and calls it the same way; underneath, each command runs as `nu --no-config-file -c`. dsh's sandbox (`dsh-sandbox-local` with `dsh-sandbox-policy`) is untouched, so `read-only`, `workspace-write`, and `danger-full-access`, along with their `mode` / `denied` / `enforcement` reporting, work as they do without the bundle. The bundle also teaches the model to write Nushell instead of bash or PowerShell.
 
 Every shell call runs as one isolated process:
 
