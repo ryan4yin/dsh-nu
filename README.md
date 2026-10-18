@@ -41,6 +41,7 @@ The bundle patch is `cordis.patch.yml`. `examples/preset-nu-shell.md` lists the 
 - [Why a Nushell-only shell](docs/why.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Verification](docs/verification.md)
+- [Nushell friction review](docs/nushell-friction-review.md)
 - [Distribution and support (ADR)](docs/adr/0001-distribution-and-support.md)
 
 ## Acknowledgements
