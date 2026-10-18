@@ -14,14 +14,25 @@ const REFUSED: ReadonlyArray<readonly [string, string]> = [
   ['echo hi 2>nul', 'stderr-as-word'],
   ['echo hi 2>> build.log', 'stderr-as-word'],
   ['echo hi &> out.txt', 'stderr-as-word'],
+  ['echo hi >& out.txt', 'stderr-as-word'],
   ['echo hi 1> out.txt', 'stderr-as-word'],
   ['echo hi > out.txt', 'stdout-redirect'],
-  ['ls >> build.log', 'stdout-redirect'],
+  ['echo hi >out.txt', 'stdout-redirect'],
+  ['ls >>build.log', 'stdout-redirect'],
   ['^node build.cjs > /dev/null', 'stdout-redirect'],
+  ['echo hi < in.txt', 'stdin-redirect'],
+  ['echo hi <in.txt', 'stdin-redirect'],
+  ['echo hi <<< x', 'stdin-redirect'],
+  ['echo hi << EOF', 'stdin-redirect'],
+  ['echo hi > .gitignore', 'stdout-redirect'],
+  ['print $"(print hi 2>/dev/null)"', 'stderr-as-word'],
+  ['print $"a ($"x (print hi 2>/dev/null) y")"', 'stderr-as-word'],
+  ['print $"a (echo hi > out.txt) b"', 'stdout-redirect'],
   ['echo $env:FOO', 'powershell-env'],
   ['$x = 1', 'bare-assignment'],
   ['foreach ($x in [1 2]) { print $x }', 'foreach-loop'],
   ['Get-ChildItem', 'powershell-cmdlet'],
+  ['ls | Select-Object -First 2', 'powershell-cmdlet'],
   ['echo a && echo b', 'and-or'],
   ['echo $(echo hi)', 'command-substitution'],
   ['echo $?', 'exit-status'],
@@ -30,7 +41,6 @@ const REFUSED: ReadonlyArray<readonly [string, string]> = [
   ['[[name size]; [a 1]] | select name, size', 'comma-column'],
   ['@(1, 2) | length', 'array-literal'],
   ['export FOO=1', 'export-assignment'],
-  ['FOO=1 print hi', 'prefix-assignment'],
   ['ls | each { $_.name }', 'current-item'],
   ['if (-not (path exists /tmp)) { print no }', 'powershell-not'],
   ['ls | select -First 2', 'deprecated-flags'],
@@ -66,7 +76,26 @@ const ALLOWED = [
   'cmd o+e>| ignore',
   'let n = 3; if $n > 2 { print "big" }',
   'print (2 > 1)',
+  'print (2 < 3)',
   '[[size]; [2mb]] | where size > 1.5mb | length',
+  '[[size]; [2mb]] | where size < 1mb | length',
+  '[[size]; [2mb]] | where size <= 1mb | length',
+  'ls | where modified > 2024-01-01T00:00:00 | length',
+  'ls | where modified > 12:30:00 | length',
+  'let name = "b"; if $name > a.txt { print hit }',
+  '[[name]; [readme.md]] | where name > a.md | length',
+  '[a b] | where $it in [a, b] | length',
+  'glob a=b | length',
+  'FOO=1 print hi',
+  'print $"total (1 + 2)"',
+  'print $"nested ($"inner (1 + 2)") end"',
+  String.raw`print $"literal \(1 + 2\)"`,
+  'print "literal 2>/dev/null and a > b.txt"',
+  'RUST_LOG=debug ^cargo test --help',
+  'open Write-Host.md',
+  'ls Write-Host.md',
+  '^/usr/bin/ls -R .',
+  'sudo ls -R .',
   "print '1 > out.txt'",
   'print "1 > out.txt"',
   'print "2>/dev/null"',
@@ -148,8 +177,16 @@ const SILENT_WRONG: ReadonlyArray<readonly [string, string]> = [
   ['print hi &> out.txt', 'stderr-as-word'],
   ['print hi 1> out.txt', 'stderr-as-word'],
   ['print hi > out.txt', 'stdout-redirect'],
+  ['print hi >out.txt', 'stdout-redirect'],
   ['print hi >> build.log', 'stdout-redirect'],
+  ['print hi >>build.log', 'stdout-redirect'],
   ['print hi > /dev/null', 'stdout-redirect'],
+  ['print hi > .gitignore', 'stdout-redirect'],
+  ['print hi >& out.txt', 'stderr-as-word'],
+  ['print hi < in.txt', 'stdin-redirect'],
+  ['print hi <in.txt', 'stdin-redirect'],
+  ['print hi <<< x', 'stdin-redirect'],
+  ['print hi << EOF', 'stdin-redirect'],
 ]
 
 test('shell redirections Nushell accepts but silently ignores are refused', { skip: !nuAvailable }, () => {
@@ -254,13 +291,13 @@ test('every hint is produced by a real failure of the tested Nushell', { skip: !
   }
 })
 
-test('a bash env prefix that Nushell silently ignores is refused', { skip: !nuAvailable }, () => {
+test('per-command env assignment is valid Nushell and not refused', { skip: !nuAvailable }, () => {
   const cwd = mkdtempSync(join(tmpdir(), 'dsh-nu-prefix-'))
   try {
-    const result = runNu('FOO=1 print hi', cwd)
+    const result = runNu('FOO=1 ^printenv FOO', cwd)
     assert.equal(result.status, 0)
-    assert.equal(result.stdout.trim(), 'hi')
-    assert.throws(() => assertNushellSyntax('FOO=1 print hi'), /prefix-assignment/)
+    assert.equal(result.stdout.trim(), '1')
+    assert.doesNotThrow(() => assertNushellSyntax('FOO=1 print hi'))
   } finally {
     rmSync(cwd, { recursive: true, force: true })
   }
@@ -272,7 +309,7 @@ test('refused syntax forms genuinely fail in the tested Nushell', { skip: !nuAva
     // Nushell accepts a bash-style env prefix and both silent redirect
     // spellings; refusing that silent wrong behaviour is the point of those
     // rules, and their own test above pins the exit-0 behaviour.
-    const silentlyWrong = new Set(['prefix-assignment', 'stderr-as-word', 'stdout-redirect'])
+    const silentlyWrong = new Set(['stderr-as-word', 'stdout-redirect', 'stdin-redirect'])
     for (const [command, id] of REFUSED) {
       if (silentlyWrong.has(id)) continue
       assert.notEqual(runNu(command, cwd).status, 0, command)
@@ -301,6 +338,20 @@ test('the preflight does not refuse commands the tested Nushell accepts', { skip
       'let n = 3; if $n > 2 { print "big" }',
       'print (2 > 1)',
       '[[size]; [2mb]] | where size > 1.5mb | length',
+      '[[size]; [2mb]] | where size < 1mb | length',
+      '[[size]; [2mb]] | where size <= 1mb | length',
+      'print (2 < 3)',
+      'ls | where modified > 2024-01-01T00:00:00 | length',
+      'ls | where modified > 12:30:00 | length',
+      'let name = "b"; if $name > a.txt { print hit }',
+      '[[name]; [readme.md]] | where name > a.md | length',
+      '[a b] | where $it in [a, b] | length',
+      'glob a=b | length',
+      'FOO=1 ^printenv FOO',
+      'print $"total (1 + 2)"',
+      'print $"nested ($"inner (1 + 2)") end"',
+      String.raw`print $"literal \(1 + 2\)"`,
+      'touch Write-Host.md; ls Write-Host.md | length',
       "print '1 > out.txt'",
       '(do { ^false } | complete).exit_code',
       'print "a > b"',

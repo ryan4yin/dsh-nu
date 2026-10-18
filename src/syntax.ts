@@ -12,7 +12,7 @@
  * tested Nushell version and tested differentially against it.
  */
 
-import { codeView } from './guard.js'
+import { codeView, interpolationExpressions } from './guard.js'
 
 /** A refused syntax form. */
 export type RuleId =
@@ -20,6 +20,7 @@ export type RuleId =
   | 'stderr-file'
   | 'stderr-as-word'
   | 'stdout-redirect'
+  | 'stdin-redirect'
   | 'powershell-env'
   | 'bare-assignment'
   | 'foreach-loop'
@@ -31,7 +32,6 @@ export type RuleId =
   | 'comma-column'
   | 'array-literal'
   | 'export-assignment'
-  | 'prefix-assignment'
   | 'current-item'
   | 'powershell-not'
   | 'deprecated-flags'
@@ -69,7 +69,7 @@ const RULES: readonly Rule[] = [
   // redirect spelling is lexed as a word and runs.
   {
     id: 'stderr-as-word',
-    match: /(?:^|[\s;|(])(?:\d+>>|\d+>(?!=)[^\s;|&()]+|1>(?=\s|$)|\d+>&(?!1)|&>)/,
+    match: /(?:^|[\s;|(])(?:\d+>>|\d+>(?!=)[^\s;|&()]+|1>(?=\s|$)|\d+>&(?!1)|&>|>&(?!\d))/,
     fix: 'Nushell reads 2>... as an ordinary argument: the command runs, stderr is not redirected, and nothing fails. Drop stderr with e>| ignore, send it with e> err.txt, keep both streams with o+e> all.txt, or capture both with (do { cmd } | complete).',
   },
   {
@@ -78,11 +78,22 @@ const RULES: readonly Rule[] = [
     fix: '2> is a shell redirection, and Nushell rejects it. Send stderr with e> err.txt, stdout with o> out.txt, both with o+e> out.txt.',
   },
   // A bare `>` is also comparison, so only a path-like target (extension,
-  // slash, colon, or nul) is refused; `where size > 1kb` stays valid.
+  // slash, backslash, dotfile, or nul) is refused; `where size > 1kb` and
+  // `where modified > 2024-01-01T00:00:00` stay valid. No space is required
+  // before the target: `cmd >out.txt` is an argument too and exits 0.
   {
     id: 'stdout-redirect',
-    match: /(?:^|[\s;|(])>>?\s+(?:(?:[^\s;|&(){}]*[\\/:][^\s;|&(){}]*)|(?:[^\s;|&(){}]*[A-Za-z][A-Za-z0-9_-]*\.[A-Za-z0-9]{1,8})|(?:\.[A-Za-z][A-Za-z0-9]{0,7})|(?:[Nn][Uu][Ll]))(?=[\s;|&)}]|$)/,
+    match: /(?:^|[\s;|(])>>?\s*(?:(?:[^\s;|&(){}]*[\\/][^\s;|&(){}]*)|(?:[^\s;|&(){}]*[A-Za-z][A-Za-z0-9_-]*\.[A-Za-z0-9]{1,8})|(?:\.[A-Za-z][A-Za-z0-9]{0,31})|(?:[Nn][Uu][Ll]))(?=[\s;|&)}]|$)/,
     fix: 'In Nushell a bare > is comparison: cmd > out.txt passes > and the filename as arguments, exits 0, and writes no file. Redirect stdout with o> out.txt, append with o>> out.txt, keep both streams with o+e> out.txt, or pipe into save -f out.txt.',
+  },
+  // `<` has no input-redirection form in Nushell either; a path-like right
+  // side is a shell redirect that becomes an argument, and `<<` / `<<<` (a
+  // heredoc or here-string) is an operator Nushell does not know. Comparisons
+  // such as `where size < 1kb` stay valid.
+  {
+    id: 'stdin-redirect',
+    match: /(?:^|[\s;|(])(?:<<<?\s*[^\s;|&()]+|<(?![<=])\s*(?:(?:[^\s;|&(){}]*[\\/][^\s;|&(){}]*)|(?:[^\s;|&(){}]*[A-Za-z][A-Za-z0-9_-]*\.[A-Za-z0-9]{1,8})|(?:\.[A-Za-z][A-Za-z0-9]{0,31})|(?:[Nn][Uu][Ll]))(?=[\s;|&)}]|$))/,
+    fix: 'Nushell has no < file input redirection, and no << / <<< operator: cmd < in.txt passes < and the filename as arguments. Feed the file into the command instead, for example ^prog (open --raw in.txt), or pass the path as an argument.',
   },
   {
     id: 'powershell-env',
@@ -103,7 +114,9 @@ const RULES: readonly Rule[] = [
   },
   {
     id: 'powershell-cmdlet',
-    match: /\b(?:Get|Set|Remove|Copy|Move|Test|Join|Select|Where|ForEach|New|Invoke|Write|Add|Clear|Out|Start|Stop|Sort|Group|Measure|ConvertTo|ConvertFrom|Rename|Split|Format|Import|Export|Read|Update)-[A-Za-z]+\b/,
+    // Only a command position is a cmdlet; a path or argument such as
+    // `open Write-Host.md` is not.
+    match: /(?:^|[;|({&\n])\s*(?:Get|Set|Remove|Copy|Move|Test|Join|Select|Where|ForEach|New|Invoke|Write|Add|Clear|Out|Start|Stop|Sort|Group|Measure|ConvertTo|ConvertFrom|Rename|Split|Format|Import|Export|Read|Update)-[A-Za-z]+\b/,
     fix: 'PowerShell cmdlets have one-word Nushell equivalents: Get-ChildItem -> ls, Get-Content -> open --raw, Select-Object -> select or first, Where-Object -> where.',
   },
   {
@@ -123,8 +136,10 @@ const RULES: readonly Rule[] = [
   },
   {
     id: 'bash-flag',
-    // A leading caret forces the external binary, whose flags are its own.
-    match: /(?<!\^)\b(?:ls\s+-[A-Za-z]*R|mkdir\s+-[A-Za-z]*p)/,
+    // Only the Nushell builtin at a command position is the target: a leading
+    // caret or a path forces the external binary, whose flags are its own,
+    // and so does a launcher or wrapper that runs an external program.
+    match: /(?:^|[;|({&\n])\s*(?:ls\s+-[A-Za-z]*R|mkdir\s+-[A-Za-z]*p)/,
     fix: 'Unknown Nushell flags: mkdir a/b (parents are automatic), ls --all --long. External tools keep their own flags, but Nushell builtins do not accept bash ones.',
   },
   {
@@ -142,11 +157,8 @@ const RULES: readonly Rule[] = [
     match: /(?:^|[;\n])\s*export\s+[A-Za-z_][A-Za-z0-9_]*\s*=/,
     fix: 'Nushell has no export NAME=. Set an environment value with $env.NAME = ...; module exports use export def / export const.',
   },
-  {
-    id: 'prefix-assignment',
-    match: /(?:^|[;\n])\s*[A-Za-z_][A-Za-z0-9_]*=[^\s;|]+\s+[A-Za-z_^]/,
-    fix: 'Per-command environment assignment is not Nushell. Set $env.NAME = ... first, then run the command.',
-  },
+  // A NAME=value prefix before a command is valid Nushell: it sets that
+  // variable or environment value for the command only, so it is not refused.
   {
     id: 'current-item',
     match: /\$_\.|\$PSItem\b/,
@@ -184,7 +196,8 @@ const RULES: readonly Rule[] = [
   },
   {
     id: 'glob-named-arguments',
-    match: /\bglob\s+[A-Za-z_][A-Za-z0-9_]*=/,
+    // A pattern may contain `=`, so only the named-argument keys are refused.
+    match: /\bglob\s+(?:pattern|path|filter|depth)=/,
     fix: 'glob takes one pattern and an optional --depth, not named pattern=/path= arguments: glob "**/*.rs".',
   },
 ]
@@ -192,21 +205,89 @@ const RULES: readonly Rule[] = [
 /** All refusal rule ids, in rule order. */
 export const RULE_IDS: readonly string[] = RULES.map((rule) => rule.id)
 
-/** Find the first refused syntax form in a command. */
-export function findSyntaxIssue(command: string): Finding | undefined {
-  const view = codeView(command)
-  for (const rule of RULES) {
-    const match = rule.match.exec(view)
-    if (match === null) continue
+/** Nesting depth of `(`, `[`, and `{` at an offset in the blanked view. */
+function bracketDepthAt(view: string, index: number): number {
+  let depth = 0
+  for (let i = 0; i < index; i += 1) {
+    const char = view[i]
+    if (char === '(' || char === '[' || char === '{') depth += 1
+    else if (char === ')' || char === ']' || char === '}') depth = Math.max(0, depth - 1)
+  }
+  return depth
+}
+
+/**
+ * Whether the offset sits in a condition, where `>` and `<` are comparisons
+ * rather than shell redirects: the stage head is `if` / `else if` / `where` /
+ * `while` / `until`, or a block opened by such a stage. `if $name > a.txt`
+ * compares, while `if true { print hi > out.txt }` still refuses the redirect.
+ */
+function inCondition(view: string, index: number): boolean {
+  let start = 0
+  for (let i = index - 1; i >= 0; i -= 1) {
+    const char = view[i]
+    if (char === ';' || char === '|' || char === '\n' || char === '{' || char === '}') {
+      start = i + 1
+      break
+    }
+  }
+  let prefix = view.slice(start, index).trim()
+  while (prefix.startsWith('(')) prefix = prefix.slice(1).trimStart()
+  return /^(?:else\s+)?(?:if|where|while|until)\b/.test(prefix)
+}
+
+/** Whether a rule match is a form the tested Nushell really accepts. */
+function exempt(rule: Rule, view: string, match: RegExpExecArray, index: number): boolean {
+  if (rule.id === 'bare-assignment') {
     // $x = is valid Nushell for a variable declared with mut, and an error
     // otherwise; only the second case is a refused syntax form.
-    if (rule.id === 'bare-assignment') {
-      const name = /\$([A-Za-z_][A-Za-z0-9_]*)/.exec(match[0])?.[1]
-      if (name !== undefined && new RegExp('\\bmut\\s+' + name + '\\b').test(view)) continue
+    const name = /\$([A-Za-z_][A-Za-z0-9_]*)/.exec(match[0])?.[1]
+    if (name !== undefined && new RegExp('\\bmut\\s+' + name + '\\b').test(view)) return true
+  }
+  if (rule.id === 'comma-column') {
+    // Commas inside a list or record literal are list separators, not columns.
+    const comma = index + match[0].indexOf(',')
+    return bracketDepthAt(view, comma) > 0
+  }
+  if (rule.id === 'stdout-redirect' || rule.id === 'stdin-redirect') {
+    return inCondition(view, index)
+  }
+  return false
+}
+
+/** Interpolation nesting this scan follows before giving up. */
+const MAX_INTERPOLATION_DEPTH = 8
+
+/** Find the first refused syntax form in a command. */
+function findSyntaxIssueIn(command: string, depth: number): Finding | undefined {
+  const view = codeView(command)
+  for (const rule of RULES) {
+    // A rule's first match can be exempt; keep looking for a later one (for
+    // example a list comma before a real comma column).
+    let from = 0
+    while (from < view.length) {
+      const lead = view[from - 1] ?? ' '
+      const match = rule.match.exec(lead + view.slice(from))
+      if (match === null) break
+      const index = from + match.index - 1
+      if (!exempt(rule, view, match, index)) {
+        return { id: rule.id, fragment: match[0].trim(), fix: rule.fix }
+      }
+      from = Math.max(from + 1, index + Math.max(1, match[0].length))
     }
-    return { id: rule.id, fragment: match[0].trim(), fix: rule.fix }
+  }
+  if (depth >= MAX_INTERPOLATION_DEPTH) return undefined
+  // Parentheses inside $"..." / $'...' are executed, not string data.
+  for (const expression of interpolationExpressions(command)) {
+    const nested = findSyntaxIssueIn(expression, depth + 1)
+    if (nested !== undefined) return nested
   }
   return undefined
+}
+
+/** Find the first refused syntax form in a command. */
+export function findSyntaxIssue(command: string): Finding | undefined {
+  return findSyntaxIssueIn(command, 0)
 }
 
 /** Build the refusal for one finding. */
