@@ -18,6 +18,8 @@ import { codeView } from './guard.js'
 export type RuleId =
   | 'stderr-redirect'
   | 'stderr-file'
+  | 'stderr-as-word'
+  | 'stdout-redirect'
   | 'powershell-env'
   | 'bare-assignment'
   | 'foreach-loop'
@@ -63,10 +65,24 @@ const RULES: readonly Rule[] = [
     match: /(?:^|[\s;|(])(?:\d+\s*)?>&\s*\d+/,
     fix: 'Nushell has no 2>&1. Redirect with o+e> out.txt, or capture both streams with (do { cmd } | complete).',
   },
+  // `2> target` with a space is a Nushell parse error; every other numbered
+  // redirect spelling is lexed as a word and runs.
+  {
+    id: 'stderr-as-word',
+    match: /(?:^|[\s;|(])(?:\d+>>|\d+>(?!=)[^\s;|&()]+|1>(?=\s|$)|\d+>&(?!1)|&>)/,
+    fix: 'Nushell reads 2>... as an ordinary argument: the command runs, stderr is not redirected, and nothing fails. Drop stderr with e>| ignore, send it with e> err.txt, keep both streams with o+e> all.txt, or capture both with (do { cmd } | complete).',
+  },
   {
     id: 'stderr-file',
-    match: /(?:^|[\s;|(])\d+\s*>>?\s*[^\s|;&]+/,
-    fix: 'Nushell has no numbered redirection. Send stderr with e> err.txt, stdout with o> out.txt, both with o+e> out.txt.',
+    match: /(?:^|[\s;|(])2>\s+[^\s;|&()]+/,
+    fix: '2> is a shell redirection, and Nushell rejects it. Send stderr with e> err.txt, stdout with o> out.txt, both with o+e> out.txt.',
+  },
+  // A bare `>` is also comparison, so only a path-like target (extension,
+  // slash, colon, or nul) is refused; `where size > 1kb` stays valid.
+  {
+    id: 'stdout-redirect',
+    match: /(?:^|[\s;|(])>>?\s+(?:(?:[^\s;|&(){}]*[\\/:][^\s;|&(){}]*)|(?:[^\s;|&(){}]*[A-Za-z][A-Za-z0-9_-]*\.[A-Za-z0-9]{1,8})|(?:\.[A-Za-z][A-Za-z0-9]{0,7})|(?:[Nn][Uu][Ll]))(?=[\s;|&)}]|$)/,
+    fix: 'In Nushell a bare > is comparison: cmd > out.txt passes > and the filename as arguments, exits 0, and writes no file. Redirect stdout with o> out.txt, append with o>> out.txt, keep both streams with o+e> out.txt, or pipe into save -f out.txt.',
   },
   {
     id: 'powershell-env',

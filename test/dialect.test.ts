@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -9,6 +9,15 @@ import { assertNuDialect, findHabit, hintFor, HINT_IDS, RULE_IDS } from '../src/
 const REFUSED: ReadonlyArray<readonly [string, string]> = [
   ['echo hi 2>&1', 'stderr-redirect'],
   ['echo hi > out.txt 2> err.txt', 'stderr-file'],
+  ['echo hi 2>/dev/null', 'stderr-as-word'],
+  ['echo hi 2>$null', 'stderr-as-word'],
+  ['echo hi 2>nul', 'stderr-as-word'],
+  ['echo hi 2>> build.log', 'stderr-as-word'],
+  ['echo hi &> out.txt', 'stderr-as-word'],
+  ['echo hi 1> out.txt', 'stderr-as-word'],
+  ['echo hi > out.txt', 'stdout-redirect'],
+  ['ls >> build.log', 'stdout-redirect'],
+  ['^node build.cjs > /dev/null', 'stdout-redirect'],
   ['echo $env:FOO', 'powershell-env'],
   ['$x = 1', 'bare-assignment'],
   ['foreach ($x in [1 2]) { print $x }', 'foreach-loop'],
@@ -48,8 +57,19 @@ const ALLOWED = [
   'for x in [1 2] { print $x }',
   '[[name size]; [a 1]] | select name size',
   'cmd o> out.txt',
+  'cmd o>> out.txt',
   'cmd e> err.txt',
+  'cmd e>> err.txt',
   'cmd o+e> all.txt',
+  'cmd o+e>> all.txt',
+  'cmd e>| ignore',
+  'cmd o+e>| ignore',
+  'let n = 3; if $n > 2 { print "big" }',
+  'print (2 > 1)',
+  '[[size]; [2mb]] | where size > 1.5mb | length',
+  "print '1 > out.txt'",
+  'print "1 > out.txt"',
+  'print "2>/dev/null"',
   '(do { ^false } | complete).exit_code',
   'print "export FOO=1; TOKEN=abc cmd"',
   'print "ls | select -First 2"',
@@ -114,17 +134,29 @@ function runNu(command: string, cwd: string): { status: number | null; stdout: s
   return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' }
 }
 
-const SILENT_WRONG = ['print hi 2>/dev/null', 'print hi 2>nul']
+const SILENT_WRONG: ReadonlyArray<readonly [string, string]> = [
+  ['print hi 2>/dev/null', 'stderr-as-word'],
+  ['print hi 2>$null', 'stderr-as-word'],
+  ['print hi 2>nul', 'stderr-as-word'],
+  ['print hi 2>> build.log', 'stderr-as-word'],
+  ['print hi &> out.txt', 'stderr-as-word'],
+  ['print hi 1> out.txt', 'stderr-as-word'],
+  ['print hi > out.txt', 'stdout-redirect'],
+  ['print hi >> build.log', 'stdout-redirect'],
+  ['print hi > /dev/null', 'stdout-redirect'],
+]
 
-test('shell syntax Nushell accepts but silently ignores is refused', { skip: !nuAvailable }, () => {
+test('shell redirections Nushell accepts but silently ignores are refused', { skip: !nuAvailable }, () => {
   const cwd = mkdtempSync(join(tmpdir(), 'dsh-nu-silent-'))
   try {
-    for (const command of SILENT_WRONG) {
+    for (const [command, id] of SILENT_WRONG) {
       const result = runNu(command, cwd)
       assert.equal(result.status, 0, command + ' should be accepted by Nushell')
       assert.equal(result.stderr, '', command + ' should look successful to Nushell')
-      assert.throws(() => assertNuDialect(command), /stderr-file/, command)
+      assert.throws(() => assertNuDialect(command), new RegExp(id), command)
     }
+    // The shell spelling is not a redirect in Nushell, so it writes no file.
+    assert.deepEqual(readdirSync(cwd), [], 'Nushell wrote a file for a shell redirect')
   } finally {
     rmSync(cwd, { recursive: true, force: true })
   }
@@ -231,10 +263,12 @@ test('a bash env prefix that Nushell silently ignores is refused', { skip: !nuAv
 test('refused habits genuinely fail in the tested Nushell', { skip: !nuAvailable }, () => {
   const cwd = mkdtempSync(join(tmpdir(), 'dsh-nu-dialect-'))
   try {
+    // Nushell accepts a bash-style env prefix and both silent redirect
+    // spellings; refusing that silent wrong behaviour is the point of those
+    // rules, and their own test above pins the exit-0 behaviour.
+    const silentlyWrong = new Set(['prefix-assignment', 'stderr-as-word', 'stdout-redirect'])
     for (const [command, id] of REFUSED) {
-      // Nushell accepts a bash-style env prefix and then ignores it; refusing
-      // that silent wrong behaviour is the point of the rule.
-      if (id === 'prefix-assignment') continue
+      if (silentlyWrong.has(id)) continue
       assert.notEqual(runNu(command, cwd).status, 0, command)
     }
   } finally {
@@ -253,8 +287,15 @@ test('the preflight does not refuse commands the tested Nushell accepts', { skip
       'for x in [1 2] { print $x }',
       '[[name size]; [a 1]] | select name size | to json',
       'print hi o> out.txt',
+      'print hi o>> out.txt',
       'print hi e> err.txt',
+      'print hi e>> err.txt',
       'print hi o+e> all.txt',
+      'print hi o+e>> all.txt',
+      'let n = 3; if $n > 2 { print "big" }',
+      'print (2 > 1)',
+      '[[size]; [2mb]] | where size > 1.5mb | length',
+      "print '1 > out.txt'",
       '(do { ^false } | complete).exit_code',
       'print "a > b"',
       'print "2>$null &> out.txt"',
