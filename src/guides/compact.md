@@ -1,6 +1,7 @@
 Nushell syntax guide
 
-Calls run as `nu --no-config-file -c "<command>"`; one fresh process per call, no bash fallback.
+Calls run as `nu --no-config-file -c "<command>"`; one fresh process per call, no bash fallback; it fails closed if Nushell is unresolved.
+Final output: `to text` for lines or `to json` for structure; a raw table is token-heavy.
 Pipelines pass structured values: `ls | where type == file | select name size`.
 Files: `open --raw notes.txt | lines`, `save -f out.txt`, `glob **/*.md`, `mkdir a/b`.
 Text: `"a,b" | split row ","`, `$"hi ($name)"`, `str trim`, `str replace -r "\d+" "#"`.

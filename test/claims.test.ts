@@ -37,8 +37,12 @@ test('every teaching claim holds in the real Nushell', { skip: !nuAvailable }, (
     assert.equal(ok(run('let name = "world"; print $"hi ($name)"', cwd), 'interpolation'), 'hi world')
     assert.equal(ok(run("print r#'hi $name'#", cwd), 'raw string'), 'hi $name')
 
-    // to json is a boundary conversion that returns text, not a table.
+    // to json and to text are boundary conversions that return text, not a table.
     assert.equal(ok(run('[[a]; [1]] | to json | describe', cwd), 'to json type'), 'string')
+    assert.equal(ok(run('[[a]; [1]] | to text | describe', cwd), 'to text type'), 'string')
+
+    // Double-quoted strings process escapes; only $"..." interpolates.
+    assert.equal(ok(run('"a\\nb" | str length', cwd), 'double-quoted escapes'), '3')
 
     // and / or are boolean operators, not command separators.
     assert.equal(ok(run('true and true', cwd), 'and'), 'true')

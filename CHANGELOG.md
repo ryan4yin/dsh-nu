@@ -4,6 +4,19 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+
+- The guides ask for model-facing output to be serialized with `to text` or
+  `to json` instead of a wide table. They also state that the bundle fails closed
+  when Nushell cannot be resolved.
+
+### Fixed
+
+- Corrected the full guide's quoting rule: single quotes are literal, double
+  quotes process escapes, and only `$"..."` interpolates.
+
 ## 0.2.0 (2026-10-18)
 
 ### Added
