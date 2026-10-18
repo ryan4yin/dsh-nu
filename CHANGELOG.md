@@ -4,6 +4,21 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.2 (2026-10-19)
+
+### Added
+
+- The flake builds the plugin from this checkout, so a Nix consumer pins the
+  repository instead of waiting for a release tarball or a copy in another
+  repository. `lib.mkDshNuPackage` takes the dsh installation the bundle plugs
+  into, renders `cordis.patch.yml` against it, and works with the dsh from
+  `nur-ryan4yin`, which the complete README example uses, or `llm-agents.nix`.
+
+### Fixed
+
+- Four dev dependencies in the lockfile had no resolved URL or integrity hash,
+  which broke an offline `npm ci`, such as the one the Nix build runs.
+
 ## 0.3.1 (2026-10-19)
 
 ### Added
