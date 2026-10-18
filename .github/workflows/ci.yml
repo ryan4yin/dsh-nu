@@ -3,8 +3,13 @@ name: CI
 on:
   pull_request:
     paths-ignore:
-      - '**/*.md'
+      # User-facing docs are covered by the Docs workflow. Do not ignore
+      # `**/*.md`: `src/guides/*.md` are prompt inputs that `npm test` and the
+      # integration boot verify.
       - 'docs/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - 'AGENTS.md'
       - 'LICENSE'
   workflow_dispatch:
 

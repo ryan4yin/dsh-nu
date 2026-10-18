@@ -4,6 +4,7 @@
  * then exits non-zero when a promise is broken.
  */
 import { NushellExecutor } from 'dsh-nu/executor'
+import { buildToolDescription } from 'dsh-nu/guide'
 
 export const inject = ['shell', 'systemPrompt']
 
@@ -79,7 +80,12 @@ export async function apply(ctx) {
   record('the prompt carries the shell rules', prompt.includes('Shell: Nushell only'))
   record('the prompt carries the syntax guide', prompt.includes('Nushell syntax guide'))
   const tool = assembly.tools?.find((entry) => entry.name === 'bash' || entry.name === 'pwsh')
-  if (tool !== undefined) record('the shell tool description is Nushell', /shell syntax is Nushell/.test(tool.description), tool.name)
+  record('the shell tool is assembled', tool !== undefined)
+  if (tool !== undefined) {
+    // The rewrite replaces the whole description with the guide's text, so pin
+    // that contract instead of matching one sentence that may be trimmed.
+    record('the shell tool description is Nushell', tool.description === buildToolDescription({ tool: tool.name }), tool.description)
+  }
 
   const sdk = assembly.sections.find((section) => section.name === 'tools:sdk')
   if (process.env.DSH_NU_PROBE_PTC === '1') {
