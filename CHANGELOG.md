@@ -4,6 +4,20 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.3 (2026-10-19)
+
+### Added
+
+- CI builds `.#checks.x86_64-linux.package` on every push, the same call a
+  consumer makes, so a stale hash or a dsh layout change fails there instead of
+  on a user's machine. The flake gains a `nur-ryan4yin` input for that check
+  only; consumers still pass their own dsh.
+
+### Fixed
+
+- The Nix package's `npmDepsHash` now matches the 0.3.2 lockfile, so a consumer
+  build succeeds again.
+
 ## 0.3.2 (2026-10-19)
 
 ### Added
