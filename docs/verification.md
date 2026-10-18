@@ -48,7 +48,7 @@ writing under `/sys` reports EROFS on some Linux hosts and EACCES on others, so
 the test asserts the read-only hint only when that real error appears and says
 so when it skips.
 
-## Integration probe
+## Integration probe and boot
 
 The release gate requires a probe against the pinned dsh: mount the executor and
 the teaching layer in a composition, confirm that the executor and teaching rows
@@ -58,6 +58,16 @@ profile that names this package after dsh-base, boots the profile with
 `--dump-config`, and inspects the composed tree. It needs a dsh executable
 (`DSH_INTEGRATION_CLI` or `dsh` on PATH), the linked peers, and a built
 `dist/`. It does not call a model.
+
+`npm run test:integration` goes further: it creates a scratch `DSH_HOME`,
+writes a profile that mounts this package, copies a small probe plugin into the
+profile, and boots the real dsh. The probe runs Nushell builtins through the
+live shell seam, asserts that a foreign shell and a bash redirection are refused
+before a process exists, checks the failure hint, and inspects the assembled
+prompt and tool description. It needs the same prerequisites as the probe and a
+POSIX host for the current probe; CI runs it on Linux. It boots twice by default:
+native mode checks the tool description, and PTC mode checks the generated `tools:sdk`
+declarations as well. Pass `--native` or `--ptc` to run one mode.
 
 ## CI matrix
 

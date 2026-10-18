@@ -32,9 +32,11 @@ npm pack --dry-run
 
 每个 hint 模式都对应固定版本 Nushell 实际打印的错误 id，例如 `nu::parser::shell_outerr`、`nu::shell::io::not_found`、`nu::shell::pipeline_mismatch`。测试执行对应命令，把捕获的 stderr 交给 hint 函数。有一个样本依赖宿主环境：向 `/sys` 写入时，有些 Linux 返回 EROFS，有些返回 EACCES；因此只有在真实出现只读错误时才断言对应 hint，跳过时会说明。
 
-## 集成探针
+## 集成探针与真实启动
 
 发布门槛要求针对固定版本 dsh 的探针：在 composition 中挂载执行器和教学层，确认执行器与教学层行存在、平台 shell 执行器行已禁用。`npm run probe` 会用真实 dsh CLI 做这件事：构造一个临时 profile，在 dsh-base 之后命名本包，用 `--dump-config` 启动并检查组合后的插件树。它需要 dsh 可执行文件（`DSH_INTEGRATION_CLI` 或 PATH 上的 `dsh`）、已链接的 peer 包，以及构建好的 `dist/`。它不会调用模型。
+
+`npm run test:integration` 更进一步：创建临时 `DSH_HOME`，写一个挂载本包的 profile，把一个小探针插件复制进 profile，然后真实启动 dsh。探针通过实时 shell seam 运行 Nushell 内置命令，确认外部 shell 和 bash 重定向在创建进程前被拒绝，检查失败 hint，并检查组装后的 prompt 与工具描述。它需要与 probe 相同的前置条件，当前探针要求 POSIX 主机；CI 在 Linux 上运行它。默认启动两次：native 模式检查工具描述，PTC 模式还会检查生成的 `tools:sdk` 声明。传入 `--native` 或 `--ptc` 可只跑一个模式。
 
 ## CI 矩阵
 
