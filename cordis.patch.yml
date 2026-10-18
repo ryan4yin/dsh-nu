@@ -24,8 +24,8 @@
       config:
         nuPath: !!js process.env.DSH_NU_PATH ?? ''
         enforceNushellOnly: true
-        dialectLint: true
-        dialectHints: true
+        syntaxLint: true
+        syntaxHints: true
         requireNu: true
         verifyNu: true
 

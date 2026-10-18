@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { findHandoff } from '../src/guard.ts'
-import { findHabit } from '../src/dialect.ts'
+import { findSyntaxIssue } from '../src/syntax.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const repo = resolve(here, '..')
@@ -142,12 +142,12 @@ function grade(item, events) {
   const finalText = [...events].reverse().find((event) => event.type === 'final')?.text ?? ''
   const findings = commands.map((command) => {
     const handoff = findHandoff(command)
-    const habit = findHabit(command)
+    const syntaxIssue = findSyntaxIssue(command)
     return {
       command,
       handoff: handoff ? handoff.shell : undefined,
-      habit: habit ? habit.id : undefined,
-      clean: !handoff && !habit,
+      syntax: syntaxIssue ? syntaxIssue.id : undefined,
+      clean: !handoff && !syntaxIssue,
     }
   })
   const refused = results.filter((event) => /dsh-nu: refusing/.test(String(event.result ?? ''))).length

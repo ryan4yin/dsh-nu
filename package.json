@@ -39,6 +39,10 @@
       "types": "./dist/guard.d.ts",
       "default": "./dist/guard.js"
     },
+    "./syntax": {
+      "types": "./dist/syntax.d.ts",
+      "default": "./dist/syntax.js"
+    },
     "./dialect": {
       "types": "./dist/dialect.d.ts",
       "default": "./dist/dialect.js"

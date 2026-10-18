@@ -101,7 +101,7 @@ interface ToolSchema {
 }
 
 /** Whether a description claims to run bash or PowerShell. */
-function claimsForeignDialect(tool: ToolSchema): boolean {
+function claimsForeignShell(tool: ToolSchema): boolean {
   const description = typeof tool.description === 'string' ? tool.description : ''
   return /\bbash\b|\bpwsh\b|PowerShell/i.test(description)
 }
@@ -111,7 +111,7 @@ function rewriteTool(raw: unknown, options: Options): unknown {
   if (raw === null || typeof raw !== 'object') return raw
   const tool = raw as ToolSchema
   if (typeof tool.name !== 'string' || !options.toolNames.includes(tool.name)) return raw
-  if (!claimsForeignDialect(tool)) return raw
+  if (!claimsForeignShell(tool)) return raw
   const rewritten: ToolSchema = { ...tool, description: buildToolDescription({ tool: tool.name }) }
   const command = tool.parameters?.properties?.command
   if (command !== undefined && tool.parameters?.properties !== undefined) {

@@ -4,7 +4,8 @@ import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { assertNuDialect, findHabit, hintFor, HINT_IDS, RULE_IDS } from '../src/dialect.ts'
+import { assertNuDialect as legacyAssertNuDialect, findHabit as legacyFindHabit } from '../src/dialect.ts'
+import { assertNushellSyntax, findSyntaxIssue, hintFor, HINT_IDS, RULE_IDS } from '../src/syntax.ts'
 
 const REFUSED: ReadonlyArray<readonly [string, string]> = [
   ['echo hi 2>&1', 'stderr-redirect'],
@@ -107,17 +108,22 @@ const ALLOWED = [
 ]
 
 test('every rule rejects its sample', () => {
-  for (const [command, id] of REFUSED) assert.equal(findHabit(command)?.id, id, command)
+  for (const [command, id] of REFUSED) assert.equal(findSyntaxIssue(command)?.id, id, command)
   assert.deepEqual([...new Set(REFUSED.map(([, id]) => id))].sort(), [...RULE_IDS].sort())
 })
 
-test('valid Nushell and quoted habits are not refused', () => {
-  for (const command of ALLOWED) assert.equal(findHabit(command), undefined, command)
+test('valid Nushell and quoted syntax are not refused', () => {
+  for (const command of ALLOWED) assert.equal(findSyntaxIssue(command), undefined, command)
 })
 
 test('the allowlist exempts exact commands and refusal names the fix', () => {
-  assert.doesNotThrow(() => assertNuDialect('echo hi 2>&1', { allow: [/^echo hi 2>&1$/] }))
-  assert.throws(() => assertNuDialect('echo hi 2>&1'), (error: Error) => error.message.includes('stderr-redirect') && error.message.includes('o+e>'))
+  assert.doesNotThrow(() => assertNushellSyntax('echo hi 2>&1', { allow: [/^echo hi 2>&1$/] }))
+  assert.throws(() => assertNushellSyntax('echo hi 2>&1'), (error: Error) => error.message.includes('stderr-redirect') && error.message.includes('o+e>'))
+})
+
+test('the deprecated module re-exports the syntax functions', () => {
+  assert.equal(legacyAssertNuDialect, assertNushellSyntax)
+  assert.equal(legacyFindHabit, findSyntaxIssue)
 })
 
 test('hints stay silent without a recognized Nushell error', () => {
@@ -153,7 +159,7 @@ test('shell redirections Nushell accepts but silently ignores are refused', { sk
       const result = runNu(command, cwd)
       assert.equal(result.status, 0, command + ' should be accepted by Nushell')
       assert.equal(result.stderr, '', command + ' should look successful to Nushell')
-      assert.throws(() => assertNuDialect(command), new RegExp(id), command)
+      assert.throws(() => assertNushellSyntax(command), new RegExp(id), command)
     }
     // The shell spelling is not a redirect in Nushell, so it writes no file.
     assert.deepEqual(readdirSync(cwd), [], 'Nushell wrote a file for a shell redirect')
@@ -254,14 +260,14 @@ test('a bash env prefix that Nushell silently ignores is refused', { skip: !nuAv
     const result = runNu('FOO=1 print hi', cwd)
     assert.equal(result.status, 0)
     assert.equal(result.stdout.trim(), 'hi')
-    assert.throws(() => assertNuDialect('FOO=1 print hi'), /prefix-assignment/)
+    assert.throws(() => assertNushellSyntax('FOO=1 print hi'), /prefix-assignment/)
   } finally {
     rmSync(cwd, { recursive: true, force: true })
   }
 })
 
-test('refused habits genuinely fail in the tested Nushell', { skip: !nuAvailable }, () => {
-  const cwd = mkdtempSync(join(tmpdir(), 'dsh-nu-dialect-'))
+test('refused syntax forms genuinely fail in the tested Nushell', { skip: !nuAvailable }, () => {
+  const cwd = mkdtempSync(join(tmpdir(), 'dsh-nu-syntax-'))
   try {
     // Nushell accepts a bash-style env prefix and both silent redirect
     // spellings; refusing that silent wrong behaviour is the point of those
@@ -277,7 +283,7 @@ test('refused habits genuinely fail in the tested Nushell', { skip: !nuAvailable
 })
 
 test('the preflight does not refuse commands the tested Nushell accepts', { skip: !nuAvailable }, () => {
-  const cwd = mkdtempSync(join(tmpdir(), 'dsh-nu-dialect-'))
+  const cwd = mkdtempSync(join(tmpdir(), 'dsh-nu-syntax-'))
   try {
     const runnable = [
       'print "2>&1"',
