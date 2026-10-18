@@ -31,7 +31,7 @@ writeFileSync(
     {
       name: PROFILE,
       private: true,
-      dependencies: { 'dsh-nu': 'file:../../..' },
+      dependencies: { 'dsh-nu': 'file:../../../..' },
       dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', 'dsh-nu'] } },
     },
     null,
