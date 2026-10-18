@@ -56,22 +56,45 @@ Real-model teaching evals are separate from `npm test`; see [`eval/README.md`](.
 
 ## Nix
 
-The flake builds the plugin from this checkout, so a Nix user follows the repository instead of a published release. The builder takes the dsh installation it plugs into, because dsh's own packaging is separate:
+dsh-nu does not package dsh itself. This flake builds the plugin from the checkout, and the dsh installation comes from a flake that packages it. The complete example below uses `nur-ryan4yin`, whose `dsh` also provides the `withPlugins` wrapper that applies bundle patches:
 
 ```nix
-# flake.nix
-inputs.dsh-nu = {
-  url = "github:ryan4yin/dsh-nu";
-  inputs.nixpkgs.follows = "nixpkgs";
-};
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # dsh itself, plus its withPlugins wrapper.
+    nur-ryan4yin = {
+      url = "github:ryan4yin/nur-packages";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    # The bundle, built from this repository's flake.
+    dsh-nu = {
+      url = "github:ryan4yin/dsh-nu";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
 
-# in a module, where `dsh` is the package that provides the dsh CLI
-(myNurPkgs.dsh.withPlugins [
-  (dsh-nu.lib.mkDshNuPackage { inherit pkgs; dsh = myNurPkgs.dsh; })
-])
+  outputs = { self, nixpkgs, nur-ryan4yin, dsh-nu }: {
+    nixosConfigurations.example = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ({ pkgs, ... }:
+          let
+            dsh = nur-ryan4yin.packages.${pkgs.stdenv.hostPlatform.system}.dsh;
+          in {
+            environment.systemPackages = [
+              (dsh.withPlugins [
+                (dsh-nu.lib.mkDshNuPackage { inherit pkgs dsh; })
+              ])
+            ];
+          })
+      ];
+    };
+  };
+}
 ```
 
-Bump the input with `nix flake update dsh-nu`.
+`mkDshNuPackage` needs only the dsh installation's `@deepseek-ai` peer packages, so `llm-agents.nix`'s dsh works there too. Applying the bundle needs a wrapper that adds `--patch`, which `nur-ryan4yin`'s `withPlugins` provides. Bump the bundle with `nix flake update dsh-nu`.
 
 ## Configuration
 
