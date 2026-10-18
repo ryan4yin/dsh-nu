@@ -64,6 +64,8 @@
   },
   "files": [
     "dist",
+    "docs",
+    "eval/README.md",
     "examples",
     "cordis.patch.yml",
     "README.md",

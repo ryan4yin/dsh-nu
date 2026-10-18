@@ -16,11 +16,11 @@
 
 ## 被拒绝：非 Nushell 语法
 
-拒绝信息会指出片段和对应的 Nushell 写法，包括编号重定向、`$env:NAME`、裸赋值、`foreach`、PowerShell cmdlet、`&&` / `||`、`$?`、Nushell 内置命令上的未知 flag。按提示改掉那段写法；给它加引号只会把它变成数据。如果非 Nushell 语法拦截对某个调用点判断错了，把那条命令加进 allowlist，或者设置 `syntaxLint: false`。
+拒绝信息会指出片段和对应的 Nushell 写法，包括编号重定向、shell 风格的输入重定向、`$env:NAME`、裸赋值、`foreach`、PowerShell cmdlet、`&&` / `||`、`$?`、Nushell 内置命令上的未知 flag。按提示改掉那段写法；普通引号会把它变成数据，但 `$"…"` / `$'…'` 插值是代码，括号里的片段同样会过预检。如果非 Nushell 语法拦截对某个调用点判断错了，把那条命令加进 allowlist，或者设置 `syntaxLint: false`。
 
 ## 失败信息中带 Nushell hint
 
-hint 行跟在命令自身 stderr 后面，以 `Nushell hint (<id>):` 开头，针对 Nushell 报出的错误给一条修复建议。命令在启动前就被拒绝时没有 hint，因为 Nushell 根本没运行。
+hint 行跟在命令自身 stderr 后面，以 `Nushell hint (<id>):` 开头，针对 Nushell 报出的错误给一条修复建议。只有调用以非零退出码失败时才会追加 hint；退出码 0 和沙箱拒绝都没有 hint。命令在启动前就被拒绝时也没有 hint，因为 Nushell 根本没运行。
 
 ## 写入失败：只读或权限不足
 

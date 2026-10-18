@@ -17,9 +17,22 @@
 这些不能靠改写命令来修。它们是 Nushell 的真实行为，所以交给指南和 hint 解释：
 
 - `print "x" | str length` 报 `nu::parser::input_type_mismatch`。`print` 只写 stdout，不返回值，下一段拿不到输入。friction corpus 改用 `"x" | str length`，教学层也要求把 `print` 放在最后，或者直接让最终值输出。
-- Nushell 里 `>` 是比较。看起来像 shell 的 `cmd > file` 什么都不写，还返回 0；所以指南专门写清 `o>`、`e>`、`o+e>`，而 `stdout-redirect` 规则会在目标看起来像路径时拒绝这种写法。
+- Nushell 里 `>` 是比较。看起来像 shell 的 `cmd > file` 什么都不写，还返回 0；所以指南专门写清 `o>`、`e>`、`o+e>`，而 `stdout-redirect` 规则会在目标看起来像路径时拒绝这种写法；目标是普通单词时仍按比较或参数处理。
 - 要先 `mut x = 1` 才能写 `$x = 2`。裸赋值规则会跳过用 `mut` 声明过的变量。
 - 往 `/sys` 写入时，有些 Linux 报 `nu::shell::io::read-only_filesystem_or_storage_medium`，有些报 `permission_denied`。hint 测试只在真的出现 EROFS 时断言只读 hint，否则报告跳过。
+
+## 复查
+
+之后又对 guard、预检和执行器做了一轮复查。每条发现都先用固定版本 Nushell 复现，再动手修：
+
+- `FOO=1 ^printenv FOO` 输出 `1`，说明每条命令的环境前缀是合法的 Nushell。旧的 `prefix-assignment` 规则会误拒它；规则已删除，允许语料固定了这条能跑通的命令。
+- `print a#b; bash -c 'echo H'` 会真的启动 bash：`#` 只在 token 边界才开始注释。guard 和预检现在都只在 token 边界空白注释，词中间的 `#` 不再掩护 shell 交接。
+- `print $"a(bash -c 'echo I')b"` 输出 `aIb`。`$"…"` 和 `$'…'` 会插值，所以两个扫描器都会把每个括号片段当代码继续扫描；普通引号文本仍是数据。
+- `do { /bin/sh -c … }`、`do { env bash … }`、`do { FOO=1 bash … }` 和 `let x = (env bash …)` 都会启动外部 shell，而旧 guard 只看块的开头。嵌套扫描现在覆盖每个命令位置：块、子表达式、分隔符、管道、带路径的程序、环境前缀和启动器。
+- 多行 record、list、closure、`match "bash" { bash => 1 }`、`{ sh : 1 }` 和 `|sh, ...rest|` 曾被 guard 误拒。现在按括号深度切分语句，record key、match arm 和 closure 参数不再当作命令位置。
+- Windows 上所有受限调用都会失败：父类把 `ShellExecSpec` 传给 `confine`，旧实现却从字符串上读 `.command`。现在两种形态都接受。
+- hint 曾追加到退出码 0 的调用和沙箱拒绝上，垃圾 `nu --version` 输出也能启动。现在 hint 要求非零退出码且非拒绝，版本探测必须解析出版本号。
+- 生成的 PTC `tools:sdk` 文本残留宿主声明（`${VAR:?}`、`$env:`、大小写不敏感变量、pwsh 沙箱模式），改写规则现在会清掉。
 
 ## 改了什么
 
@@ -31,8 +44,8 @@
 
 ## 已知缺口
 
-- 预检是启发式扫描器，不是解析器。字符串、注释或原始字符串里的语法写法，预检会当作数据放行；特殊构造仍可能需要 allowlist。
-- hint 只在 Nushell 报错后出现；启动前就被拒绝的命令没有 hint。
+- 预检是启发式扫描器，不是解析器。普通字符串、注释或原始字符串里的语法写法会当作数据放行；`$"…"` / `$'…'` 插值是代码，会继续扫描。特殊构造仍可能需要 allowlist。
+- hint 只在调用失败时出现；退出码 0 和沙箱拒绝都没有 hint，启动前被拒绝的命令也没有 hint。
 - Windows CI 上没有权限类差分 hint 样本，这个样本会跳过。
 - 语料覆盖的是常见 agent 命令，不是 Nushell 的全部功能。语料之外若被 guard 误拒，应该补一条语料。
-- `stdout-redirect` 的目标判断是启发式：目标带路径特征（扩展名、斜杠、冒号或 `nul`）才拒绝，所以 `cmd > out.txt` 和 `cmd > /dev/null` 会被拦下，而 `where size > 1kb`、`if $n > 2` 照常可用。没有路径特征的目标（`cmd > out`）和比较无法区分，仍只靠指南提醒。
+- `stdout-redirect` 的目标判断是启发式：目标带路径特征（扩展名、斜杠、反斜杠、点开头或 `nul`）才拒绝，所以 `cmd > out.txt` 和 `cmd > /dev/null` 会被拦下，而 `where size > 1kb`、`if $n > 2` 和日期时间比较照常可用。没有路径特征的目标（`cmd > out`）和比较无法区分，仍只靠指南提醒。

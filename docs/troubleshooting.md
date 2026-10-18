@@ -16,11 +16,11 @@ The error names the shell and quotes the statement, for example `bash -c` or `pw
 
 ## Refused: non-Nushell syntax
 
-The syntax preflight names the fragment and the Nushell spelling to use: numbered redirection, `$env:NAME`, bare assignment, `foreach`, PowerShell cmdlets, `&&` / `||`, `$?`, or an unknown flag on a Nushell builtin. Fix the fragment; quoting it turns it into data. If the preflight is wrong for one call site, allowlist that command or set `syntaxLint: false`.
+The syntax preflight names the fragment and the Nushell spelling to use: numbered redirection, shell input redirects, `$env:NAME`, bare assignment, `foreach`, PowerShell cmdlets, `&&` / `||`, `$?`, or an unknown flag on a Nushell builtin. Fix the fragment; plain quoting turns it into data, but a `$"…"` / `$'…'` interpolation is code, so its `(…)` parts are preflighted too. If the preflight is wrong for one call site, allowlist that command or set `syntaxLint: false`.
 
 ## A failure carries a Nushell hint
 
-The hint line comes after the command's own stderr and starts with `Nushell hint (<id>):`. It gives one fix for the error Nushell reported. A command refused before spawning has no hint, because Nushell never ran.
+The hint line comes after the command's own stderr and starts with `Nushell hint (<id>):`. It gives one fix for the error Nushell reported. Hints are added only when the call fails with a non-zero exit; exit 0 and a sandbox denial carry no hint. A command refused before spawning has no hint, because Nushell never ran.
 
 ## Writes fail: read-only or permission denied
 

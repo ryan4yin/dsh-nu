@@ -29,7 +29,7 @@ npm pack --dry-run
 
 ## Differential corpus
 
-The refused list covers numbered and stderr redirection, shell-style stdout redirects and stderr redirects written as words, `$env:`, bare and per-command assignment, `export`, `foreach`, cmdlets, `$_.`, PowerShell `-not` and flag verbs, common parameters, `&&` / `||`, command substitution, `$?`, array literals, percent blocks, negative counts, unknown Nushell flags, comma columns, glob named arguments, and redirection after a pipe. A rule change needs a command that the pinned Nushell really rejects, or a silent misread pinned by the separate exit-0 test; an assumption is not enough. The allowed list checks that the preflight does not refuse valid Nushell, quoted data, comments, or external-tool syntax.
+The refused list covers numbered and stderr redirection, shell-style stdout redirects and stderr redirects written as words, shell input redirects (`< f`, `<<<`), `$env:`, bare `$x =` assignment, `export`, `foreach`, cmdlets, `$_.`, PowerShell `-not` and flag verbs, common parameters, `&&` / `||`, command substitution, `$?`, array literals, percent blocks, negative counts, unknown Nushell flags, comma columns, glob named arguments, and redirection after a pipe. A rule change needs a command that the pinned Nushell really rejects, or a silent misread pinned by the separate exit-0 test; an assumption is not enough. The allowed list checks that the preflight does not refuse valid Nushell, plain quoted data, comments, per-command environment prefixes (`FOO=1 cmd`), or external-tool syntax.
 
 ## Hint coverage
 
@@ -48,6 +48,6 @@ A code pull request runs Ubuntu, macOS, and Windows with the pinned Nushell inst
 ## Known limits
 
 - The supported pair is dsh `0.2.1-rc.2` and Nushell `0.115.1`.
-- The preflight is a heuristic scanner, not a parser. A bash/PowerShell syntax form inside a string or comment is data and passes; an unusual construct can still need an allowlist entry.
-- Hints only fire after Nushell reports an error. A command refused before spawning has no hint.
+- The preflight is a heuristic scanner, not a parser. A bash/PowerShell syntax form inside a plain string or comment is data and passes, while `$"…"` / `$'…'` interpolation is scanned as code; an unusual construct can still need an allowlist entry.
+- Hints only fire on a failing call after Nushell reports an error; exit 0 and a sandbox denial carry no hint. A command refused before spawning has no hint.
 - Windows has no differential hint sample for file permissions in CI; the permission sample is skipped there.
