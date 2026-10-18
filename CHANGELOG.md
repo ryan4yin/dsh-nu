@@ -4,6 +4,14 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+
+- The system-prompt guide now calls out the traps between `echo` and `print`,
+  `for` and `each`, optional record access, and discarding streams with
+  `e>| ignore`. Each claim has a real-Nushell assertion.
+
 ## 0.1.0 (2026-10-18)
 
 First release of `dsh-nu`, a clean-room implementation of the Nushell-only shell

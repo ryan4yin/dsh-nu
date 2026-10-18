@@ -83,6 +83,21 @@ test('every teaching claim holds in the real Nushell', { skip: !nuAvailable }, (
     assert.equal(ok(run('print (match 2 { 1 => "one", _ => "other" })', cwd), 'match'), 'other')
     assert.equal(ok(run('try { error make { msg: "boom" } } catch { |err| print ($err.msg == "boom") }', cwd), 'try catch'), 'true')
 
+    // echo is a pipeline value, not a print side effect; a non-final echo is dropped.
+    assert.equal(ok(run('if true { echo "dropped"; print "end" }', cwd), 'echo is not print'), 'end')
+
+    // Optional field access turns a missing field into null.
+    assert.equal(ok(run('print ({ a: 1 }.missing? == null)', cwd), 'optional record field'), 'true')
+
+    // for cannot be piped; each maps a list.
+    const forPipe = run('for x in [1 2] { $x * 2 } | describe', cwd)
+    assert.notEqual(forPipe.status, 0, 'for pipeline should fail')
+    assert.match(forPipe.stderr, /unexpected_keyword/)
+    assert.equal(ok(run('print ([1 2] | each {|x| $x * 2 } | to nuon)', cwd), 'each list'), '[2, 4]')
+
+    // ignore discards a stream without a file, and the command continues.
+    assert.equal(ok(run('^nu --no-config-file -c "print out; print -e err" o+e>| ignore; print "after"', cwd), 'discard streams'), 'after')
+
     // Environment mutation lasts for this process only.
     assert.equal(ok(run('$env.PROBE_ENV = "x"; print $env.PROBE_ENV', cwd), 'env set'), 'x')
 
