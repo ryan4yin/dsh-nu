@@ -54,6 +54,25 @@ The suite runs on Node 24. The package allows Node 22.19 and newer, but versions
 
 Real-model teaching evals are separate from `npm test`; see [`eval/README.md`](./eval/README.md) for the three-arm harness, cross-model judging, and the dated results.
 
+## Nix
+
+The flake builds the plugin from this checkout, so a Nix user follows the repository instead of a published release. The builder takes the dsh installation it plugs into, because dsh's own packaging is separate:
+
+```nix
+# flake.nix
+inputs.dsh-nu = {
+  url = "github:ryan4yin/dsh-nu";
+  inputs.nixpkgs.follows = "nixpkgs";
+};
+
+# in a module, where `dsh` is the package that provides the dsh CLI
+(myNurPkgs.dsh.withPlugins [
+  (dsh-nu.lib.mkDshNuPackage { inherit pkgs; dsh = myNurPkgs.dsh; })
+])
+```
+
+Bump the input with `nix flake update dsh-nu`.
+
 ## Configuration
 
 The bundle's patch mounts one executor row and one teaching row; a profile patch overrides either by id. This profile patch spells out every field and its default:

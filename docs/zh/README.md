@@ -52,6 +52,25 @@ npm run build
 
 测试跑在 Node 24 上。npm 允许安装到 Node 22.19 及以上，但除 24 之外的版本没有测试过。
 
+## Nix
+
+flake 会从当前 checkout 构建插件，Nix 用户直接跟随本仓库，不需要等发布版本。构建器由调用方传入要接入的 dsh 安装，因为 dsh 自身的打包是另一件事：
+
+```nix
+# flake.nix
+inputs.dsh-nu = {
+  url = "github:ryan4yin/dsh-nu";
+  inputs.nixpkgs.follows = "nixpkgs";
+};
+
+# 在模块里，`dsh` 是提供 dsh CLI 的包
+(myNurPkgs.dsh.withPlugins [
+  (dsh-nu.lib.mkDshNuPackage { inherit pkgs; dsh = myNurPkgs.dsh; })
+])
+```
+
+用 `nix flake update dsh-nu` 更新这个输入。
+
 ## 配置
 
 bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch 按 id 覆盖其中任意一行。下面这个 profile patch 列出所有字段及其默认值：
