@@ -33,12 +33,21 @@ buildNpmPackage {
   # The dsh packages this bundle imports are optional peer dependencies, so
   # npm does not install them. Link the copy that ships with the dsh
   # installation the caller selected; the compiler and the runtime resolve
-  # the same files from there.
+  # the same files from there. dsh packages from nur-packages and
+  # llm-agents.nix nest the scope under the dsh package, other layouts keep it
+  # at the installation root; fail clearly when neither exists.
   buildPhase = ''
     runHook preBuild
 
-    ln -sfn ${dsh}/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai \
-      node_modules/@deepseek-ai
+    peerScope=${dsh}/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai
+    if [ ! -d "$peerScope" ]; then
+      peerScope=${dsh}/lib/node_modules/@deepseek-ai
+    fi
+    if [ ! -d "$peerScope" ]; then
+      echo "dsh-nu: ${dsh} does not ship the @deepseek-ai peer packages" >&2
+      exit 1
+    fi
+    ln -sfn "$peerScope" node_modules/@deepseek-ai
     npm run build
 
     runHook postBuild
@@ -58,7 +67,7 @@ buildNpmPackage {
       --replace-fail 'dsh-nu/teaching' "$out/dist/teaching.js"
     sed -i "s|nuPath:.*|nuPath: ${nushell}/bin/nu|" $out/cordis.patch.yml
 
-    ln -s ${dsh}/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai $out/node_modules/@deepseek-ai
+    ln -s "$(readlink node_modules/@deepseek-ai)" $out/node_modules/@deepseek-ai
 
     runHook postInstall
   '';
