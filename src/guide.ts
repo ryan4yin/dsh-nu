@@ -81,7 +81,8 @@ export function buildGuide(options: GuideOptions = {}): string {
     '- Read: `open --raw notes.txt` for text, `open data.json` for structure, `lines` to split.',
     '- Write: `save -f out.txt` overwrites; `save -a out.txt` appends; `mkdir a/b` creates parents.',
     '- Redirect: `cmd o> out.txt`, `cmd e> err.txt`, `cmd o+e> all.txt`, append with `o>>` / `e>>`.',
-    '- A bare `>` is comparison, not redirection, and `2>` is not a redirect. Capture a failed call with `(do { cmd } | complete).exit_code`.',
+    '- A bare `>` is comparison, not redirection; `2>` is not a redirect either, and `2>/dev/null` / `2>nul` are accepted as ordinary arguments and silently do nothing. Capture a failed call with `(do { cmd } | complete).exit_code`.',
+    '- `print` writes a line to stdout but returns nothing, so do not pipe after it; let the final value stand when you want structured output.',
     '',
     '## External commands',
     '',
@@ -112,7 +113,7 @@ export function buildToolDescription(options: ToolDescriptionOptions = {}): stri
     '',
     'A command that hands work to another shell is refused before it runs. Bash/PowerShell habits get a Nushell spelling in the error. A failing command may carry one `Nushell hint (...)` line on stderr; read it before retrying.',
     '',
-    'When you need output, print it or let the final pipeline value stand; a failing command is reported as `[exit code: N]`.',
+    'When you need output, let the final pipeline value stand, or put `print` last: it returns nothing, so a pipeline after it has no input. A failing command is reported as `[exit code: N]`.',
   ].join('\n')
 }
 

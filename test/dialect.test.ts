@@ -70,6 +70,22 @@ function runNu(command: string, cwd: string): { status: number | null; stdout: s
   return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' }
 }
 
+const SILENT_WRONG = ['print hi 2>/dev/null', 'print hi 2>nul']
+
+test('shell syntax Nushell accepts but silently ignores is refused', { skip: !nuAvailable }, () => {
+  const cwd = mkdtempSync(join(tmpdir(), 'dsh-nu-silent-'))
+  try {
+    for (const command of SILENT_WRONG) {
+      const result = runNu(command, cwd)
+      assert.equal(result.status, 0, command + ' should be accepted by Nushell')
+      assert.equal(result.stderr, '', command + ' should look successful to Nushell')
+      assert.throws(() => assertNuDialect(command), /stderr-file/, command)
+    }
+  } finally {
+    rmSync(cwd, { recursive: true, force: true })
+  }
+})
+
 interface HintSample {
   id: string
   command: string
