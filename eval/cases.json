@@ -134,5 +134,87 @@
     },
     "minShellCalls": 1,
     "maxShellCalls": 5
+  },
+  {
+    "id": "proc-inspect",
+    "prompt": "Use one bash call to report the running kernel release, total memory in kB, and whether zswap is enabled. Some of those paths may be missing or unreadable, so ignore errors. End your answer with RESULT: <release> <memory-kb> <zswap-yes-or-no>.",
+    "fixtures": {},
+    "expect": {
+      "finalMatches": "RESULT:\\s*\\S+\\s+\\d+\\s+(yes|no)"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 2
+  },
+  {
+    "id": "tool-presence",
+    "prompt": "Use one bash call to check whether the commands gh and glab are available on PATH. A missing command is a normal answer, not an error. End with RESULT: gh=<yes|no> glab=<yes|no>.",
+    "fixtures": {},
+    "expect": {
+      "finalMatches": "RESULT:\\s*gh=(yes|no)\\s+glab=(yes|no)"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 2
+  },
+  {
+    "id": "deep-mkdir",
+    "prompt": "Use one bash call to create the nested directories cache/logs/2026/10 and cache/tmp, then print the paths of all directories under cache, sorted. End with RESULT: <paths>.",
+    "fixtures": {},
+    "expect": {
+      "finalMatches": "RESULT:.*cache/logs/2026/10.*cache/tmp"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 2
+  },
+  {
+    "id": "merge-streams",
+    "prompt": "Use one bash call to run ^nu --no-config-file -c 'print -e err; print out' and save both lines to combined.txt. Then show combined.txt. End with RESULT: err out.",
+    "fixtures": {},
+    "expect": {
+      "finalMatches": "RESULT:\\s*err\\s+out"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 2
+  },
+  {
+    "id": "search-ignore",
+    "prompt": "Use one bash call to find every file under the current directory whose contents contain TODO, and print their paths sorted. Ignore errors from unreadable paths. End with RESULT: <paths>.",
+    "fixtures": {
+      "docs/a.txt": "TODO first\n",
+      "docs/b.txt": "nothing\n",
+      "src/c.txt": "TODO second\n"
+    },
+    "expect": {
+      "finalMatches": "RESULT:.*docs/a\\.txt.*src/c\\.txt"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 2
+  },
+  {
+    "id": "recursive-list",
+    "prompt": "Use one bash call to show the files under fixtures-sessions recursively with their sizes, and print only the file paths. End with RESULT: <paths>.",
+    "fixtures": {
+      "fixtures-sessions/a/1.txt": "one\n",
+      "fixtures-sessions/a/b/2.txt": "two\n",
+      "fixtures-sessions/c/3.txt": "three\n"
+    },
+    "expect": {
+      "finalMatches": "RESULT:.*a/1\\.txt.*a/b/2\\.txt.*c/3\\.txt"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 2
+  },
+  {
+    "id": "chain-step",
+    "prompt": "Use one bash call to run step1.nu, step2.nu, step3.nu in order, stopping at the first failure, and report which step failed. End with RESULT: step2 failed.",
+    "fixtures": {
+      "step1.nu": "'one' | save -f step1.txt\n",
+      "step2.nu": "print -e 'two failed'\nexit 2\n",
+      "step3.nu": "'three' | save -f step3.txt\n"
+    },
+    "expect": {
+      "finalMatches": "RESULT:\\s*step2 failed"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 2
   }
 ]
