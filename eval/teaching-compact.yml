@@ -1,0 +1,6 @@
+# Compact arm: the compact guide and rules, with the rewritten tool descriptions.
+- id: nu-teaching
+  config:
+    guide: compact
+    rules: true
+    rewriteToolDescriptions: true

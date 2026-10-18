@@ -56,6 +56,8 @@ npm run build
 
 The suite runs on Node 24. The package allows Node 22.19 and newer, but versions other than 24 are untested.
 
+Real-model teaching evals are separate from `npm test`; see [`eval/README.md`](./eval/README.md) for the two-arm harness, cross-model scoring, and the first-round results.
+
 ## Configuration
 
 ```yaml

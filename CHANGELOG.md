@@ -6,11 +6,18 @@ All notable changes to this project are recorded here. The format follows
 
 ## Unreleased
 
+### Added
+
+- A real-model teaching eval harness with full, compact, and off arms, task
+  fixtures, guard-aware scoring, cross-model judging, and dated reports.
+
 ### Changed
 
 - The system-prompt guide now calls out the traps between `echo` and `print`,
   `for` and `each`, optional record access, and discarding streams with
-  `e>| ignore`. Each claim has a real-Nushell assertion.
+  `e>| ignore`. Each claim has a real-Nushell assertion. It also rejects fixed
+  sleeps as completion waits, stream-follow waits, and `ps | grep` process
+  lookups.
 
 ## 0.1.0 (2026-10-18)
 

@@ -28,6 +28,9 @@ export function buildRules(): string {
     '- `echo` only produces a pipeline value; as a non-final statement it is discarded. Use `print` for output that must appear.',
     '- External programs start with their name; prefix with `^` to force the external binary when a Nushell command has the same name (`^ls`).',
     '- Non-zero exits are reported as `[exit code: N]`; a failed call may carry one `Nushell hint (...)` line naming the fix. Read it before retrying the same shape.',
+    '- Do not wait with a fixed `sleep` or by following a stream (`tail -f`, `watch`). Start long work as a background job and wait for its completion or job output; a retry backoff is at most 5 seconds.',
+    '- Do not locate a process with `ps | grep`; it matches the grep itself. Capture the job handle or PID when the process starts.',
+    '- A filter must not hide a producer failure: capture the exit status with `| complete` before reporting success.',
   ].join('\n')
 }
 
@@ -47,6 +50,7 @@ export function buildGuide(options: GuideOptions = {}): string {
       'Variables: `let x = 1`, `mut x = 2`, `$env.NAME`, `$env.NAME?`, `$rec.field?`; sequence commands with `;`; combine conditions with `and` / `or`.',
       'Output: `print` writes a line; `echo` only returns a value. `for` is for side effects; use `each` for a list.',
       'Redirect: `cmd o> out.txt`, `cmd e> err.txt`, `cmd o+e> all.txt`; capture with `(do { cmd } | complete)`.',
+      'Wait for a background job or its output, not a fixed `sleep`; do not use `tail -f` or `ps | grep`.',
       'A failure prints `[exit code: N]` and possibly one `Nushell hint (...)` line.',
     ].join('\n')
   }
@@ -92,6 +96,12 @@ export function buildGuide(options: GuideOptions = {}): string {
     '- Use `path join a b`, `path exists`, and `which` instead of string concatenation and `test -f`.',
     '- A failing external aborts the rest of the command, so wrap it when the failure matters: `do -i { cmd }` or `cmd | complete`.',
     '',
+    '## Waiting and background jobs',
+    '',
+    '- A fixed `sleep` is not a completion wait. Start long work in a background call and await its job output; a retry backoff is at most 5 seconds per attempt, inside a bounded retry.',
+    '- Do not follow a stream or open a pager as a wait: `tail -f`, `watch`, `less`, and interactive readers can block forever. Read the current tail, or wait for the job.',
+    '- Do not find a process with `ps | grep`; it matches the grep itself. Capture the job handle or PID when you start the process, and stop that handle.',
+    '',
     '## When Nushell refuses',
     '',
     'The dialect preflight refuses bash/PowerShell habits before running them: numbered redirection, `$env:VAR`, bare assignment, `foreach`, cmdlets, `&&` / `||`, command substitution, `$?`, comma-separated columns, and bash flags on Nushell builtins. Fix the fragment the refusal names instead of working around it.',
@@ -114,6 +124,7 @@ export function buildToolDescription(options: ToolDescriptionOptions = {}): stri
     'Budgets and behavior mirror the host tool: default timeout, per-call timeout override, output byte cap with spill-on-overflow, background execution, and the current working directory apply unchanged.',
     '',
     'A command that hands work to another shell is refused before it runs. Bash/PowerShell habits get a Nushell spelling in the error. A failing command may carry one `Nushell hint (...)` line on stderr; read it before retrying.',
+    'Long work belongs in a background call: wait for its job output instead of a fixed `sleep`, and do not follow a stream with `tail -f` or find a process with `ps | grep`.',
     '',
     'When you need output, let the final pipeline value stand, or put `print` last: it returns nothing, so a pipeline after it has no input. A failing command is reported as `[exit code: N]`.',
   ].join('\n')
