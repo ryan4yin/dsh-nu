@@ -18,7 +18,7 @@ dsh-nu 只支持这一组合。peer 依赖只覆盖 dsh 家族；启动时如果
 
 ## 安装
 
-需要 `PATH` 上有 dsh `0.2.1-rc.2` 和 Nushell `0.115.1`。
+需要 Node 22.19+、`PATH` 上的 `pnpm`（`dsh plugin` 安装器会调用它）、dsh `0.2.1-rc.2` 和 Nushell `0.115.1`。
 
 把 bundle 装进 dsh profile：
 
@@ -62,6 +62,7 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
   config:
     nuPath: ""
     nuArgs: ["--no-config-file", "-c"]
+    timeoutMs: 60000
     enforceNushellOnly: true
     syntaxLint: true
     syntaxHints: true
@@ -76,6 +77,7 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
     guide: full          # full | compact | off
     rules: true
     rewriteToolDescriptions: true
+    toolNames: ["bash", "pwsh"]
 ```
 
 | 字段 | 默认值 | 含义 |
@@ -89,12 +91,14 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
 | `guide` | `full` | prompt 指南：`full`、`compact`、`off` |
 | `rules` | `true` | 在 prompt 前加上 shell 规则段 |
 | `rewriteToolDescriptions` | `true` | 改写 `bash` / `pwsh` 工具描述 |
+| `toolNames` | `["bash","pwsh"]` | 改写哪些工具 schema 的 shell 文本 |
+| `timeoutMs` | `60000` | 单次调用默认超时；`maxTimeoutMs` 限制覆盖值 |
 | `requireNu` / `verifyNu` | `true` / `true` | nu 无法解析或 `--version` 探测失败时，启动直接失败 |
 | `verifyTimeoutMs` | `10000` | 版本探测的超时时间 |
 
 按目标选 guide：
 
-- `off` 只用于诊断对照：它去掉规则和指南，评测中出现了明显更多的预检拒绝和重试，正常会话不要用。
+- `off` 只关闭指南；除非 `rules: false`，规则段仍然保留。它只用于诊断对照：评测中出现了明显更多的预检拒绝和重试，正常会话不要用。
 - `compact` 覆盖常见写法，prompt token 更少；评测里大多数样本没有触发拒绝。
 - `full` 保留完整语法参考，覆盖不常见写法和边界情况。
 
