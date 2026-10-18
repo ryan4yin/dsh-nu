@@ -36,4 +36,9 @@ The bundle patch is `cordis.patch.yml`. `examples/preset-nu-shell.md` lists the 
 
 ## Acknowledgements
 
-Thanks to the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) project for the shell seam this bundle extends.
+The Nushell-only shell, guard, and teaching ideas in this project come from
+[YMRwithNoworry/dsh-nushell-only](https://github.com/YMRwithNoworry/dsh-nushell-only) (MIT),
+the original implementation of those ideas.
+
+Thanks to the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) project for the
+shell seam this bundle extends.
