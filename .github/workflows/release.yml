@@ -37,7 +37,7 @@ jobs:
           version="$(node -p "require('./package.json').version")"
           test "v${version}" = "${GITHUB_REF_NAME}"
 
-      - name: Typecheck, build, test, probe
+      - name: Typecheck, build, test, probe, integration
         env:
           DSH_INTEGRATION_CLI: ${{ github.workspace }}/node_modules/.bin/dsh
         run: |
@@ -45,6 +45,7 @@ jobs:
           npm run build
           npm test
           npm run probe
+          npm run test:integration
 
       - name: Pack
         run: npm pack
@@ -65,9 +66,12 @@ jobs:
             echo "exists=false" >> "${GITHUB_OUTPUT}"
           fi
 
-      - name: Stage for the npm release
+      # Publish directly before creating the GitHub release. A staged publish
+      # needs a separate human approval, which this job cannot wait for, so the
+      # release would otherwise point at a version npm does not serve yet.
+      - name: Publish to npm
         if: steps.published.outputs.exists == 'false'
-        run: npm stage publish --provenance --access public
+        run: npm publish --provenance --access public
 
       - name: Create the GitHub release
         env:
