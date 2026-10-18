@@ -1,0 +1,122 @@
+{
+  "name": "dsh-nu",
+  "version": "0.1.0",
+  "description": "Nushell as the only shell for DeepSeek Harness: every shell call runs nu, foreign shells are refused before they spawn, and the model is taught Nushell.",
+  "license": "MIT",
+  "author": "ryan4yin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ryan4yin/dsh-nu.git"
+  },
+  "homepage": "https://github.com/ryan4yin/dsh-nu#readme",
+  "bugs": {
+    "url": "https://github.com/ryan4yin/dsh-nu/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./executor": {
+      "types": "./dist/executor.d.ts",
+      "default": "./dist/executor.js"
+    },
+    "./teaching": {
+      "types": "./dist/teaching.d.ts",
+      "default": "./dist/teaching.js"
+    },
+    "./guide": {
+      "types": "./dist/guide.d.ts",
+      "default": "./dist/guide.js"
+    },
+    "./guard": {
+      "types": "./dist/guard.d.ts",
+      "default": "./dist/guard.js"
+    },
+    "./dialect": {
+      "types": "./dist/dialect.d.ts",
+      "default": "./dist/dialect.js"
+    },
+    "./nu": {
+      "types": "./dist/nu.d.ts",
+      "default": "./dist/nu.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "examples",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "testedWith": {
+    "dsh": "0.2.1-rc.2",
+    "nushell": "0.115.1"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --import tsx --test \"test/*.test.ts\"",
+    "coverage": "node --import tsx --test --experimental-test-coverage \"test/*.test.ts\"",
+    "link-peers": "node dev/link-peers.mjs",
+    "prepare": "npm run build"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2",
+    "@deepseek-ai/dsh-bash-sandbox": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-pwsh-sandbox": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-sandbox": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-sandbox-policy": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-shell": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-subprocess": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-system-prompt": "^0.2.1-rc.2",
+    "@deepseek-ai/schemastery": "^3.18.4"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-bash-sandbox": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-pwsh-sandbox": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-sandbox": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-sandbox-policy": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-shell": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-subprocess": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-system-prompt": {
+      "optional": true
+    },
+    "@deepseek-ai/schemastery": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}
