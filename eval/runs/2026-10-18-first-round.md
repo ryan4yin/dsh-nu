@@ -53,3 +53,6 @@ these tasks. It changed first-pass validity, refusal recovery, and cost. That is
 the effect the guide is meant to have, so this round does not justify more rules.
 The next useful checks are a case that requires a less common Nushell idiom and a
 run on the local model, where latency makes the retry cost larger.
+
+A later round added the wait and blocking cases; see
+[`2026-10-18-wait-coverage.md`](./2026-10-18-wait-coverage.md).

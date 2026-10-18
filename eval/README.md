@@ -20,6 +20,11 @@ all commands that would have been refused. The evaluator imports the same
 `findHandoff` and `findHabit` functions the executor uses, so a command that is
 flagged here is exactly a command the deployment would refuse.
 
+The grader also records the longest fixed `sleep` in each shell call, flags a
+long sleep when a case sets `maxSleepSeconds`, and counts blocking shapes such as
+`tail -f`, `watch`, `ps ... grep`, and `while true`. The wait cases are
+`background-wait`, `readiness-wait`, and `pipeline-status`.
+
 ## Prerequisites
 
 1. Build the bundle: `npm run build`.

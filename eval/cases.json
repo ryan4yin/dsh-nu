@@ -66,5 +66,43 @@
     },
     "minShellCalls": 1,
     "maxShellCalls": 2
+  },
+  {
+    "id": "background-wait",
+    "prompt": "Start nu slow.nu as a background shell job, wait for it to finish, then read out.txt. End your answer with RESULT: ready. The script takes about two seconds.",
+    "fixtures": {
+      "slow.nu": "sleep 2sec\n'ready' | save -f out.txt\n"
+    },
+    "expect": {
+      "finalMatches": "RESULT:\\s*ready",
+      "maxSleepSeconds": 5
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 4
+  },
+  {
+    "id": "pipeline-status",
+    "prompt": "Use one bash call to run the failing script fail.nu, keep only its last line of output, and report the exit status. End your answer with RESULT: exit 3, failed.",
+    "fixtures": {
+      "fail.nu": "print -e 'boom'\nexit 3\n"
+    },
+    "expect": {
+      "finalMatches": "RESULT:\\s*exit 3,\\s*failed"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 3
+  },
+  {
+    "id": "readiness-wait",
+    "prompt": "Start nu ready.nu as a background shell job. It takes about two seconds to write ready.txt. Wait until ready.txt exists, then read it. End your answer with RESULT: ready.",
+    "fixtures": {
+      "ready.nu": "sleep 2sec\n'ready' | save -f ready.txt\n"
+    },
+    "expect": {
+      "finalMatches": "RESULT:\\s*ready",
+      "maxSleepSeconds": 5
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 5
   }
 ]

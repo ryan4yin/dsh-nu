@@ -110,6 +110,29 @@ function eventsFrom(stdout) {
   return { events, bad }
 }
 
+function sleepSecondsIn(command) {
+  let max = 0
+  for (const match of command.matchAll(/\bsleep\s+(\d+(?:\.\d+)?)\s*(ms|sec|s|min|m|hr|h)?\b/g)) {
+    const value = Number(match[1])
+    const unit = match[2]
+    const seconds = unit === 'ms' ? value / 1000 : unit === 'min' || unit === 'm' ? value * 60 : unit === 'hr' || unit === 'h' ? value * 3600 : value
+    max = Math.max(max, seconds)
+  }
+  return max
+}
+
+function blockingKinds(command) {
+  const kinds = []
+  if (/\btail\s+-[fF]\b/.test(command)) kinds.push('tail-f')
+  if (/\bwatch\s+\S/.test(command)) kinds.push('watch')
+  if (/\bwhile\s+(?:true|\(true\))/.test(command)) kinds.push('while-true')
+  if (/\bps\s+(?:aux|-ef)\b[^\n]*\bgrep\b/.test(command)) kinds.push('ps-grep')
+  if (/\bpgrep\b/.test(command)) kinds.push('pgrep')
+  if (/\bpkill\b/.test(command)) kinds.push('pkill')
+  if (/\byes\b[^\n]*\|/.test(command)) kinds.push('yes-pipe')
+  return kinds
+}
+
 function grade(item, events) {
   const calls = events.filter((event) => event.type === 'tool_call' && (event.tool === 'bash' || event.tool === 'pwsh'))
   const commands = calls.map((event) => String(event.input?.command ?? ''))
@@ -130,11 +153,17 @@ function grade(item, events) {
   const answerMatched = new RegExp(item.expect.finalMatches, 'i').test(finalText)
   const withinCalls = commands.length >= (item.minShellCalls ?? 0) && commands.length <= (item.maxShellCalls ?? Infinity)
   const firstClean = findings.length > 0 && findings[0].clean
+  const maxSleepSeconds = Math.max(0, ...commands.map(sleepSecondsIn))
+  const sleepLimit = item.expect.maxSleepSeconds
+  const longSleep = sleepLimit !== undefined && maxSleepSeconds > sleepLimit
+  const blocking = commands.flatMap(blockingKinds)
+  const backgroundCalls = calls.filter((event) => event.input?.run_in_background === true).length
+  const jobCalls = events.filter((event) => event.type === 'tool_call' && event.tool === 'job_output').length
   const tokenCount = events
     .filter((event) => event.type === 'status' && event.phase === 'step_end' && event.usage)
     .reduce((sum, event) => sum + (Number(event.usage.totalTokens) || 0), 0)
   return {
-    taskSuccess: answerMatched && withinCalls,
+    taskSuccess: answerMatched && withinCalls && !longSleep,
     answerMatched,
     withinCalls,
     shellCalls: commands.length,
@@ -142,6 +171,11 @@ function grade(item, events) {
     violations: findings.filter((finding) => !finding.clean).length,
     refused,
     hints,
+    maxSleepSeconds,
+    longSleep,
+    blocking,
+    backgroundCalls,
+    jobCalls,
     tokenCount,
     findings,
     finalText,
@@ -179,8 +213,13 @@ function aggregate(rows) {
       violations: cell.reduce((total, row) => total + row.violations, 0),
       refused: cell.reduce((total, row) => total + row.refused, 0),
       hints: cell.reduce((total, row) => total + row.hints, 0),
+      longSleep: sum('longSleep'),
+      blockingCalls: cell.reduce((total, row) => total + row.blocking.length, 0),
+      backgroundCalls: cell.reduce((total, row) => total + row.backgroundCalls, 0),
+      jobCalls: cell.reduce((total, row) => total + row.jobCalls, 0),
       shellCalls: cell.reduce((total, row) => total + row.shellCalls, 0),
       tokenCount: cell.reduce((total, row) => total + row.tokenCount, 0),
+      durationMs: cell.reduce((total, row) => total + row.durationMs, 0),
     }
   }
   return byArm
@@ -237,8 +276,8 @@ const md = [
   '',
   'Generated: ' + summary.generatedAt,
   '',
-  '| case | arm | n | success | first clean | violations | refused | tokens |',
-  '|---|---|---:|---:|---:|---:|---:|---:|',
+  '| case | arm | n | success | first clean | violations | refused | long sleep | blocking | tokens |',
+  '|---|---|---:|---:|---:|---:|---:|---:|---:|---:|',
   ...cases.flatMap((item) => arms.map((arm) => {
     const cell = rows.filter((row) => row.case === item.id && row.arm === arm)
     const success = cell.filter((row) => row.taskSuccess).length
@@ -246,15 +285,17 @@ const md = [
     const violations = cell.reduce((total, row) => total + row.violations, 0)
     const refused = cell.reduce((total, row) => total + row.refused, 0)
     const tokens = cell.reduce((total, row) => total + row.tokenCount, 0)
-    return '| ' + item.id + ' | ' + arm + ' | ' + cell.length + ' | ' + success + ' | ' + clean + ' | ' + violations + ' | ' + refused + ' | ' + tokens + ' |'
+    const longSleep = cell.filter((row) => row.longSleep).length
+    const blocking = cell.reduce((total, row) => total + row.blocking.length, 0)
+    return '| ' + item.id + ' | ' + arm + ' | ' + cell.length + ' | ' + success + ' | ' + clean + ' | ' + violations + ' | ' + refused + ' | ' + longSleep + ' | ' + blocking + ' | ' + tokens + ' |'
   })),
   '',
   '## Aggregate',
   '',
-  '| arm | samples | success | first clean | violations | refused | tokens |',
-  '|---|---:|---:|---:|---:|---:|---:|',
+  '| arm | samples | success | first clean | violations | refused | long sleep | blocking | tokens |',
+  '|---|---:|---:|---:|---:|---:|---:|---:|---:|',
   ...Object.entries(summary.aggregate).map(([arm, cell]) =>
-    '| ' + arm + ' | ' + cell.samples + ' | ' + cell.taskSuccess + ' | ' + cell.firstClean + ' | ' + cell.violations + ' | ' + cell.refused + ' | ' + cell.tokenCount + ' |'),
+    '| ' + arm + ' | ' + cell.samples + ' | ' + cell.taskSuccess + ' | ' + cell.firstClean + ' | ' + cell.violations + ' | ' + cell.refused + ' | ' + cell.longSleep + ' | ' + cell.blockingCalls + ' | ' + cell.tokenCount + ' |'),
   '',
   'Raw events are under ' + out + '/samples; they are deliberately not committed.',
 ].join('\n')
