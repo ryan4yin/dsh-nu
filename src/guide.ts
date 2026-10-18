@@ -23,7 +23,6 @@ const RULES = readGuide('rules.md')
 const FULL_GUIDE = readGuide('full.md')
 const COMPACT_GUIDE = readGuide('compact.md')
 const TOOL_DESCRIPTION = readGuide('tool-description.md')
-const COMMAND_DESCRIPTION = readGuide('command-description.md')
 
 /** The short mandatory section: rules a shell call must not break. */
 export function buildRules(): string {
@@ -50,4 +49,4 @@ export function buildToolDescription(_options: ToolDescriptionOptions = {}): str
 }
 
 /** The command parameter description shared by both shell tools. */
-export const NUSHELL_COMMAND_DESCRIPTION = COMMAND_DESCRIPTION
+export const NUSHELL_COMMAND_DESCRIPTION = 'The Nushell command to execute (Nushell syntax; not bash or PowerShell).'

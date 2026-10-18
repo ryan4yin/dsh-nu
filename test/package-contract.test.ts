@@ -46,7 +46,7 @@ test('the published file list ships the runtime artifacts', () => {
 })
 
 test('the published guides ship with the runtime', { skip: !existsSync(resolve(ROOT, 'dist')) }, () => {
-  for (const name of ['command-description.md', 'compact.md', 'full.md', 'rules.md', 'tool-description.md']) {
+  for (const name of ['compact.md', 'full.md', 'rules.md', 'tool-description.md']) {
     assert.ok(existsSync(resolve(ROOT, 'dist/guides', name)), name)
   }
 })
