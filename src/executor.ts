@@ -25,9 +25,11 @@ import {
   chooseBinary,
   commandArgv,
   DEFAULT_NU_ARGS,
+  dshVersionWarning,
   normalizePrefix,
   nuFacts,
   parseVersion,
+  resolveDshVersion,
   TESTED_NUSHELL,
 } from './nu.js'
 import type { NuChoice } from './nu.js'
@@ -154,6 +156,8 @@ export class NushellExecutor extends BaseExecutor {
         this.note('info', version === undefined
           ? 'shell executor bound to Nushell at ' + settings.resolvedPath
           : 'shell executor bound to Nushell ' + version + ' (' + settings.resolvedPath + ')')
+        const warning = dshVersionWarning(resolveDshVersion())
+        if (warning !== undefined) this.note('warn', warning)
         return
       }
       settings.resolvedPath = await this.ctx.subprocess.resolveExecutable(settings.choice.binary)

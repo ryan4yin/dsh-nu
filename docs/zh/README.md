@@ -16,6 +16,10 @@ nu --no-config-file -c "<command>"
 
 预发布。支持 dsh `0.2.1-rc.2` 与 Nushell `0.115.1`，记录在 `package.json` 的 `testedWith`。
 
+## 兼容性
+
+测试组合是 dsh `0.2.1-rc.2` 与 Nushell `0.115.1`。peer 范围固定 dsh 家族；启动时如果安装的 Nushell 或 dsh 与这组不一致，会输出警告。其他版本属于未测试，而不是已知不可用。
+
 ## 安装
 
 这个包通过 npm 发布。首次公开 release 之前，请从 release tarball 或本地 checkout 安装。

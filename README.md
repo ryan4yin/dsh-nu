@@ -16,6 +16,12 @@ The bundle registers the single `ctx.shell` provider, replaces the model-facing 
 
 Pre-release. The supported pair is dsh `0.2.1-rc.2` and Nushell `0.115.1`, recorded in `package.json` under `testedWith`.
 
+## Compatibility
+
+The tested pair is dsh `0.2.1-rc.2` and Nushell `0.115.1`. The package peer
+ranges pin the dsh family, and boot logs a warning when the installed Nushell or
+dsh differs from that pair. Other versions are untested rather than known broken.
+
 ## Install
 
 This package is distributed through npm. Keep the repository private and install from a release tarball or a local checkout until the first public release.
