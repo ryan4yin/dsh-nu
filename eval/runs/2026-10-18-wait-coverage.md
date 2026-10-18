@@ -45,6 +45,26 @@ The grader now records the longest `sleep` in every shell call, rejects a
 long fixed sleep when a case sets `maxSleepSeconds`, and counts blocking shapes
 (`tail -f`, `watch`, `ps ... grep`, `pgrep`, `while true`).
 
+## Wall time
+
+These are end-to-end sample durations, not pure shell sleep: they include the
+model turn and tool overhead. Each wait-case sample used a background call
+(`backgroundCalls` = 3 per cell), and no sample recorded a long sleep.
+
+| model | case | full | compact | off |
+|---|---|---:|---:|---:|
+| GPT-6 Luna | background-wait | 11.4s | 12.8s | 14.1s |
+| GPT-6 Luna | readiness-wait | 13.1s | 14.0s | 14.1s |
+| GPT-6 Luna | pipeline-status | 6.9s | 5.7s | 8.8s |
+| DeepSeek Flash | background-wait | 6.9s | 6.4s | 9.1s |
+| DeepSeek Flash | readiness-wait | 8.7s | 8.8s | 9.1s |
+| DeepSeek Flash | pipeline-status | 6.6s | 6.1s | 12.5s |
+
+The two-second fixtures finish in roughly 6-14 seconds end to end. The `off`
+arm is slower where it has to recover from guard refusals, most clearly on
+`pipeline-status`: 8.8s vs 6.9s for GPT-6 Luna and 12.5s vs 6.6s for DeepSeek
+Flash. No run waited a fixed 30-120 seconds.
+
 ## Results
 
 Three samples per case and arm. `answer` is the expected result; `clean` means
