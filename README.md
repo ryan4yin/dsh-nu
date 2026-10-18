@@ -6,8 +6,6 @@ dsh-nu forces DeepSeek Harness to run every shell command in Nushell, with the b
 
 It uses the low-level extension point DeepSeek Harness exposes to replace the `bash` / `pwsh` executor with a Nushell executor at runtime. Every shell call runs as one isolated process:
 
-Every shell call runs as one isolated process:
-
 ```text
 nu --no-config-file -c "<command>"
 ```
