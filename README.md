@@ -2,7 +2,9 @@
 
 English | [中文](docs/zh/README.md)
 
-dsh-nu makes Nushell the only shell a DeepSeek Harness coding agent can use. The model still sees the same `bash` / `pwsh` tool and calls it the same way; underneath, each command runs as `nu --no-config-file -c`. dsh's sandbox (`dsh-sandbox-local` with `dsh-sandbox-policy`) is untouched, so `read-only`, `workspace-write`, and `danger-full-access`, along with their `mode` / `denied` / `enforcement` reporting, work as they do without the bundle. The bundle also teaches the model to write Nushell instead of bash or PowerShell.
+dsh-nu makes Nushell the only shell a DeepSeek Harness coding agent can use.
+
+It uses the low-level extension point DeepSeek Harness exposes to swap the `bash` / `pwsh` tool's execution layer for Nushell at runtime. Every shell call runs as one isolated process:
 
 Every shell call runs as one isolated process:
 
@@ -10,7 +12,7 @@ Every shell call runs as one isolated process:
 nu --no-config-file -c "<command>"
 ```
 
-The bundle registers the single `ctx.shell` provider, replaces the model-facing shell tool descriptions with Nushell ones, and adds a short rules section and a syntax guide to the system prompt. A command that hands work to another shell is rejected before a process starts. Bash and PowerShell habits are refused locally, with the Nushell spelling to use instead.
+dsh still uses the same `bash` / `pwsh` tool with the same calling convention, and the sandbox (`dsh-sandbox-local` and `dsh-sandbox-policy`) keeps working, so no other dsh plugin needs code changes. The bundle replaces the model-facing shell tool descriptions with Nushell ones and adds a short rules section and a syntax guide to the system prompt; that teaching text costs context, and with it turned off the model hits frequent errors when calling the shell tool. A command that hands work to another shell is rejected before a process starts, and bash or PowerShell habits are refused locally, with the Nushell spelling to use instead.
 
 ## Status
 

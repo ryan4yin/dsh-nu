@@ -2,7 +2,9 @@
 
 [English](../../README.md) | 中文
 
-dsh-nu 让 Nushell 成为 DeepSeek Harness 编码 agent 唯一能用的 shell。模型看到的仍是同一个 `bash` / `pwsh` 工具，调用方式也不变；真正执行时，每条命令都通过 `nu --no-config-file -c` 运行。dsh 的沙箱（`dsh-sandbox-local` 与 `dsh-sandbox-policy`）保持原样，`read-only`、`workspace-write`、`danger-full-access` 三种模式与 `mode` / `denied` / `enforcement` 报告都和不装插件时一致。插件同时引导模型用 Nushell 写命令，而不是 bash 或 PowerShell。
+dsh-nu 让 Nushell 成为 DeepSeek Harness 编码 agent 唯一能用的 shell。
+
+它通过 DeepSeek Harness 提供的底层扩展接口，在运行时把 `bash` / `pwsh` 工具的执行层换成 Nushell。每次 shell 调用都是一个独立进程：
 
 每次 shell 调用都是一个独立进程：
 
@@ -10,7 +12,7 @@ dsh-nu 让 Nushell 成为 DeepSeek Harness 编码 agent 唯一能用的 shell。
 nu --no-config-file -c "<command>"
 ```
 
-dsh-nu 注册唯一的 `ctx.shell` provider，把模型看到的 shell 工具描述换成 Nushell 版本，并在 system prompt 里加入一小节规则和语法指南。命令如果把工作交给其他 shell，预检会在进程启动前拒绝它；bash 和 PowerShell 习惯也会在启动前被拦下，并给出对应的 Nushell 写法。
+dsh 侧仍是同一个 `bash` / `pwsh` 工具，调用方式不变；沙箱（`dsh-sandbox-local` 与 `dsh-sandbox-policy`）也照常工作，其他 dsh 插件无需改代码。插件把模型看到的 shell 工具描述换成 Nushell 版本，并在 system prompt 里加入一小节规则和语法指南；这部分教学内容会占用上下文，关掉后模型调用 shell 工具时会频繁报错。命令如果把工作交给其他 shell，预检会在进程启动前拒绝它；bash 和 PowerShell 习惯也会在启动前被拦下，并给出对应的 Nushell 写法。
 
 ## 状态
 
