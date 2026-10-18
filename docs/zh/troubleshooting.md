@@ -1,5 +1,7 @@
 # 故障排查
 
+[English](../troubleshooting.md) | 中文
+
 ## 启动失败：无法解析 nu
 
 当 `requireNu` 为 true 且找不到可执行文件时，执行器会失败关闭。安装 Nushell 并把 `nu` 放进 `PATH`，或在插件配置里设置 `nuPath` / 在环境里设置 `DSH_NU_PATH`。`requireNu: false` 可以照常启动，但所有 shell 调用都会失败，直到可执行文件存在。

@@ -18,21 +18,21 @@ function headingLevels(markdown: string): number[] {
 }
 
 const PAIRS: ReadonlyArray<readonly [string, string]> = [
-  ['README.md', 'README.zh.md'],
-  ['docs/why.md', 'docs/why.zh.md'],
-  ['docs/troubleshooting.md', 'docs/troubleshooting.zh.md'],
-  ['docs/verification.md', 'docs/verification.zh.md'],
+  ['README.md', 'docs/zh/README.md'],
+  ['docs/why.md', 'docs/zh/why.md'],
+  ['docs/troubleshooting.md', 'docs/zh/troubleshooting.md'],
+  ['docs/verification.md', 'docs/zh/verification.md'],
 ]
 
 const FILES = [
   'README.md',
-  'README.zh.md',
+  'docs/zh/README.md',
   'docs/why.md',
-  'docs/why.zh.md',
+  'docs/zh/why.md',
   'docs/troubleshooting.md',
-  'docs/troubleshooting.zh.md',
+  'docs/zh/troubleshooting.md',
   'docs/verification.md',
-  'docs/verification.zh.md',
+  'docs/zh/verification.md',
   'docs/adr/0001-distribution-and-support.md',
   'examples/preset-nu-shell.md',
   'cordis.patch.yml',
@@ -49,7 +49,7 @@ test('each English page and its Chinese mirror have the same heading structure',
 })
 
 test('the tested versions are repeated in the places the user reads', () => {
-  for (const file of ['README.md', 'README.zh.md', 'docs/verification.md', 'docs/verification.zh.md']) {
+  for (const file of ['README.md', 'docs/zh/README.md', 'docs/verification.md', 'docs/zh/verification.md']) {
     const text = read(file)
     assert.match(text, /0\.2\.1-rc\.2/, file)
     assert.match(text, /0\.115\.1/, file)

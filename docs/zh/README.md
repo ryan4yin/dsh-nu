@@ -1,5 +1,7 @@
 # dsh-nu
 
+[English](../../README.md) | 中文
+
 一个 DeepSeek Harness 插件包：让 **Nushell 成为编码代理唯一可用的 shell**，并教模型写 Nushell，而不是 bash 或 PowerShell。
 
 每次 shell 调用都是一个独立进程：
@@ -33,6 +35,13 @@ npm run build
 ## 配置
 
 bundle patch 是 `cordis.patch.yml`。`examples/preset-nu-shell.md` 列出了需要关闭的 preset 级 shell 绕过项。
+
+## 文档
+
+- [为什么只要 Nushell](why.md)
+- [故障排查](troubleshooting.md)
+- [验证](verification.md)
+- [分发与支持（ADR）](../adr/0001-distribution-and-support.md)
 
 ## 致谢
 
