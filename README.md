@@ -2,7 +2,7 @@
 
 English | [中文](docs/zh/README.md)
 
-A DeepSeek Harness bundle that makes **Nushell the only shell** a coding agent can use, and teaches the model to write Nushell instead of bash or PowerShell.
+dsh-nu is a DeepSeek Harness bundle that makes Nushell the only shell a coding agent can use. It also teaches the model to write Nushell instead of bash or PowerShell.
 
 Every shell call runs as one isolated process:
 
@@ -10,21 +10,19 @@ Every shell call runs as one isolated process:
 nu --no-config-file -c "<command>"
 ```
 
-The bundle registers the single `ctx.shell` provider, replaces the model-facing shell tool descriptions with Nushell ones, and adds a short rules section plus a syntax guide to the system prompt. Commands that hand work to another shell are rejected before a process exists, and bash/PowerShell habits get a local failure with the Nushell spelling.
+The bundle registers the single `ctx.shell` provider, replaces the model-facing shell tool descriptions with Nushell ones, and adds a short rules section and a syntax guide to the system prompt. A command that hands work to another shell is rejected before a process starts. Bash and PowerShell habits are refused locally, with the Nushell spelling to use instead.
 
 ## Status
 
-Pre-release. The supported pair is dsh `0.2.1-rc.2` and Nushell `0.115.1`, recorded in `package.json` under `testedWith`.
+Pre-release. dsh `0.2.1-rc.2` and Nushell `0.115.1` are the tested pair, recorded in `package.json` under `testedWith`.
 
 ## Compatibility
 
-The tested pair is dsh `0.2.1-rc.2` and Nushell `0.115.1`. The package peer
-ranges pin the dsh family, and boot logs a warning when the installed Nushell or
-dsh differs from that pair. Other versions are untested rather than known broken.
+dsh-nu supports only that pair. The peer ranges cover the dsh family, and boot logs a warning if the installed dsh or Nushell differs. Other versions have not been tested.
 
 ## Install
 
-This package is distributed through npm. Keep the repository private and install from a release tarball or a local checkout until the first public release.
+The package is published on npm. Until the first public release, install it from a release tarball or a local checkout.
 
 ## Development
 
@@ -36,7 +34,7 @@ npm test
 npm run build
 ```
 
-`dev/link-peers.mjs` links the dsh peer packages into `node_modules` so the test suite can drive the real seams without publishing.
+`dev/link-peers.mjs` links the dsh peer packages into `node_modules`, so the tests can drive the real seams without publishing.
 
 The suite runs on Node 24. The package allows Node 22.19 and newer, but versions other than 24 are untested.
 
@@ -77,25 +75,14 @@ The suite runs on Node 24. The package allows Node 22.19 and newer, but versions
 | `requireNu` / `verifyNu` | `true` / `true` | Fail boot when `nu` cannot be resolved or fails its `--version` probe |
 | `verifyTimeoutMs` | `10000` | Bound for that probe |
 
-Sandbox budgets (`cwd`, `timeoutMs`, …) stay on the `nushell-executor` row, not in
-dsh's shared `shell` settings namespace. Override any row by id in the profile's
-own `cordis.patch.yml`. `examples/preset-nu-shell.md` lists the preset-level
-shell bypasses to disable.
+Sandbox budgets (`cwd`, `timeoutMs`, …) stay on the `nushell-executor` row, not in dsh's shared `shell` settings namespace. Override any row by id in the profile's own `cordis.patch.yml`. `examples/preset-nu-shell.md` lists the preset-level shell bypasses to disable.
 
 ## What "only Nushell" does not cover
 
-- **Preset rows that spawn their own shell**: a custom plugin that calls
-  `ctx.subprocess.spawn` directly, or a PTY persistent-shell group. Disable
-  them for a Nu-only deployment; see `examples/preset-nu-shell.md`.
-- **Quoted handoffs**: a shell named inside a quoted argument is data, not a
-  command position. The guard rejects handoffs in command position and in
-  wrapper chains; it is not a sandbox.
-- **Other shell seams**: hook bridges, persistent terminals, and tmux context
-  use their own services or scripts and are outside this bundle. Keep them off
-  for a strict deployment.
-- **Sandboxing is unchanged**: `danger-full-access` runs directly, and confined
-  modes wrap the Nushell argv through `ctx.sandbox.confine()` with the same
-  `mode` / `denied` / `enforcement` reporting.
+- A preset row that spawns its own shell, such as a custom plugin calling `ctx.subprocess.spawn` directly or a PTY persistent-shell group. Disable it for a Nu-only deployment; see `examples/preset-nu-shell.md`.
+- A shell named inside a quoted argument. That is data, not a command position. The guard rejects handoffs in command position and in wrapper chains; it is not a sandbox.
+- Other shell seams. Hook bridges, persistent terminals, and tmux context use their own services or scripts and are outside this bundle. Keep them off for a strict deployment.
+- dsh-nu does not change sandbox behaviour: `danger-full-access` runs directly, and confined modes wrap the Nushell argv through `ctx.sandbox.confine()` with the same `mode` / `denied` / `enforcement` reporting.
 
 ## Documentation
 

@@ -2,7 +2,7 @@
 
 [English](../../README.md) | 中文
 
-一个 DeepSeek Harness 插件包：让 **Nushell 成为编码代理唯一可用的 shell**，并教模型写 Nushell，而不是 bash 或 PowerShell。
+dsh-nu 是 DeepSeek Harness 的插件包，把编码 agent 能用的 shell 限定为 Nushell，同时引导模型用 Nushell 写命令，而不是 bash 或 PowerShell。
 
 每次 shell 调用都是一个独立进程：
 
@@ -10,19 +10,19 @@
 nu --no-config-file -c "<command>"
 ```
 
-这个包注册唯一的 `ctx.shell` provider，把模型看到的 shell 工具描述替换成 Nushell 说明，并在 system prompt 里加上简短规则和语法指南。任何把工作交给其他 shell 的命令都会在创建进程之前被拒绝；bash / PowerShell 习惯会得到带 Nushell 写法的本地错误。
+dsh-nu 注册唯一的 `ctx.shell` provider，把模型看到的 shell 工具描述换成 Nushell 版本，并在 system prompt 里加入一小节规则和语法指南。命令如果把工作交给其他 shell，会在进程启动前被拒绝；bash 和 PowerShell 习惯也会在本地被拦下，并给出对应的 Nushell 写法。
 
 ## 状态
 
-预发布。支持 dsh `0.2.1-rc.2` 与 Nushell `0.115.1`，记录在 `package.json` 的 `testedWith`。
+预发布。当前测试组合是 dsh `0.2.1-rc.2` 与 Nushell `0.115.1`，记录在 `package.json` 的 `testedWith` 里。
 
 ## 兼容性
 
-测试组合是 dsh `0.2.1-rc.2` 与 Nushell `0.115.1`。peer 范围固定 dsh 家族；启动时如果安装的 Nushell 或 dsh 与这组不一致，会输出警告。其他版本属于未测试，而不是已知不可用。
+dsh-nu 只支持这一组合。peer 依赖的版本范围限定在 dsh 家族内；启动时如果安装的 dsh 或 Nushell 与测试组合不同，会输出警告。其他版本没有测试过。
 
 ## 安装
 
-这个包通过 npm 发布。首次公开 release 之前，请从 release tarball 或本地 checkout 安装。
+本包通过 npm 发布。首次公开发布之前，请从 release tarball 或本地 checkout 安装。
 
 ## 开发
 
@@ -34,7 +34,7 @@ npm test
 npm run build
 ```
 
-`dev/link-peers.mjs` 把 dsh 的 peer 包链接进 `node_modules`，测试可以直接驱动真实 seam，而不需要发布。
+`dev/link-peers.mjs` 会把 dsh 的 peer 包链接到 `node_modules`，测试因此能直接使用真实的 shell seam，不需要先发布。
 
 测试使用的运行时是 Node 24。包允许 Node 22.19 及以上，但除 24 之外的版本没有测试过。
 
@@ -63,26 +63,26 @@ npm run build
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `nuPath` | `$DSH_NU_PATH`，否则 `nu` | Nushell 可执行文件：字段、环境变量、PATH |
+| `nuPath` | `$DSH_NU_PATH`，否则 `nu` | Nushell 可执行文件：先看字段，再看环境变量，最后看 PATH |
 | `nuArgs` | `["--no-config-file","-c"]` | argv 前缀；命令追加在最后 |
 | `enforceNushellOnly` | `true` | 拒绝把命令交给其他 shell |
 | `foreignShellAllowlist` | `[]` | 整条命令正则，豁免 guard 与方言检查 |
-| `dialectLint` | `true` | 在启动进程前拒绝 bash/PowerShell 习惯 |
-| `dialectHints` | `true` | 失败调用追加一行 `Nushell hint (…)` |
+| `dialectLint` | `true` | 启动进程前拦下 bash/PowerShell 习惯 |
+| `dialectHints` | `true` | 调用失败时追加一行 `Nushell hint (…)` |
 | `guide` | `full` | prompt 指南：`full`、`compact`、`off` |
-| `rules` | `true` | 添加 shell 规则段 |
+| `rules` | `true` | 在 prompt 前加上 shell 规则段 |
 | `rewriteToolDescriptions` | `true` | 改写 `bash` / `pwsh` 工具描述 |
-| `requireNu` / `verifyNu` | `true` / `true` | nu 无法解析或 `--version` 探测失败时启动失败 |
-| `verifyTimeoutMs` | `10000` | 探测超时 |
+| `requireNu` / `verifyNu` | `true` / `true` | nu 无法解析或 `--version` 探测失败时，启动直接失败 |
+| `verifyTimeoutMs` | `10000` | 版本探测的超时时间 |
 
-沙箱预算（`cwd`、`timeoutMs` 等）配置在 `nushell-executor` 行，而不是 dsh 共享的 `shell` 设置。可在 profile 自己的 `cordis.patch.yml` 中按 id 覆盖。`examples/preset-nu-shell.md` 列出了需要关闭的 preset 级 shell 绕过项。
+沙箱预算（`cwd`、`timeoutMs` 等）配在 `nushell-executor` 行上，不放进 dsh 共享的 `shell` 设置。要覆盖某一行，在 profile 自己的 `cordis.patch.yml` 里按 id 改。`examples/preset-nu-shell.md` 列出了需要关闭的 preset 级 shell 绕过项。
 
-## “只要 Nushell” 不覆盖的内容
+## “只要 Nushell”覆盖不到的地方
 
-- **自己启动 shell 的 preset 行**：直接调用 `ctx.subprocess.spawn` 的自定义插件，或 PTY 常驻 shell 组。严格部署时应关闭；见 `examples/preset-nu-shell.md`。
-- **引号内的交接**：引号参数里的 shell 名称是数据，不是命令位置。guard 会拒绝命令位置和包装链中的交接，但它不是沙箱。
-- **其他 shell seam**：hook 桥、常驻终端和 tmux context 使用各自的服务或脚本，不在本 bundle 范围内。严格部署时应保持关闭。
-- **沙箱行为不变**：`danger-full-access` 直接运行，受限模式通过 `ctx.sandbox.confine()` 包装 Nushell argv，并保留 `mode` / `denied` / `enforcement` 报告。
+- preset 自己启动 shell 的行，例如直接调用 `ctx.subprocess.spawn` 的插件，或 PTY 常驻 shell 组。严格部署时应关闭，见 `examples/preset-nu-shell.md`。
+- 引号参数里的 shell 名称。那是数据，不是命令位置。guard 会拦下命令位置和包装链里的交接，但它不是沙箱。
+- 其他 shell seam。hook 桥、常驻终端和 tmux context 使用各自的服务或脚本，不在 dsh-nu 的范围内。严格部署时应保持关闭。
+- dsh-nu 不改沙箱本身：`danger-full-access` 直接运行，受限模式通过 `ctx.sandbox.confine()` 包装 Nushell argv，`mode` / `denied` / `enforcement` 的报告方式保持不变。
 
 ## 文档
 
@@ -98,8 +98,8 @@ MIT，见 [LICENSE](../../LICENSE)。
 
 ## 致谢
 
-本项目的 Nushell-only shell、guard 与教学思路来自
+本项目的 Nushell-only shell、guard 和教学思路来自
 [YMRwithNoworry/dsh-nushell-only](https://github.com/YMRwithNoworry/dsh-nushell-only)（MIT），
 它是这些思路的原始实现。
 
-感谢 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 项目提供本插件扩展的 shell seam。
+感谢 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 提供 dsh-nu 扩展的 shell seam。
