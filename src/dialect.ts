@@ -151,17 +151,23 @@ interface HintRule {
   hint: string
 }
 
+/**
+ * Hints for failures the tested Nushell actually reports. Every pattern and
+ * hint below is exercised against real `nu 0.115.1` stderr in the test suite.
+ */
 const HINTS: readonly HintRule[] = [
   { id: 'stderr-redirect', match: /nu::parser::shell_outerr/, hint: '2>&1 is not Nushell. Write o+e> out.txt, or use (do { cmd } | complete) to capture both streams.' },
   { id: 'stderr-file', match: /nu::parser::shell_err\b/, hint: '2> file is not Nushell. Send stderr with e> err.txt; stdout is o> and both is o+e>.' },
-  { id: 'path-not-found', match: /nu::shell::(?:io::)?not_found|file not found|item not found/i, hint: 'The path does not exist. Check it with path exists, or quote it if it contains spaces.' },
-  { id: 'column-not-found', match: /nu::shell::column_not_found|column not found/i, hint: 'The column is not in this table. Inspect the rows with first 1 or columns, then use a real column name.' },
-  { id: 'unknown-flag', match: /nu::parser::unknown_flag|unknown flag|deprecated flag/i, hint: 'Nushell flags differ from bash flags: check help <command> (for example ls --all, rm -r -f, mkdir a/b).' },
-  { id: 'type-mismatch', match: /input_type_mismatch|only_supports_this_input_type|unsupported_input|cant_convert|type mismatch|does not support/i, hint: 'This value has the wrong type for that command. Parse it first (into int, into string) or check what the previous stage returned.' },
-  { id: 'missing-external', match: /nu::shell::external_command|command not found|executable not found/i, hint: 'That external program is not installed. Nushell has a native equivalent for many tools; otherwise install it, or use ^program when the name clashes with a Nushell command.' },
-  { id: 'permission-denied', match: /permission_denied|read-only_filesystem_or_storage_medium|permission denied/i, hint: 'Permission was denied. This is a filesystem or sandbox policy denial, not a syntax problem: write to a permitted path and do not retry another way.' },
-  { id: 'empty-pipeline', match: /pipeline empty|Pipeline empty/i, hint: 'A stage received no input. Feed it explicitly, or check that the previous stage produced output.' },
-  { id: 'parse-error', match: /nu::parser::|parse error|unclosed_delimiter/i, hint: 'Nushell refused to parse this. Check quoting and parentheses: single quotes keep backslashes literal, and every brace, bracket, and parenthesis needs its pair in the same command.' },
+  { id: 'path-not-found', match: /nu::shell::(?:io::)?(?:file_)?not_found/, hint: 'The path does not exist. Check it with path exists, or quote it if it contains spaces.' },
+  { id: 'column-not-found', match: /nu::shell::column_not_found/, hint: 'Nushell could not find that column or environment variable. For a table, inspect it with columns or first 1; for an optional variable, write $env.NAME?.' },
+  { id: 'unknown-flag', match: /nu::parser::unknown_flag/, hint: 'Nushell flags differ from bash flags: check help <command> (for example ls --all, rm -r -f, mkdir a/b).' },
+  { id: 'type-mismatch', match: /nu::parser::input_type_mismatch|nu::shell::cant_convert/, hint: 'This value has the wrong type for that command. Parse it first (into int, into string) or check what the previous stage returned.' },
+  { id: 'missing-external', match: /nu::shell::external_command/, hint: 'That external program is not installed. Nushell has a native equivalent for many tools; otherwise install it, or use ^program when the name clashes with a Nushell command.' },
+  { id: 'permission-denied', match: /nu::shell::io::permission_denied|permission denied/i, hint: 'Permission was denied. This is a filesystem permission or sandbox policy issue, not a syntax problem: use a permitted path and do not retry another way.' },
+  { id: 'read-only-filesystem', match: /read-only_filesystem_or_storage_medium/, hint: 'That filesystem is read-only. Choose a writable path, or check the sandbox policy; do not retry the same write.' },
+  { id: 'empty-pipeline', match: /nu::shell::pipeline_mismatch/, hint: 'A stage received no input. Feed it explicitly, or check that the previous stage produced output.' },
+  { id: 'exit-status', match: /Incomplete variable/, hint: '$? and similar bash variables are not Nushell. Use $env.LAST_EXIT_CODE? or (do { cmd } | complete).exit_code.' },
+  { id: 'parse-error', match: /nu::parser::unclosed_delimiter/, hint: 'Nushell refused to parse this. Check quoting and parentheses: single quotes keep backslashes literal, and every brace, bracket, and parenthesis needs its pair in the same command.' },
 ]
 
 /** All hint ids, in rule order. */
@@ -178,9 +184,6 @@ export function hintFor(stderr: string, options: HintOptions = {}): string | und
   if (typeof stderr !== 'string' || stderr.length === 0) return undefined
   for (const rule of HINTS) {
     if (rule.match.test(stderr)) return 'Nushell hint (' + rule.id + '): ' + rule.hint
-  }
-  if ((options.exitCode ?? 0) !== 0 && (options.stdout ?? '').length === 0) {
-    return 'Nushell hint (silent-failure): the command failed without output. A failing external aborts the rest of the command in Nushell, so later stages may not have run; check the exit code and the error Nushell printed.'
   }
   return undefined
 }

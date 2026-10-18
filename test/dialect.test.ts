@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -56,26 +56,67 @@ test('the allowlist exempts exact commands and refusal names the fix', () => {
   assert.throws(() => assertNuDialect('echo hi 2>&1'), (error: Error) => error.message.includes('stderr-redirect') && error.message.includes('o+e>'))
 })
 
-test('hints map Nushell error families and stay silent without stderr', () => {
+test('hints stay silent without a recognized Nushell error', () => {
   assert.equal(hintFor(''), undefined)
-  assert.match(hintFor('nu::parser::shell_outerr') ?? '', /stderr-redirect/)
-  assert.match(hintFor('nu::parser::shell_err') ?? '', /stderr-file/)
-  assert.match(hintFor('Error: nu::shell::column_not_found') ?? '', /column-not-found/)
-  assert.match(hintFor('Error: nu::parser::unknown_flag') ?? '', /unknown-flag/)
-  assert.match(hintFor('nu::shell::external_command') ?? '', /missing-external/)
-  assert.match(hintFor('Permission denied') ?? '', /permission-denied/)
-  assert.match(hintFor('unexpected failure', { exitCode: 1, stdout: '' }) ?? '', /silent-failure/)
-  assert.equal(hintFor('unexpected failure', { exitCode: 0 }), undefined)
+  assert.equal(hintFor('some unrelated failure'), undefined)
   assert.equal(new Set(HINT_IDS).size, HINT_IDS.length)
 })
 
 const nu = spawnSync('nu', ['--version'], { encoding: 'utf8' })
 const nuAvailable = nu.status === 0
 
-function runNu(command: string, cwd: string): { status: number | null; stderr: string } {
+function runNu(command: string, cwd: string): { status: number | null; stdout: string; stderr: string } {
   const result = spawnSync('nu', ['--no-config-file', '-c', command], { encoding: 'utf8', cwd })
-  return { status: result.status, stderr: result.stderr }
+  return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' }
 }
+
+interface HintSample {
+  id: string
+  command: string
+  setup?: (cwd: string) => void
+  enabled?: () => boolean
+}
+
+const HINT_SAMPLES: readonly HintSample[] = [
+  { id: 'stderr-redirect', command: 'print hi 2>&1' },
+  { id: 'stderr-file', command: 'print hi 2> err.txt' },
+  { id: 'path-not-found', command: 'ls /definitely/missing' },
+  { id: 'column-not-found', command: '[[a]; [1]] | get b' },
+  { id: 'unknown-flag', command: 'ls --definitely-not-a-flag' },
+  { id: 'type-mismatch', command: "'abc' | into int" },
+  { id: 'missing-external', command: '^definitely-not-installed-xyz' },
+  {
+    id: 'permission-denied',
+    command: 'open secret.txt',
+    setup: (cwd) => writeFileSync(join(cwd, 'secret.txt'), 'x', { mode: 0o000 }),
+    enabled: () => process.platform !== 'win32' && (process.getuid?.() ?? -1) !== 0,
+  },
+  { id: 'read-only-filesystem', command: "'x' | save -f /sys/dsh-nu-probe", enabled: () => process.platform === 'linux' },
+  { id: 'empty-pipeline', command: 'str trim' },
+  { id: 'exit-status', command: 'echo $?' },
+  { id: 'parse-error', command: 'print (1' },
+]
+
+test('every hint is produced by a real failure of the tested Nushell', { skip: !nuAvailable }, () => {
+  const cwd = mkdtempSync(join(tmpdir(), 'dsh-nu-hints-'))
+  const checked: string[] = []
+  try {
+    for (const sample of HINT_SAMPLES) {
+      if (sample.enabled !== undefined && !sample.enabled()) continue
+      sample.setup?.(cwd)
+      const result = runNu(sample.command, cwd)
+      assert.notEqual(result.status, 0, 'expected a failure from: ' + sample.command)
+      const hint = hintFor(result.stderr, { exitCode: result.status, stdout: result.stdout })
+      assert.match(hint ?? '', new RegExp('^Nushell hint \\(' + sample.id + '\\)'), sample.command + ' :: ' + result.stderr.slice(0, 160))
+      checked.push(sample.id)
+    }
+    const expected = HINT_SAMPLES.filter((sample) => sample.enabled === undefined || sample.enabled()).map((sample) => sample.id)
+    assert.deepEqual(checked.sort(), [...expected].sort())
+    assert.deepEqual([...new Set(checked)].sort(), [...expected].sort())
+  } finally {
+    rmSync(cwd, { recursive: true, force: true })
+  }
+})
 
 test('refused habits genuinely fail in the tested Nushell', { skip: !nuAvailable }, () => {
   const cwd = mkdtempSync(join(tmpdir(), 'dsh-nu-dialect-'))
