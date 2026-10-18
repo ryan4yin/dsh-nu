@@ -85,7 +85,75 @@ test('splitStatements keeps quoted semicolons and drops comments', () => {
   assert.deepEqual(splitStatements('# note\nls'), ['ls'])
 })
 
-test('allowlists exempt exact whole commands and are validated', () => {
+test('refuses nested handoffs through paths, env prefixes, and launchers', () => {
+  for (const command of [
+    'do { /bin/sh -c "echo P" }',
+    'do { env bash -c "echo L" }',
+    'if true { env bash -c "echo X" }',
+    'do { FOO=1 bash -c "echo X" }',
+    'let x = (env bash -c "echo P")',
+    'time bash -c "echo T"',
+    'setsid bash -c "echo S"',
+    'flock /tmp/x.lock bash -c "echo F"',
+    'watch -n 1 bash -c "echo W"',
+  ]) {
+    assert.notEqual(findHandoff(command), undefined, command)
+  }
+})
+
+test('a mid-word # is not a comment, so a handoff after it is still refused', () => {
+  assert.equal(findHandoff('print a#b'), undefined)
+  assert.equal(findHandoff('print a#b; bash -c "echo H"')?.shell, 'bash')
+  assert.equal(findHandoff('print (1)#b; sh -c "echo H"')?.shell, 'sh')
+})
+
+test('valid multiline data, match arms, record keys, and rest params are not handoffs', () => {
+  for (const command of [
+    'print a#b',
+    'let words = [\n  bash\n]\nprint ($words | length)',
+    'let r = {\n  sh : 1\n}\nprint $r.sh',
+    'let r = { sh : 1 }\nprint $r.sh',
+    'let r = { bash: 1 }\nprint $r.bash',
+    'match "bash" { bash => 1, _ => 2 }',
+    'match "bash" {\n  bash => 1\n  _ => 2\n}',
+    '[1] | each {\n  |sh|\n  $sh\n} | length',
+    '[1] | each { |sh, ...rest| $sh } | length',
+    'def sh [] { print custom }; sh',
+    'alias sh = print; sh hi',
+  ]) {
+    assert.equal(findHandoff(command), undefined, command)
+  }
+})
+
+test('refuses a handoff inside an interpolated string', () => {
+  for (const command of [
+    `print $"a(bash -c 'echo I')b"`,
+    `print $'(sh -c "echo H")'`,
+    `let x = $"(env bash -c 'echo X')"`,
+    `print $"outer ($"inner (bash -c 'echo N')") end"`,
+  ]) {
+    assert.notEqual(findHandoff(command), undefined, command)
+  }
+  for (const command of [
+    'print "literal (bash -c x)"',
+    "print 'literal (sh -c x)'",
+    'print $"total (1 + 2)"',
+    String.raw`print $"literal \(1 + 2\)"`,
+    'print $"(1 + 2)"',
+  ]) {
+    assert.equal(findHandoff(command), undefined, command)
+  }
+})
+
+test('splitStatements ignores newlines inside brackets and semicolons inside quotes', () => {
+  assert.deepEqual(splitStatements('let r = {\n  a: 1\n}\nprint $r'), ['let r = {\n  a: 1\n}', 'print $r'])
+  assert.deepEqual(splitStatements('print [\n  1\n  2\n]'), ['print [\n  1\n  2\n]'])
+  assert.deepEqual(splitStatements('let a = 1; let b = 2'), ['let a = 1', 'let b = 2'])
+  assert.deepEqual(splitStatements('print a#b'), ['print a#b'])
+  assert.deepEqual(splitStatements('print [1, # note\n2]'), ['print [1, \n2]'])
+})
+
+test('the allowlist exempts exact whole commands and are validated', () => {
   const allow = compileAllowlist(['^bash -c'])
   assert.doesNotThrow(() => assertNuOnly('bash -c "echo hi"', { allow }))
   assert.throws(() => assertNuOnly('sh -c "echo hi"', { allow }), /sh/)
