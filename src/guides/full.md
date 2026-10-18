@@ -17,7 +17,7 @@ The preflight refuses these spellings before a process starts. Rewrite them:
 
 `where $it =~ "x"` is a comparison, not an assignment, and is accepted.
 
-Before sending a command, scan it for `2>`, `&>`, `&&`, a bash flag on a Nushell builtin, a bare `$name =`, and `sh -c` or `bash -c`; the preflight refuses each.
+Before sending a command, scan it for `2>`, `&>`, `&&`, `mkdir -p`, `ls -R`, a bare `$name =`, and `sh -c` or `bash -c`; the preflight refuses each.
 
 ## Values and quoting
 
