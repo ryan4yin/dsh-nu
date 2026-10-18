@@ -44,6 +44,25 @@ export async function apply(ctx) {
   }
   record('a bash redirection is refused before spawning', /refusing a stderr-redirect/.test(dialect), dialect)
 
+  const marker = await run(shell, 'mut probeMarker = 1')
+  const leaked = await run(shell, 'print $probeMarker')
+  record('each call is a fresh process', marker.exitCode === 0 && leaked.exitCode !== 0, 'exit ' + leaked.exitCode)
+
+  const expectedWorkdir = process.env.DSH_NU_PROBE_WORKDIR
+  if (expectedWorkdir === undefined) {
+    record('the call runs in its workdir', false, 'DSH_NU_PROBE_WORKDIR is unset')
+  } else {
+    const handle = await shell.execute(shell.resolve({ command: 'pwd | str trim', workdir: expectedWorkdir }))
+    const pwd = await handle.result()
+    record('the call runs in its workdir', pwd.exitCode === 0 && pwd.stdout.text.trim() === expectedWorkdir, pwd.stdout.text)
+  }
+
+  const background = await shell.execute(shell.resolve({ command: 'sleep 60sec', onExpiry: 'none' }))
+  record('a background call returns a live process', background.status === 'running', background.status)
+  record('a background call can be killed', background.kill() === true)
+  await background.done
+  record('a killed background call settles as killed', background.status === 'killed', background.status)
+
   const failed = await run(shell, 'ls /definitely-missing-dsh-nu-probe')
   record('a failed command carries one Nushell hint', /Nushell hint \(path-not-found\)/.test(failed.stderr.text), failed.stderr.text)
 

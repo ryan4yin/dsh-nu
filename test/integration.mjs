@@ -33,9 +33,11 @@ writeFileSync(join(profileDir, 'cordis.patch.yml'), [
   '',
 ].join('\n'))
 
+const workdir = join(profileDir, 'probe-workdir')
+mkdirSync(workdir, { recursive: true })
 const result = spawnSync(dsh, ['--profile', profile], {
   cwd: profileDir,
-  env: { ...process.env, DSH_HOME: home },
+  env: { ...process.env, DSH_HOME: home, DSH_NU_PROBE_WORKDIR: workdir },
   encoding: 'utf8',
   timeout: 300_000,
 })
