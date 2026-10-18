@@ -30,7 +30,7 @@ Shell calls run through Nushell as `nu --no-config-file -c "<command>"`. Each ca
 - Read: `open --raw notes.txt` for text, `open data.json` for structure, `lines` to split.
 - Write: `save -f out.txt` overwrites; `save -a out.txt` appends; `mkdir a/b` creates parents.
 - Redirect: `cmd o> out.txt`, `cmd e> err.txt`, `cmd o+e> all.txt`; append with `cmd o>> out.txt` / `cmd e>> err.txt`. Discard with `cmd e>| ignore` or `cmd o+e>| ignore`.
-- A bare `>` is comparison, not redirection; `2>` is not a redirect either, and `2>/dev/null` / `2>nul` are accepted as ordinary arguments and silently do nothing. Capture a failed call with `(do { cmd } | complete).exit_code`.
+- A bare `>` is comparison, not redirection. Shell-style `cmd > out.txt` and `2>/dev/null` / `2>nul` are refused before running: use `o>`, `e>`, or `o+e>`; drop a stream with `e>| ignore`, and capture a failed call with `(do { cmd } | complete).exit_code`.
 - `print` writes a line to stdout but returns nothing, so do not pipe after it. `echo` returns a value instead; a non-final `echo` is discarded. Let the final value stand when you want structured output.
 
 ## External commands
@@ -49,4 +49,4 @@ Shell calls run through Nushell as `nu --no-config-file -c "<command>"`. Each ca
 
 This bundle fails closed when Nushell cannot be resolved; it never substitutes another shell.
 
-The dialect preflight refuses bash/PowerShell habits before running them: numbered redirection, `$env:VAR`, bare assignment, `foreach`, cmdlets, `&&` / `||`, command substitution, `$?`, comma-separated columns, and bash flags on Nushell builtins. Fix the fragment the refusal names instead of working around it.
+The dialect preflight refuses bash/PowerShell habits before running them: numbered redirection, shell-style `>` and `2>` redirects, `$env:VAR`, bare assignment, `foreach`, cmdlets, `&&` / `||`, command substitution, `$?`, comma-separated columns, and bash flags on Nushell builtins. Fix the fragment the refusal names instead of working around it.

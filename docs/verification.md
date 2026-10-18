@@ -7,7 +7,7 @@ English | [中文](zh/verification.md)
 `npm test` covers:
 
 - unit tests for executable resolution, argv assembly, the foreign-shell scanner, the dialect rules, the teaching rewrites, the executor seam, boot probing, confinement, and inherited budgets;
-- a differential corpus. Every preflight refusal runs against the pinned Nushell and must fail; the one silently-wrong family is asserted separately, and every allowed command must run;
+- a differential corpus. Every preflight refusal runs against the pinned Nushell and must fail, except the silent redirects, which run and are asserted separately; every allowed command must run;
 - hint coverage. Every hint id has a real failing command, and the test checks the hint against that command's actual stderr;
 - claims tests. The teaching guide's executable statements run against the pinned Nushell;
 - a manifest contract for peer ranges, the bundle patch, exports, and the published file list;
@@ -29,7 +29,7 @@ npm pack --dry-run
 
 ## Differential corpus
 
-The refused list covers numbered and stderr redirection, `$env:`, bare and per-command assignment, `export`, `foreach`, cmdlets, `$_.`, PowerShell `-not` and flag verbs, common parameters, `&&` / `||`, command substitution, `$?`, array literals, percent blocks, negative counts, unknown Nushell flags, comma columns, glob named arguments, and redirection after a pipe. A rule change needs a command that the pinned Nushell really rejects; an assumption is not enough. The allowed list checks that the preflight does not refuse valid Nushell, quoted data, comments, or external-tool syntax.
+The refused list covers numbered and stderr redirection, shell-style stdout redirects and stderr redirects written as words, `$env:`, bare and per-command assignment, `export`, `foreach`, cmdlets, `$_.`, PowerShell `-not` and flag verbs, common parameters, `&&` / `||`, command substitution, `$?`, array literals, percent blocks, negative counts, unknown Nushell flags, comma columns, glob named arguments, and redirection after a pipe. A rule change needs a command that the pinned Nushell really rejects, or a silent misread pinned by the separate exit-0 test; an assumption is not enough. The allowed list checks that the preflight does not refuse valid Nushell, quoted data, comments, or external-tool syntax.
 
 ## Hint coverage
 
