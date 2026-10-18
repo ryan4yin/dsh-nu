@@ -31,7 +31,7 @@ const packagePath = resolve(arg('package', repo))
 const profile = arg('profile', 'dsh-nu-eval')
 const label = arg('label', modelPatch.split('/').at(-1) ?? 'model')
 const samples = Number(arg('samples', '1'))
-const arms = arg('arms', 'full,off').split(',').filter(Boolean)
+const arms = arg('arms', 'full,compact,off').split(',').filter(Boolean)
 const onlyCases = arg('cases', '') ? arg('cases').split(',') : []
 const timeoutMs = Number(arg('timeout-ms', '240000'))
 const skipInstall = flag('skip-install')
@@ -54,6 +54,8 @@ mkdirSync(env.XDG_DATA_HOME, { recursive: true })
 mkdirSync(env.XDG_CACHE_HOME, { recursive: true })
 const teachingOffPatch = join(out, 'teaching-off.yml')
 if (!existsSync(teachingOffPatch)) writeFileSync(teachingOffPatch, readFileSync(join(here, 'teaching-off.yml'), 'utf8'))
+const teachingCompactPatch = join(out, 'teaching-compact.yml')
+if (!existsSync(teachingCompactPatch)) writeFileSync(teachingCompactPatch, readFileSync(join(here, 'teaching-compact.yml'), 'utf8'))
 
 function run(command, args, options = {}) {
   const started = Date.now()
@@ -233,6 +235,7 @@ for (const item of cases) {
       const workspace = fixtureWorkspace(item, arm, sample)
       const args = ['--profile', profile, '--patch', modelPatch]
       if (arm === 'off') args.push('--patch', teachingOffPatch)
+      if (arm === 'compact') args.push('--patch', teachingCompactPatch)
       args.push('--json', item.prompt)
       const result = run(dsh, args, { cwd: workspace })
       const parsed = eventsFrom(result.stdout)

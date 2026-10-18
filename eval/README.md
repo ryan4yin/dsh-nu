@@ -5,9 +5,10 @@ It is a real-model test, not a unit test, and it is deliberately not part of PR 
 
 ## What it compares
 
-Two arms run the same task with the same executor and guard:
+Three arms run the same task with the same executor and guard:
 
 - `full`: the shipped system prompt, rules, guide, and tool descriptions.
+- `compact`: the compact guide, rules, and rewritten tool descriptions.
 - `off`: `guide: off`, `rules: false`, `rewriteToolDescriptions: false`.
 
 The `off` arm keeps the guard and the dialect preflight. A refusal there is a

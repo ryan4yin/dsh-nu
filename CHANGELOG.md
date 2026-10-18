@@ -8,8 +8,8 @@ All notable changes to this project are recorded here. The format follows
 
 ### Added
 
-- A real-model teaching eval harness with two arms, task fixtures, guard-aware
-  scoring, cross-model judging, and first-round plus wait/blocking reports.
+- A real-model teaching eval harness with full, compact, and off arms, task
+  fixtures, guard-aware scoring, cross-model judging, and dated reports.
 
 ### Changed
 

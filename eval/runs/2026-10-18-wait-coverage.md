@@ -5,10 +5,16 @@ Date: 2026-10-18
 This is the follow-up to the first teaching round. It covers the wait and process
 traps seen in real sessions, and it records the limits of that coverage.
 
-## Session audit
+## Legacy session audit (hypothesis source)
+
+These sessions predate `dsh-nu` and mostly used a bash or PTC shell. They are a
+source of failure hypotheses, not evidence about current Nushell behaviour.
+`sleep` is valid in both shells, while `tail -f`, `ps | grep`, and `while true`
+are bash shapes whose Nushell behaviour and teaching value are tested by the eval
+cases below, not inferred from this corpus.
 
 I scanned 2,369 DSH session logs and parsed 63,119 tool calls. Fixed sleeps are a
-repeatable pattern, not a one-off:
+repeatable pattern in that legacy corpus, not a one-off:
 
 | signal | count |
 |---|---:|
@@ -21,8 +27,8 @@ repeatable pattern, not a one-off:
 
 The blocking patterns are present too but are harder to attribute without
 inspecting each call: `tail -f` appears in 5 tool calls, `ps ... grep` in 10,
-and `while true` in 6. These are the shapes the new guidance names; the audit is
-a search, not a claim that every match was a mistake.
+and `while true` in 6. The audit is a search, not a claim that every match was a
+mistake, and it says nothing about whether the same command is valid Nushell.
 
 ## New coverage
 
