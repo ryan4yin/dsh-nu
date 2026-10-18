@@ -36,5 +36,8 @@ jobs:
         run: npm run build
       - name: Test
         run: npm test
+      - name: Integration boot
+        if: runner.os == 'Linux'
+        run: npm run test:integration
       - name: Check the published file list
         run: npm pack --dry-run
