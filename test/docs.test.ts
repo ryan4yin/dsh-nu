@@ -37,6 +37,8 @@ const FILES = [
   'docs/nushell-friction-review.md',
   'docs/zh/nushell-friction-review.md',
   'docs/adr/0001-distribution-and-support.md',
+  'docs/adr/0002-tested-teaching-claims.md',
+  'docs/adr/0003-e2e-first-verification.md',
   'examples/preset-nu-shell.md',
   'cordis.patch.yml',
 ]
