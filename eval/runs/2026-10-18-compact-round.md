@@ -6,6 +6,25 @@ The first round compared `full` and `off`; this round adds the shipped
 `compact` guide. It runs the same nine cases with the same two models, three
 samples per case and arm: 27 samples per arm and model.
 
+## Content difference
+
+The mandatory rules and the rewritten tool description are identical in both
+arms; only the syntax-guide body changes.
+
+| text | full | compact |
+|---|---:|---:|
+| mandatory rules | 1,803 chars | 1,803 chars |
+| syntax guide | 3,774 chars, 51 lines, 8 sections | 911 chars, 11 lines, no sections |
+| tool description | 1,216 chars | 1,216 chars |
+| total teaching text | 6,793 chars | 3,930 chars (-42%) |
+
+Compact keeps the core rules and one-line examples for pipelines, files, text,
+variables, output, redirection, waiting, and failures. Full adds detailed
+sections and examples for quoting, table projection, for/each, external
+commands, and the > / 2> traps. The nine cases use common idioms that both
+guides cover, so similar task results are expected; they do not show that full
+extra detail is unnecessary on harder syntax.
+
 ## Results
 
 Tokens are the sum of all model calls in the arm. Strict success requires the
