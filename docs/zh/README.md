@@ -2,7 +2,7 @@
 
 [English](../../README.md) | 中文
 
-dsh-nu 是 DeepSeek Harness 的插件包，把编码代理能用的 shell 限定为 Nushell，同时引导模型用 Nushell 写命令，而不是 bash 或 PowerShell。
+dsh-nu 是 DeepSeek Harness 的插件包，把编码 agent 能用的 shell 限定为 Nushell，同时引导模型用 Nushell 写命令，而不是 bash 或 PowerShell。
 
 每次 shell 调用都是一个独立进程：
 
