@@ -55,3 +55,34 @@ test('the allowlist exempts an exact command from both checks', () => {
   const executor = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu', foreignShellAllowlist: ['^bash -c'] }) as never)
   assert.deepEqual(executor.nuArgv('bash -c "echo hi"'), ['nu', '--no-config-file', '-c', 'bash -c "echo hi"'])
 })
+test('execute spawns the Nu argv and appends one hint to a matching failure', async () => {
+  const spawns: Array<{ argv: string[] }> = []
+  const context = fakeContext() as unknown as Record<string, unknown>
+  context.subprocess = {
+    resolveExecutable: async (binary: string) => binary,
+    spawn: (spec: { argv: string[] }) => {
+      spawns.push(spec)
+      return {
+        done: Promise.resolve({ exitCode: 1, signal: null }),
+        collected: {
+          stdout: { readFrom: () => ({ text: '', lossy: false, nextOffset: 0 }) },
+          stderr: { readFrom: () => ({ text: 'Error: nu::parser::unknown_flag\n  x unknown flag\n', lossy: false, nextOffset: 0 }) },
+        },
+      }
+    },
+  }
+  const executor = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu' }) as never)
+  const spec = {
+    command: 'ls --nope',
+    workdir: process.cwd(),
+    timeoutMs: 1_000,
+    onExpiry: 'kill' as const,
+    stdoutMaxBytes: 64_000,
+    sandboxPolicy: { mode: 'danger-full-access' as const, workspaceRoot: process.cwd() },
+  }
+  const handle = await executor.execute(spec)
+  const result = await handle.result()
+  assert.deepEqual(spawns[0]!.argv, ['nu', '--no-config-file', '-c', 'ls --nope'])
+  assert.equal(result.exitCode, 1)
+  assert.match(result.stderr.text, /Nushell hint \(unknown-flag\)/)
+})
