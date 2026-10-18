@@ -69,6 +69,7 @@ The bundle's patch mounts one executor row and one teaching row; a profile patch
     syntaxHints: true
     requireNu: true
     verifyNu: true
+    verifyTimeoutMs: 10000
     foreignShellAllowlist: []
 
 - id: nu-teaching
@@ -104,7 +105,7 @@ Sandbox budgets (`cwd`, `timeoutMs`, …) stay on the `nu-executor` row, not in 
 ## What "only Nushell" does not cover
 
 - A preset row that spawns its own shell, such as a custom plugin calling `ctx.subprocess.spawn` directly or a PTY persistent-shell group. Disable it for a Nu-only deployment; see `examples/preset-nu-shell.md`.
-- A shell named inside a quoted argument. That is data, not a command position. The guard rejects handoffs in command position and in wrapper chains; it is not a sandbox.
+- A shell named inside a plain quoted string. That is data, not a command position. `$"…"` and `$'…'` interpolate, so the guard and the preflight scan each parenthesized part as code. The guard rejects handoffs in command position and in wrapper chains; it is not a sandbox.
 - Other shell seams. Hook bridges, persistent terminals, and tmux context use their own services or scripts and are outside this bundle. Keep them off for a strict deployment.
 - dsh-nu does not change sandbox behaviour: `danger-full-access` runs directly, and confined modes wrap the Nushell argv through `ctx.sandbox.confine()` with the same `mode` / `denied` / `enforcement` reporting.
 

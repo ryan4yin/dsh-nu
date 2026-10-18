@@ -67,6 +67,7 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
     syntaxHints: true
     requireNu: true
     verifyNu: true
+    verifyTimeoutMs: 10000
     foreignShellAllowlist: []
 
 - id: nu-teaching
@@ -102,7 +103,7 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
 ## “只要 Nushell”覆盖不到的地方
 
 - preset 自己启动 shell 的行，例如直接调用 `ctx.subprocess.spawn` 的插件，或 PTY 常驻 shell 组。严格部署时应关闭，见 `examples/preset-nu-shell.md`。
-- 引号参数里的 shell 名称只是数据，不是命令位置。guard 会拦下命令位置和包装链里的交接，但它本身不是沙箱。
+- 普通引号参数里的 shell 名称只是数据，不是命令位置。`$"…"` 和 `$'…'` 会插值，因此 guard 和预检会把每个括号里的片段当作代码扫描。guard 会拦下命令位置和包装链里的交接，但它本身不是沙箱。
 - 其他 shell seam 不在 dsh-nu 的范围内：hook 桥、常驻终端和 tmux context 使用各自的服务或脚本。严格部署时应保持关闭。
 - dsh-nu 不改沙箱本身：`danger-full-access` 直接运行，受限模式通过 `ctx.sandbox.confine()` 包装 Nushell argv，`mode` / `denied` / `enforcement` 的报告方式保持不变。
 
