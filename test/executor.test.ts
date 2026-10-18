@@ -130,6 +130,16 @@ test('the confinement seam wraps the Nu argv', async () => {
   assert.deepEqual(result.argv, ['nu', '--no-config-file', '-c', 'print hi'])
 })
 
+test('the confinement seam keeps the Nu read-only denial dialect', async () => {
+  const context = fakeContext() as unknown as Record<string, unknown>
+  context.sandbox = { confine: async (argv: string[]) => ({ argv, enforcement: 'full', denialSignatures: [], runnerFailureRules: [] }) }
+  const executor = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu' }) as never)
+  const result = await (executor as unknown as {
+    confine: (command: string, policy: never) => Promise<{ denialSignatures: string[] }>
+  }).confine('print hi', { mode: 'workspace-write' } as never)
+  assert.ok(result.denialSignatures.includes('read-only_filesystem_or_storage_medium'))
+})
+
 test('resolve keeps the caller workdir and the inherited budgets', () => {
   const executor = new NushellExecutor(fakeContext() as never, executorConfig({
     nuPath: 'nu',

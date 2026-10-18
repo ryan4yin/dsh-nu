@@ -37,6 +37,9 @@ import type { NuChoice } from './nu.js'
 /** The platform's first-party sandbox executor whose mechanics this keeps. */
 const BaseExecutor = (process.platform === 'win32' ? SandboxPwshExecutor : SandboxBashExecutor) as unknown as typeof SandboxBashExecutor
 
+/** Nushell's own read-only dialect; the sandbox runner only knows the POSIX EROFS text. */
+const NU_DENIAL_SIGNATURES = ['read-only_filesystem_or_storage_medium'] as const
+
 /** The plugin name used in loader diagnostics. */
 export const name = 'nu-executor'
 
@@ -233,8 +236,12 @@ export class NushellExecutor extends BaseExecutor {
 
   /** The confinement seam, shared by the POSIX and Windows families. */
   // @ts-expect-error -- the parent declares this seam private; overriding it is the provider extension point.
-  confine(command: string, policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv> {
-    return this.ctx.sandbox.confine(this.nuArgv(command), policy, signal)
+  async confine(command: string, policy: SandboxPolicy, signal?: AbortSignal): Promise<ConfinedArgv> {
+    const prepared = await this.ctx.sandbox.confine(this.nuArgv(command), policy, signal)
+    return {
+      ...prepared,
+      denialSignatures: [...new Set([...(prepared.denialSignatures ?? []), ...NU_DENIAL_SIGNATURES])],
+    }
   }
 
   /** Wrap a handle so its foreground projection carries one hint on failure. */

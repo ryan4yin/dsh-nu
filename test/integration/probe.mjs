@@ -66,6 +66,9 @@ export async function apply(ctx) {
   if (process.platform !== 'win32') {
     const denied = await run(shell, '^nu --no-config-file -c "print probe" o> /etc/dsh-nu-integration-denied')
     record('a write outside the workspace is denied with a hint', denied.exitCode !== 0 && /Nushell hint \((permission-denied|read-only-filesystem)\)/.test(denied.stderr.text), 'exit ' + denied.exitCode + ' ' + denied.stderr.text.replace(/\s+/g, ' ').slice(0, 160))
+    if (denied.sandbox?.mode !== 'danger-full-access') {
+      record('the denial keeps sandbox facts', denied.sandbox?.denied === true, JSON.stringify(denied.sandbox))
+    }
   }
 
   const failed = await run(shell, 'ls /definitely-missing-dsh-nu-probe')
