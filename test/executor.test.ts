@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { Service } from '@deepseek-ai/cordis'
 import { NushellExecutor } from '../src/executor.ts'
+import { nuFacts, TESTED_NUSHELL } from '../src/nu.ts'
 
 function fakeContext() {
   const provided: string[] = []
@@ -56,6 +58,89 @@ test('the allowlist exempts an exact command from both checks', () => {
   const executor = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu', foreignShellAllowlist: ['^bash -c'] }) as never)
   assert.deepEqual(executor.nuArgv('bash -c "echo hi"'), ['nu', '--no-config-file', '-c', 'bash -c "echo hi"'])
 })
+function probeHandle(text: string) {
+  return {
+    done: Promise.resolve({ exitCode: 0, signal: null }),
+    collected: {
+      stdout: { readFrom: () => ({ text, lossy: false, nextOffset: text.length }) },
+      stderr: { readFrom: () => ({ text: '', lossy: false, nextOffset: 0 }) },
+    },
+  }
+}
+
+function bootContext(options: {
+  resolve?: (binary: string) => Promise<string>
+  spawn?: (spec: { argv: string[] }) => unknown
+  warn?: (line: string) => void
+} = {}) {
+  const context = fakeContext() as unknown as Record<string, unknown>
+  context.subprocess = {
+    resolveExecutable: options.resolve ?? (async (binary: string) => binary),
+    spawn: options.spawn ?? (() => { throw new Error('spawn was not expected') }),
+  }
+  context.logger = { info(): void {}, warn: options.warn ?? ((): void => {}) }
+  return context
+}
+
+test('boot probes nu --version and records the resolved executable', async () => {
+  const spawns: Array<{ argv: string[] }> = []
+  const context = bootContext({
+    resolve: async () => '/opt/nu/bin/nu',
+    spawn: (spec) => { spawns.push(spec); return probeHandle('nu ' + TESTED_NUSHELL) },
+  })
+  const executor = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu' }) as never)
+  nuFacts.version = undefined
+  await (executor as unknown as Record<symbol, () => Promise<void>>)[Service.init]!()
+  assert.equal(executor.nuBinary, '/opt/nu/bin/nu')
+  assert.equal(executor.nuVersion, TESTED_NUSHELL)
+  assert.deepEqual(spawns[0]!.argv, ['/opt/nu/bin/nu', '--version'])
+})
+
+test('boot warns when the probed Nushell is not the tested version', async () => {
+  const warnings: string[] = []
+  const context = bootContext({ spawn: () => probeHandle('nu 0.114.0'), warn: (line) => warnings.push(line) })
+  const executor = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu' }) as never)
+  await (executor as unknown as Record<symbol, () => Promise<void>>)[Service.init]!()
+  assert.ok(warnings.some((line) => line.includes('0.114.0') && line.includes(TESTED_NUSHELL!)))
+})
+
+test('boot fails closed when requireNu is set and resolution fails', async () => {
+  const context = bootContext({ resolve: async () => { throw new Error('not found') } })
+  const strict = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu' }) as never)
+  await assert.rejects((strict as unknown as Record<symbol, () => Promise<void>>)[Service.init]!(), /requireNu|not found/)
+  const lenient = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu', requireNu: false }) as never)
+  await (lenient as unknown as Record<symbol, () => Promise<void>>)[Service.init]!()
+})
+
+test('verifyNu false skips the version probe', async () => {
+  const spawns: Array<{ argv: string[] }> = []
+  const context = bootContext({ spawn: (spec) => { spawns.push(spec); return probeHandle('nu 0.115.1') } })
+  const executor = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu', verifyNu: false }) as never)
+  await (executor as unknown as Record<symbol, () => Promise<void>>)[Service.init]!()
+  assert.equal(spawns.length, 0)
+})
+
+test('the confinement seam wraps the Nu argv', async () => {
+  const confined: string[][] = []
+  const context = fakeContext() as unknown as Record<string, unknown>
+  context.sandbox = { confine: async (argv: string[]) => { confined.push(argv); return { argv, enforcement: 'full', denialSignatures: [], runnerFailureRules: [] } } }
+  const executor = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu' }) as never)
+  const result = await (executor as unknown as { confine: (command: string, policy: never) => Promise<{ argv: string[] }> }).confine('print hi', { mode: 'workspace-write' } as never)
+  assert.deepEqual(confined[0], ['nu', '--no-config-file', '-c', 'print hi'])
+  assert.deepEqual(result.argv, ['nu', '--no-config-file', '-c', 'print hi'])
+})
+
+test('resolve keeps the caller workdir and the inherited budgets', () => {
+  const executor = new NushellExecutor(fakeContext() as never, executorConfig({
+    nuPath: 'nu',
+    timeoutMs: { get: () => 5_000 },
+    maxTimeoutMs: { get: () => 10_000 },
+  }) as never)
+  const spec = executor.resolve({ command: 'print hi', workdir: '/tmp' })
+  assert.equal(spec.workdir, '/tmp')
+  assert.ok(spec.timeoutMs > 0 && spec.timeoutMs <= 10_000)
+})
+
 test('execute spawns the Nu argv and appends one hint to a matching failure', async () => {
   const spawns: Array<{ argv: string[] }> = []
   const context = fakeContext() as unknown as Record<string, unknown>

@@ -27,6 +27,17 @@ export type RuleId =
   | 'exit-status'
   | 'bash-flag'
   | 'comma-column'
+  | 'array-literal'
+  | 'export-assignment'
+  | 'prefix-assignment'
+  | 'current-item'
+  | 'powershell-not'
+  | 'deprecated-flags'
+  | 'powershell-parameter'
+  | 'negative-count'
+  | 'percent-sigil'
+  | 'pipe-redirect'
+  | 'glob-named-arguments'
 
 /** One refused habit and the shape that replaces it. */
 export interface Finding {
@@ -102,6 +113,61 @@ const RULES: readonly Rule[] = [
     match: /\b(?:select|sort-by|where)\b[^;|]*\b[A-Za-z_][A-Za-z0-9_-]*\s*,\s*[A-Za-z_][A-Za-z0-9_-]*/,
     fix: 'Nushell has no comma-separated columns: select name size. Lists are [1, 2], but command arguments are space-separated.',
   },
+  {
+    id: 'array-literal',
+    match: /(?:^|[\s;|(])@\(/,
+    fix: 'Nushell lists are [1 2 3]; PowerShell @(...) is not an array literal.',
+  },
+  {
+    id: 'export-assignment',
+    match: /(?:^|[;\n])\s*export\s+[A-Za-z_][A-Za-z0-9_]*\s*=/,
+    fix: 'Nushell has no export NAME=. Set an environment value with $env.NAME = ...; module exports use export def / export const.',
+  },
+  {
+    id: 'prefix-assignment',
+    match: /(?:^|[;\n])\s*[A-Za-z_][A-Za-z0-9_]*=[^\s;|]+\s+[A-Za-z_^]/,
+    fix: 'Per-command environment assignment is not Nushell. Set $env.NAME = ... first, then run the command.',
+  },
+  {
+    id: 'current-item',
+    match: /\$_\.|\$PSItem\b/,
+    fix: 'PowerShell uses $_. Nushell closures name their item: ls | each { |item| $item.name }.',
+  },
+  {
+    id: 'powershell-not',
+    match: /(?:^|[\s;(])(?:-not|-Not)\s+\(|(?:^|[\s;(])!\s*\(/,
+    fix: 'Nushell negates with not or by comparing: if not ($x == 1) { ... } or if $x != 1 { ... }.',
+  },
+  {
+    id: 'deprecated-flags',
+    match: /\b(?:select|sort-by|sort|measure|group-by)\s+-(?:First|Last|Unique|Skip|Descending|Ascending)\b/i,
+    fix: 'PowerShell verbs are not Nushell flags: use first 20, last 20, uniq, or sort-by.',
+  },
+  {
+    id: 'powershell-parameter',
+    match: /\b(?:ls|mv|cp|rm|Get|Set|Remove|Copy|Move|New)\b[^;|]*\s-(?:ErrorAction|Force|Recurse)\b/,
+    fix: 'PowerShell common parameters do not exist here: drop -ErrorAction / -Force / -Recurse and use Nushell flags or ignore errors with do -i.',
+  },
+  {
+    id: 'negative-count',
+    match: /\b(?:first|last|skip|take|drop)\s+-\d+/,
+    fix: 'Counts are positive: first 3, last 40. Negative counts are not supported.',
+  },
+  {
+    id: 'percent-sigil',
+    match: /(?:^|[\s;|(])%\{/,
+    fix: 'Nushell has no %{ ... } block. Use do { ... }, each { ... }, or a named closure.',
+  },
+  {
+    id: 'pipe-redirect',
+    match: /\|\s*(?:o|e|o\+e)>>?/,
+    fix: 'A redirection must end the command that produces the value. Pipe into save -f file instead of | o> file.',
+  },
+  {
+    id: 'glob-named-arguments',
+    match: /\bglob\s+[A-Za-z_][A-Za-z0-9_]*=/,
+    fix: 'glob takes one pattern and an optional --depth, not named pattern=/path= arguments: glob "**/*.rs".',
+  },
 ]
 
 /** All refusal rule ids, in rule order. */
@@ -159,8 +225,19 @@ const HINTS: readonly HintRule[] = [
   { id: 'stderr-redirect', match: /nu::parser::shell_outerr/, hint: '2>&1 is not Nushell. Write o+e> out.txt, or use (do { cmd } | complete) to capture both streams.' },
   { id: 'stderr-file', match: /nu::parser::shell_err\b/, hint: '2> file is not Nushell. Send stderr with e> err.txt; stdout is o> and both is o+e>.' },
   { id: 'path-not-found', match: /nu::shell::(?:io::)?(?:file_)?not_found/, hint: 'The path does not exist. Check it with path exists, or quote it if it contains spaces.' },
+  { id: 'glob-pattern', match: /No matches found for|no matches found/i, hint: 'That glob matched nothing, and ls <glob> treats an empty match as an error. Use glob <pattern> (empty list is fine) or widen the pattern; ? in a path is a one-character wildcard in Nushell.' },
+  { id: 'incompatible-path-access', match: /nu::shell::incompatible_path_access/, hint: 'A pipeline and or/and were mixed: wrap each comparison, (str contains "a") or (str contains "b"), or use one regex =~.' },
+  { id: 'eval-block-with-input', match: /nu::shell::eval_block_with_input/, hint: 'A closure failed on its pipeline input. Name the parameter ({ |row| ... }) or use $in, and check the value type the block receives.' },
+  { id: 'redirection-nothing', match: /expected redirection target/, hint: 'A redirection needs a target after the operator. Write cmd o> out.txt, or pipe into save -f file.' },
+  { id: 'percent-sigil', match: /percent sigil/, hint: 'Nushell has no %{ ... } block. Use do { ... }, each { ... }, or a named closure.' },
   { id: 'column-not-found', match: /nu::shell::column_not_found/, hint: 'Nushell could not find that column or environment variable. For a table, inspect it with columns or first 1; for an optional variable, write $env.NAME?.' },
+  { id: 'find-builtin', match: /find. command doesn't have flag/, hint: 'find here is the Nushell text-search builtin, not GNU find. Use glob "**/*.rs", or force the external tool with ^find . -name "*.rs".' },
+  { id: 'deprecated-flag', match: /nu::parser::deprecated/, hint: 'That PowerShell-style flag is deprecated or gone: use first 20, last 20, uniq, or sort-by instead of -First / -Last / -Unique.' },
   { id: 'unknown-flag', match: /nu::parser::unknown_flag/, hint: 'Nushell flags differ from bash flags: check help <command> (for example ls --all, rm -r -f, mkdir a/b).' },
+  { id: 'name-not-found', match: /nu::shell::name_not_found/, hint: 'The command or column name is not known here. Nushell columns are space-separated (select name size), and list the real ones with columns.' },
+  { id: 'unknown-command', match: /nu::parser::unknown_command/, hint: 'That is not a Nushell command. Check the spelling, remove a foreign sigil such as @(...) / %{...}, or prefix an external binary with ^.' },
+  { id: 'extra-positional', match: /nu::parser::extra_positional/, hint: 'Too many positional arguments. glob takes one pattern plus --depth; check help <command> for the accepted shape.' },
+  { id: 'http-error', match: /nu::shell::io::connection_refused|nu::shell::http_error/, hint: 'The HTTP request failed (offline, DNS/TLS, refused connection, or a non-2xx status). Try http get --full <url> to inspect the status without raising.' },
   { id: 'immutable-assignment', match: /nu::parser::assignment_requires_mutable_variable/, hint: 'let variables are immutable. Declare it with mut before reassigning: mut x = 1; $x = 2.' },
   { id: 'env-var-not-var', match: /nu::parser::env_var_not_var/, hint: 'Environment values live under $env: write $env.PATH, not $PATH.' },
   { id: 'assignment-requires-variable', match: /nu::parser::assignment_requires_variable/, hint: '= assigns to a variable. A record literal uses { a: 1 }, and a table uses [[a]; [1]].' },
@@ -169,14 +246,14 @@ const HINTS: readonly HintRule[] = [
   { id: 'needs-positive-value', match: /nu::shell::needs_positive_value/, hint: 'first and last take a positive count: first 3, not first -3.' },
   { id: 'unexpected-redirection', match: /nu::parser::unexpected_redirection/, hint: 'A redirection must end the command that produces the value; o>/e> after a pipe redirect nothing. Write cmd o> file, or pipe into save -f file.' },
   { id: 'is-a-directory', match: /nu::shell::io::is_a_directory/, hint: 'open --raw reads a file. List a directory with ls or glob instead of opening it.' },
-  { id: 'operator-unsupported-type', match: /nu::parser::operator_unsupported_type/, hint: 'That operator does not accept this operand type. Convert first (into int, into string) or compare values of the same type.' },
+  { id: 'operator-unsupported-type', match: /nu::(?:parser|shell)::operator_(?:unsupported_type|incompatible_types)/, hint: 'That operator does not accept this operand type. Convert first (into int, into string) or compare values of the same type.' },
   { id: 'type-mismatch', match: /nu::parser::input_type_mismatch|nu::shell::cant_convert/, hint: 'This value has the wrong type for that command. Parse it first (into int, into string) or check what the previous stage returned.' },
   { id: 'missing-external', match: /nu::shell::external_command/, hint: 'That external program is not installed. Nushell has a native equivalent for many tools; otherwise install it, or use ^program when the name clashes with a Nushell command.' },
   { id: 'permission-denied', match: /nu::shell::io::permission_denied|permission denied/i, hint: 'Permission was denied. This is a filesystem permission or sandbox policy issue, not a syntax problem: use a permitted path and do not retry another way.' },
   { id: 'read-only-filesystem', match: /read-only_filesystem_or_storage_medium/, hint: 'That filesystem is read-only. Choose a writable path, or check the sandbox policy; do not retry the same write.' },
   { id: 'empty-pipeline', match: /nu::shell::pipeline_mismatch/, hint: 'A stage received no input. Feed it explicitly, or check that the previous stage produced output.' },
   { id: 'exit-status', match: /Incomplete variable/, hint: '$? and similar bash variables are not Nushell. Use $env.LAST_EXIT_CODE? or (do { cmd } | complete).exit_code.' },
-  { id: 'parse-error', match: /nu::parser::unclosed_delimiter/, hint: 'Nushell refused to parse this. Check quoting and parentheses: single quotes keep backslashes literal, and every brace, bracket, and parenthesis needs its pair in the same command.' },
+  { id: 'parse-error', match: /nu::parser::parse_mismatch|nu::parser::unclosed_delimiter/, hint: 'Nushell refused to parse this. Check quoting and parentheses: single quotes keep backslashes literal, and every brace, bracket, and parenthesis needs its pair in the same command.' },
 ]
 
 /** All hint ids, in rule order. */

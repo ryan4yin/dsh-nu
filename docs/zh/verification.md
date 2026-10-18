@@ -4,11 +4,13 @@
 
 ## 测试套件覆盖什么
 
-`npm test` 包含四类测试：
+`npm test` 包含这些测试：
 
-- 单元测试：可执行文件解析、argv 组装、外部 shell 扫描、方言规则、教学层改写、执行器 seam；
-- 差分语料：每条预检拒绝规则都用固定版本的真实 Nushell 执行，必须失败；每条允许的命令必须成功；
+- 单元测试：可执行文件解析、argv 组装、外部 shell 扫描、方言规则、教学层改写、执行器 seam、启动探测、沙箱包装、继承的预算；
+- 差分语料：每条预检拒绝规则都用固定版本的真实 Nushell 执行，必须失败（静默错误的特例单独断言）；每条允许的命令必须成功；
 - hint 覆盖：每个 hint id 都有一条真实失败命令，测试用这条命令实际的 stderr 断言 hint；
+- claims 测试：教学指南中可执行的断言都用固定版本 Nushell 运行；
+- manifest 契约：peer 范围、bundle patch、exports、发布文件列表；
 - 文档测试：中英文标题层级一致、固定版本号、相对链接、致谢边界。
 
 ## 本地运行
@@ -18,6 +20,7 @@ npm install
 node dev/link-peers.mjs --root <dsh-install-root>
 npm run typecheck
 npm test
+npm run test:integration
 npm run build
 npm pack --dry-run
 ```
@@ -26,11 +29,11 @@ npm pack --dry-run
 
 ## 差分语料
 
-拒绝列表覆盖编号重定向、`$env:`、裸赋值、`foreach`、cmdlet、`&&` / `||`、命令替换、`$?`、Nushell 内置命令的未知 flag、逗号分隔列。修改规则必须给出一条固定版本 Nushell 真正拒绝的命令，不能只靠假设。允许列表证明预检不会误拒合法的 Nushell 或外部工具语法。
+拒绝列表覆盖编号与 stderr 重定向、`$env:`、裸赋值与每条命令赋值、`export`、`foreach`、cmdlet、`$_.`、PowerShell `-not` 与 flag 动词、通用参数、`&&` / `||`、命令替换、`$?`、数组字面量、百分号块、负数计数、Nushell 内置命令的未知 flag、逗号分隔列、glob 命名参数、管道后重定向。修改规则必须给出一条固定版本 Nushell 真正拒绝的命令，不能只靠假设。允许列表证明预检不会误拒合法的 Nushell、引号内数据、注释或外部工具语法。
 
 ## hint 覆盖
 
-每个 hint 模式都对应固定版本 Nushell 实际打印的错误 id，例如 `nu::parser::shell_outerr`、`nu::shell::io::not_found`、`nu::shell::pipeline_mismatch`。测试执行对应命令，把捕获的 stderr 交给 hint 函数。有一个样本依赖宿主环境：向 `/sys` 写入时，有些 Linux 返回 EROFS，有些返回 EACCES；因此只有在真实出现只读错误时才断言对应 hint，跳过时会说明。
+每个 hint 模式都对应固定版本 Nushell 实际打印的错误 id，例如 `nu::parser::shell_outerr`、`nu::shell::io::not_found`、`nu::shell::pipeline_mismatch`。测试执行对应命令，把捕获的 stderr 交给 hint 函数。测试套件不保存捕获的 stderr fixture：每个样本都由安装的 Nushell 在每次运行时生成，fixture 不会与实际使用的二进制版本脱节。有一个样本依赖宿主环境：向 `/sys` 写入时，有些 Linux 返回 EROFS，有些返回 EACCES；因此只有在真实出现只读错误时才断言对应 hint，跳过时会说明。
 
 ## 集成探针与真实启动
 
