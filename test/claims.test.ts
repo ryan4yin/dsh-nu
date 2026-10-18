@@ -63,6 +63,34 @@ test('every teaching claim holds in the real Nushell', { skip: !nuAvailable }, (
     // A failing external aborts the rest of the command.
     assert.equal(ok(run('do -i { ^nu -c "exit 1" }; print "after"', cwd), 'do -i'), 'after')
     assert.notEqual(run('^nu -c "exit 1"; print "after"', cwd).stdout.trim(), 'after')
+
+    // Lists, records, and their accessors.
+    assert.equal(ok(run('print ([1 2 3] | length)', cwd), 'list length'), '3')
+    assert.equal(ok(run('print ({ a: 1 } | get a)', cwd), 'record get'), '1')
+
+    // Single quotes stay literal too; raw strings keep everything literal.
+    assert.equal(ok(run("print 'hi $name'", cwd), 'single-quoted literal'), 'hi $name')
+
+    // Typed comparisons and table operations.
+    assert.equal(ok(run('[[size]; [2mb]] | where size > 1mb | length', cwd), 'typed where'), '1')
+    assert.equal(ok(run('[[a]; [2] [1]] | sort-by a | get a | first', cwd), 'sort-by'), '1')
+    assert.equal(ok(run('"a,b" | split row "," | length', cwd), 'split row'), '2')
+    assert.equal(ok(run('"a1" | str replace -r \'\\d\' "#"', cwd), 'str replace'), 'a#')
+
+    // Control flow.
+    assert.equal(ok(run('if 2 > 1 { print "yes" } else { print "no" }', cwd), 'if'), 'yes')
+    assert.equal(ok(run('for x in [1 2] { print $x }', cwd), 'for'), '1\n2')
+    assert.equal(ok(run('print (match 2 { 1 => "one", _ => "other" })', cwd), 'match'), 'other')
+    assert.equal(ok(run('try { error make { msg: "boom" } } catch { |err| print ($err.msg == "boom") }', cwd), 'try catch'), 'true')
+
+    // Environment mutation lasts for this process only.
+    assert.equal(ok(run('$env.PROBE_ENV = "x"; print $env.PROBE_ENV', cwd), 'env set'), 'x')
+
+    // External-command redirection captures stdout.
+    assert.equal(ok(run('^nu --no-config-file -c "print x" o+e> all.txt; open --raw all.txt | str contains "x"', cwd), 'o+e redirect'), 'true')
+
+    // reduce folds a list.
+    assert.equal(ok(run('[1 2 3] | reduce { |it, acc| $it + $acc }', cwd), 'reduce'), '6')
   } finally {
     rmSync(cwd, { recursive: true, force: true })
   }
