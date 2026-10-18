@@ -4,13 +4,17 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 0.2.1 (2026-10-18)
 
 ### Changed
 
 - The guides ask for model-facing output to be serialized with `to text` or
   `to json` instead of a wide table. They also state that the bundle fails closed
   when Nushell cannot be resolved.
+- The README intros and `cordis.patch.yml` state that the model keeps calling
+  the same `bash` / `pwsh` tool while each command runs as `nu`, and that dsh's
+  sandbox is untouched. The disabled `bash-sandbox` / `pwsh-sandbox` rows are
+  shell executors, not the sandbox itself.
 
 ### Fixed
 
@@ -24,13 +28,6 @@ All notable changes to this project are recorded here. The format follows
   the executor adds Nushell's `read-only_filesystem_or_storage_medium` dialect
   to the confinement signatures, so `sandbox.denied` is true and background
   settlement classifies it too.
-
-### Changed
-
-- The README intros and `cordis.patch.yml` state that the model keeps calling
-  the same `bash` / `pwsh` tool while each command runs as `nu`, and that dsh's
-  sandbox is untouched. The disabled `bash-sandbox` / `pwsh-sandbox` rows are
-  shell executors, not the sandbox itself.
 
 ## 0.2.0 (2026-10-18)
 
