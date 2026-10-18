@@ -25,7 +25,7 @@ test('the dsh peer ranges and the tested pair agree', () => {
 })
 
 test('the bundle patch mounts the exported plugins', () => {
-  const patch = readFileSync(resolve(ROOT, 'cordis.patch.yml'), 'utf8')
+  const patch = readFileSync(resolve(ROOT, 'cordis.patch.yml'), 'utf8').replace(/\r\n/g, '\n')
   assert.match(patch, /name: dsh-nu\/executor/)
   assert.match(patch, /name: dsh-nu\/teaching/)
   for (const id of ['bash-sandbox', 'pwsh-sandbox']) {
