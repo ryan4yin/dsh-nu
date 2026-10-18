@@ -49,10 +49,14 @@ jobs:
       - name: Pack
         run: npm pack
 
+      # Trusted publishing: no npm token is stored in this repository. The
+      # package's npm settings authorize this repository and workflow, and the
+      # runner exchanges its GitHub OIDC identity for a short-lived publish
+      # token. The first publish of a new package name cannot be configured in
+      # npm package settings yet, so 0.1.0 was published once manually; every
+      # later tag uses this job.
       - name: Publish to npm
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
 
       - name: Create the GitHub release
         env:
