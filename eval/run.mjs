@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -31,6 +31,7 @@ const packagePath = resolve(arg('package', repo))
 const profile = arg('profile', 'dsh-nu-eval')
 const label = arg('label', modelPatch.split('/').at(-1) ?? 'model')
 const samples = Number(arg('samples', '1'))
+const concurrency = Math.max(1, Number(arg('concurrency', '1')) || 1)
 const arms = arg('arms', 'full,compact,off').split(',').filter(Boolean)
 const onlyCases = arg('cases', '') ? arg('cases').split(',') : []
 const timeoutMs = Number(arg('timeout-ms', '240000'))
@@ -74,6 +75,43 @@ function run(command, args, options = {}) {
     stderr: result.stderr ?? '',
     durationMs: Date.now() - started,
   }
+}
+
+function runAsync(command, args, options = {}) {
+  return new Promise((resolvePromise) => {
+    const started = Date.now()
+    const child = spawn(command, args, {
+      cwd: options.cwd ?? repo,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    let stdout = ''
+    let stderr = ''
+    let timedOut = false
+    const timer = setTimeout(() => {
+      timedOut = true
+      child.kill('SIGKILL')
+    }, options.timeoutMs ?? timeoutMs)
+    child.stdout.setEncoding('utf8')
+    child.stderr.setEncoding('utf8')
+    child.stdout.on('data', (chunk) => { stdout += chunk })
+    child.stderr.on('data', (chunk) => { stderr += chunk })
+    child.on('error', (error) => {
+      clearTimeout(timer)
+      resolvePromise({ status: null, signal: null, error: String(error), stdout, stderr, durationMs: Date.now() - started })
+    })
+    child.on('close', (code, signal) => {
+      clearTimeout(timer)
+      resolvePromise({
+        status: timedOut ? null : code,
+        signal,
+        error: timedOut ? 'timeout after ' + (options.timeoutMs ?? timeoutMs) + 'ms' : undefined,
+        stdout,
+        stderr,
+        durationMs: Date.now() - started,
+      })
+    })
+  })
 }
 
 function ensureProfile() {
@@ -228,36 +266,48 @@ function aggregate(rows) {
 }
 
 ensureProfile()
-const rows = []
+const queue = []
 for (const item of cases) {
   for (const arm of arms) {
-    for (let sample = 1; sample <= samples; sample += 1) {
-      const workspace = fixtureWorkspace(item, arm, sample)
-      const args = ['--profile', profile, '--patch', modelPatch]
-      if (arm === 'off') args.push('--patch', teachingOffPatch)
-      if (arm === 'compact') args.push('--patch', teachingCompactPatch)
-      args.push('--json', item.prompt)
-      const result = run(dsh, args, { cwd: workspace })
-      const parsed = eventsFrom(result.stdout)
-      const graded = grade(item, parsed.events)
-      const row = {
-        case: item.id,
-        arm,
-        sample,
-        status: result.status,
-        durationMs: result.durationMs,
-        badEventLines: parsed.bad,
-        ...graded,
-      }
-      rows.push(row)
-      writeSample(item, arm, sample, workspace, { ...result, command: [dsh, ...args].join(' ') })
-      console.log(item.id + ' ' + arm + ' #' + sample + ': ' + (graded.taskSuccess ? 'pass' : 'fail') +
-        ' calls=' + graded.shellCalls + ' clean=' + graded.firstClean +
-        ' violations=' + graded.violations + ' refused=' + graded.refused +
-        ' tokens=' + graded.tokenCount)
-    }
+    for (let sample = 1; sample <= samples; sample += 1) queue.push({ item, arm, sample })
   }
 }
+const rows = new Array(queue.length)
+let next = 0
+
+async function worker() {
+  for (;;) {
+    const index = next
+    next += 1
+    if (index >= queue.length) return
+    const { item, arm, sample } = queue[index]
+    const workspace = fixtureWorkspace(item, arm, sample)
+    const args = ['--profile', profile, '--patch', modelPatch]
+    if (arm === 'off') args.push('--patch', teachingOffPatch)
+    if (arm === 'compact') args.push('--patch', teachingCompactPatch)
+    args.push('--json', item.prompt)
+    const result = await runAsync(dsh, args, { cwd: workspace })
+    const parsed = eventsFrom(result.stdout)
+    const graded = grade(item, parsed.events)
+    rows[index] = {
+      case: item.id,
+      arm,
+      sample,
+      status: result.status,
+      error: result.error,
+      durationMs: result.durationMs,
+      badEventLines: parsed.bad,
+      ...graded,
+    }
+    writeSample(item, arm, sample, workspace, { ...result, command: [dsh, ...args].join(' ') })
+    console.log(item.id + ' ' + arm + ' #' + sample + ': ' + (graded.taskSuccess ? 'pass' : 'fail') +
+      ' calls=' + graded.shellCalls + ' clean=' + graded.firstClean +
+      ' violations=' + graded.violations + ' refused=' + graded.refused +
+      ' tokens=' + graded.tokenCount)
+  }
+}
+
+await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, () => worker()))
 
 const summary = {
   generatedAt: new Date().toISOString(),

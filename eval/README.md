@@ -75,6 +75,7 @@ Useful options:
 - `--cases json-active,exit-code`: run a subset.
 - `--arms full`: skip the baseline.
 - `--skip-install`: reuse an already-installed profile.
+- `--concurrency 6`: run this many samples in parallel; default 1 (serial).
 - `--timeout-ms 300000`: per-sample limit.
 
 ## Cross-model scoring
