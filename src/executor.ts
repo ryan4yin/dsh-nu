@@ -20,7 +20,7 @@ import type { ConfinedArgv, SandboxExecutionPolicy, SandboxPolicy } from '@deeps
 import type { ShellExecSpec, ShellExecution, ShellRunResult, ShellSandboxInfo } from '@deepseek-ai/dsh-shell'
 import z from '@deepseek-ai/schemastery'
 import { assertNuOnly, compileAllowlist } from './guard.js'
-import { assertNuDialect, hintFor } from './dialect.js'
+import { assertNushellSyntax, hintFor } from './syntax.js'
 import {
   chooseBinary,
   commandArgv,
@@ -37,7 +37,7 @@ import type { NuChoice } from './nu.js'
 /** The platform's first-party sandbox executor whose mechanics this keeps. */
 const BaseExecutor = (process.platform === 'win32' ? SandboxPwshExecutor : SandboxBashExecutor) as unknown as typeof SandboxBashExecutor
 
-/** Nushell's own read-only dialect; the sandbox runner only knows the POSIX EROFS text. */
+/** Nushell's own read-only denial signature; the sandbox runner only knows the POSIX EROFS text. */
 const NU_DENIAL_SIGNATURES = ['read-only_filesystem_or_storage_medium'] as const
 
 /** The plugin name used in loader diagnostics. */
@@ -60,8 +60,8 @@ export interface NushellConfig {
   nuPath?: string
   nuArgs?: string[]
   enforceNushellOnly?: boolean
-  dialectLint?: boolean
-  dialectHints?: boolean
+  syntaxLint?: boolean
+  syntaxHints?: boolean
   requireNu?: boolean
   verifyNu?: boolean
   verifyTimeoutMs?: number
@@ -91,8 +91,8 @@ interface NuSettings {
  * | nuArgs | ['--no-config-file','-c'] | argv prefix; the command is appended |
  * | enforceNushellOnly | true | refuse commands that hand off to another shell |
  * | foreignShellAllowlist | [] | whole-command regexes exempt from both checks |
- * | dialectLint | true | refuse bash/PowerShell habits before spawning |
- * | dialectHints | true | append one hint to a failed command's stderr |
+ * | syntaxLint | true | refuse bash/PowerShell syntax before spawning |
+ * | syntaxHints | true | append one hint to a failed command's stderr |
  * | requireNu | true | fail boot when nu cannot be resolved |
  * | verifyNu | true | run nu --version once at boot |
  * | verifyTimeoutMs | 10000 | bound for that probe |
@@ -106,8 +106,8 @@ export class NushellExecutor extends BaseExecutor {
     nuPath: z.string().default(''),
     nuArgs: z.array(z.string()).default([...DEFAULT_NU_ARGS]),
     enforceNushellOnly: z.boolean().default(true),
-    dialectLint: z.boolean().default(true),
-    dialectHints: z.boolean().default(true),
+    syntaxLint: z.boolean().default(true),
+    syntaxHints: z.boolean().default(true),
     requireNu: z.boolean().default(true),
     verifyNu: z.boolean().default(true),
     verifyTimeoutMs: z.number().default(10_000),
@@ -125,8 +125,8 @@ export class NushellExecutor extends BaseExecutor {
       prefix: normalizePrefix(config.nuArgs),
       allow: compileAllowlist(config.foreignShellAllowlist),
       enforce: config.enforceNushellOnly !== false,
-      lint: config.dialectLint !== false,
-      hints: config.dialectHints !== false,
+      lint: config.syntaxLint !== false,
+      hints: config.syntaxHints !== false,
       require: config.requireNu !== false,
       verify: config.verifyNu !== false,
       verifyTimeoutMs: typeof config.verifyTimeoutMs === 'number' && config.verifyTimeoutMs > 0 ? config.verifyTimeoutMs : 10_000,
@@ -225,7 +225,7 @@ export class NushellExecutor extends BaseExecutor {
   nuArgv(command: string): string[] {
     const settings = this.settings
     if (settings.enforce) assertNuOnly(command, { allow: settings.allow })
-    if (settings.lint) assertNuDialect(command, { allow: settings.allow })
+    if (settings.lint) assertNushellSyntax(command, { allow: settings.allow })
     return commandArgv(command, { binary: this.nuBinary, origin: settings.choice.origin }, settings.prefix)
   }
 

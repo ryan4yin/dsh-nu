@@ -10,7 +10,7 @@ const manifest = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8'))
   testedWith: { dsh: string; nushell: string }
   peerDependencies: Record<string, string>
   peerDependenciesMeta: Record<string, { optional?: boolean }>
-  exports: Record<string, { default: string } | string>
+  exports: Record<string, { types?: string; default: string } | string>
   files: string[]
   engines: { node: string }
   dsh: { bundle: { patch: string } }
@@ -57,4 +57,11 @@ test('exported entry points resolve to built files after a build', { skip: !exis
     if (key === './package.json') continue
     assert.ok(existsSync(resolve(ROOT, entry)), key + ' -> ' + entry)
   }
+})
+
+test('the syntax entry point resolves after a build', { skip: !existsSync(resolve(ROOT, 'dist')) }, () => {
+  const syntax = manifest.exports['./syntax']
+  assert.ok(syntax !== undefined && typeof syntax !== 'string', './syntax export')
+  assert.equal(syntax.types, './dist/syntax.d.ts')
+  assert.equal(syntax.default, './dist/syntax.js')
 })

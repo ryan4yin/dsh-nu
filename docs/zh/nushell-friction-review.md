@@ -4,12 +4,12 @@
 
 ## 构建时被拒绝的命令
 
-构建本项目的 agent 写过一些命令，guard 和方言预检把它们挡了下来。每次拒绝都拿真实 shell 验证过：
+构建本项目的 agent 写过一些命令，guard 和非 Nushell 语法拦截把它们挡了下来。每次拒绝都拿真实 shell 验证过：
 
 - `2>/dev/null`、`2>nul` 和 `2>> file` 不是重定向。Nushell 把它们当普通参数收下，退出码 0，实际什么都没做；`stderr-as-word` 预检规则会拒绝这种写法，免得静默无效让模型误以为成功。带空格和真实目标的 `2> file` 才是 `nu::parser::shell_err`，由 `stderr-file` 拒绝。
 - `2>&1` 会报 `nu::parser::shell_outerr`（Nushell 写作 `o+e>`），预检直接拒绝。
 - `mkdir -p` 和 `ls -R` 报 `nu::shell::unknown_flag`。Nushell 会自动创建父目录，递归用 glob 代替；拒绝信息里给出了替代写法。
-- `$?` 不是变量，Nushell 报 `Incomplete variable`，guard 指向 `(do { cmd } | complete).exit_code`。
+- `$?` 不是变量，Nushell 报 `Incomplete variable`，非 Nushell 语法拦截指向 `(do { cmd } | complete).exit_code`。
 - `Start-Sleep` 是 PowerShell cmdlet，不是 Nushell 命令。cmdlet 规则命中后指向 `sleep 2sec`。
 
 ## 不是语法错误的 Nushell 行为
@@ -24,14 +24,14 @@
 ## 改了什么
 
 - guard 的外部 shell、启动器、引号、注释和 allowlist 都有单元测试和差分语料覆盖。
-- 新增方言规则的前提，是固定版本 Nushell 真的拒绝或静默误读那条片段；静默的一类单独断言，因为退出码 0 证明不了什么。
-- 每个 hint 模式都在 `test/dialect.test.ts` 里有一条对应的真实失败命令。
+- 新增非 Nushell 语法拦截规则的前提，是固定版本 Nushell 真的拒绝或静默误读那条片段；静默的一类单独断言，因为退出码 0 证明不了什么。
+- 每个 hint 模式都在 `test/syntax.test.ts` 里有一条对应的真实失败命令。
 - `test/friction.test.ts` 让 30 条常见的 agent 命令先过预检，再交给真实 shell 执行。
-- `test/dialect.test.ts` 通过实际运行来判断接受还是拒绝，包括退出码 0 但什么都没写的静默重定向，规则一旦判断错，测试就会失败。
+- `test/syntax.test.ts` 通过实际运行来判断接受还是拒绝，包括退出码 0 但什么都没写的静默重定向，规则一旦判断错，测试就会失败。
 
 ## 已知缺口
 
-- 预检是启发式扫描器，不是解析器。字符串、注释或原始字符串里的习惯，预检会当作数据放行；特殊构造仍可能需要 allowlist。
+- 预检是启发式扫描器，不是解析器。字符串、注释或原始字符串里的语法写法，预检会当作数据放行；特殊构造仍可能需要 allowlist。
 - hint 只在 Nushell 报错后出现；启动前就被拒绝的命令没有 hint。
 - Windows CI 上没有权限类差分 hint 样本，这个样本会跳过。
 - 语料覆盖的是常见 agent 命令，不是 Nushell 的全部功能。语料之外若被 guard 误拒，应该补一条语料。

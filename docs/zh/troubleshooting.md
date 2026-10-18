@@ -8,15 +8,15 @@
 
 ## 启动警告：Nushell 版本不同
 
-`nu --version` 不是固定版本时，dsh-nu 会输出警告。方言规则、hint 和指南都按固定版本调过，模型按固定版本写出的命令，不一定还能照常工作。可以安装固定版本，也可以接受警告并自行检查失败行为。
+`nu --version` 不是固定版本时，dsh-nu 会输出警告。非 Nushell 语法拦截规则、hint 和指南都按固定版本调过，模型按固定版本写出的命令，不一定还能照常工作。可以安装固定版本，也可以接受警告并自行检查失败行为。
 
 ## 被拒绝：外部 shell
 
 错误信息会给出 shell 名称并引用出问题的语句，例如 `bash -c` 或 `pwsh -Command`，也包括 `env`、`xargs`、`sudo` 这类启动器。请改写成 Nushell。如果这个调用点确实需要例外，把整条命令的正则加进 `foreignShellAllowlist`，不要为整个部署关掉 guard。
 
-## 被拒绝：bash 或 PowerShell 习惯
+## 被拒绝：非 Nushell 语法
 
-拒绝信息会指出片段和对应的 Nushell 写法，包括编号重定向、`$env:NAME`、裸赋值、`foreach`、PowerShell cmdlet、`&&` / `||`、`$?`、Nushell 内置命令上的未知 flag。按提示改掉那段写法；给它加引号只会把它变成数据。如果预检对某个调用点判断错了，把那条命令加进 allowlist，或者设置 `dialectLint: false`。
+拒绝信息会指出片段和对应的 Nushell 写法，包括编号重定向、`$env:NAME`、裸赋值、`foreach`、PowerShell cmdlet、`&&` / `||`、`$?`、Nushell 内置命令上的未知 flag。按提示改掉那段写法；给它加引号只会把它变成数据。如果非 Nushell 语法拦截对某个调用点判断错了，把那条命令加进 allowlist，或者设置 `syntaxLint: false`。
 
 ## 失败信息中带 Nushell hint
 

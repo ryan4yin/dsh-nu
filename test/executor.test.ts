@@ -44,14 +44,19 @@ test('nuArgv places the command last behind the configured prefix', () => {
   )
 })
 
-test('the guard and the dialect preflight run before a command becomes argv', () => {
+test('the guard and the syntax preflight run before a command becomes argv', () => {
   const executor = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu' }) as never)
   assert.throws(() => executor.nuArgv('bash -c "echo hi"'), /refusing to hand this command to bash/)
   assert.throws(() => executor.nuArgv('print hi 2>&1'), /stderr-redirect/)
   assert.deepEqual(
-    new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu', enforceNushellOnly: false, dialectLint: false }) as never).nuArgv('bash -c "echo hi"'),
+    new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu', enforceNushellOnly: false, syntaxLint: false }) as never).nuArgv('bash -c "echo hi"'),
     ['nu', '--no-config-file', '-c', 'bash -c "echo hi"'],
   )
+})
+
+test('syntaxLint: false disables the syntax preflight', () => {
+  const executor = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu', syntaxLint: false }) as never)
+  assert.doesNotThrow(() => executor.nuArgv('print hi 2>&1'))
 })
 
 test('the allowlist exempts an exact command from both checks', () => {
@@ -130,7 +135,7 @@ test('the confinement seam wraps the Nu argv', async () => {
   assert.deepEqual(result.argv, ['nu', '--no-config-file', '-c', 'print hi'])
 })
 
-test('the confinement seam keeps the Nu read-only denial dialect', async () => {
+test('the confinement seam keeps the Nu read-only denial signature', async () => {
   const context = fakeContext() as unknown as Record<string, unknown>
   context.sandbox = { confine: async (argv: string[]) => ({ argv, enforcement: 'full', denialSignatures: [], runnerFailureRules: [] }) }
   const executor = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu' }) as never)
@@ -181,4 +186,30 @@ test('execute spawns the Nu argv and appends one hint to a matching failure', as
   assert.deepEqual(spawns[0]!.argv, ['nu', '--no-config-file', '-c', 'ls --nope'])
   assert.equal(result.exitCode, 1)
   assert.match(result.stderr.text, /Nushell hint \(unknown-flag\)/)
+})
+
+test('syntaxHints: false suppresses the failure hint', async () => {
+  const context = fakeContext() as unknown as Record<string, unknown>
+  context.subprocess = {
+    resolveExecutable: async (binary: string) => binary,
+    spawn: () => ({
+      done: Promise.resolve({ exitCode: 1, signal: null }),
+      collected: {
+        stdout: { readFrom: () => ({ text: '', lossy: false, nextOffset: 0 }) },
+        stderr: { readFrom: () => ({ text: 'Error: nu::parser::unknown_flag\n  x unknown flag\n', lossy: false, nextOffset: 0 }) },
+      },
+    }),
+  }
+  const executor = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu', syntaxHints: false }) as never)
+  const spec = {
+    command: 'ls --nope',
+    workdir: process.cwd(),
+    timeoutMs: 1_000,
+    onExpiry: 'kill' as const,
+    stdoutMaxBytes: 64_000,
+    sandboxPolicy: { mode: 'danger-full-access' as const, workspaceRoot: process.cwd() },
+  }
+  const handle = await executor.execute(spec)
+  const result = await handle.result()
+  assert.doesNotMatch(result.stderr.text, /Nushell hint/)
 })

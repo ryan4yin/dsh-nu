@@ -1,20 +1,20 @@
 /**
- * Dialect preflight and failure hints.
+ * Nushell syntax preflight and failure hints.
  *
- * Nushell does not translate bash or PowerShell syntax: some habits fail at
+ * Nushell does not translate bash or PowerShell syntax: some forms fail at
  * parse time, some at run time, and some quietly do the wrong thing (a plain
  * greater-than is a comparison; a numbered stderr redirect is an argument).
- * The preflight refuses the loudly failing habits before a process is spawned;
+ * The preflight refuses the loudly failing forms before a process is spawned;
  * the hints explain a failure Nushell actually reported.
  *
  * Both are heuristics over a view with quoted text and comments blanked, so a
- * string that merely mentions a habit is not one. They are tuned to the tested
- * Nushell version and tested differentially against it.
+ * string that merely mentions a syntax form is not one. They are tuned to the
+ * tested Nushell version and tested differentially against it.
  */
 
 import { codeView } from './guard.js'
 
-/** A refused habit. */
+/** A refused syntax form. */
 export type RuleId =
   | 'stderr-redirect'
   | 'stderr-file'
@@ -41,15 +41,15 @@ export type RuleId =
   | 'pipe-redirect'
   | 'glob-named-arguments'
 
-/** One refused habit and the shape that replaces it. */
+/** One refused syntax form and the shape that replaces it. */
 export interface Finding {
   id: RuleId
   fragment: string
   fix: string
 }
 
-/** Options for the preflight. */
-export interface DialectOptions {
+/** Options for the syntax preflight. */
+export interface SyntaxOptions {
   allow?: readonly RegExp[]
 }
 
@@ -189,14 +189,14 @@ const RULES: readonly Rule[] = [
 /** All refusal rule ids, in rule order. */
 export const RULE_IDS: readonly string[] = RULES.map((rule) => rule.id)
 
-/** Find the first refused habit in a command. */
-export function findHabit(command: string): Finding | undefined {
+/** Find the first refused syntax form in a command. */
+export function findSyntaxIssue(command: string): Finding | undefined {
   const view = codeView(command)
   for (const rule of RULES) {
     const match = rule.match.exec(view)
     if (match === null) continue
     // $x = is valid Nushell for a variable declared with mut, and an error
-    // otherwise; only the second case is a refused habit.
+    // otherwise; only the second case is a refused syntax form.
     if (rule.id === 'bare-assignment') {
       const name = /\$([A-Za-z_][A-Za-z0-9_]*)/.exec(match[0])?.[1]
       if (name !== undefined && new RegExp('\\bmut\\s+' + name + '\\b').test(view)) continue
@@ -216,14 +216,14 @@ export function refusal(finding: Finding, command: string): string {
     '',
     finding.fix,
     '',
-    'Fix that fragment and re-run. If the fragment is data rather than syntax, quote it; a leading caret (^program) forces an external binary. To exempt this call site, add it to foreignShellAllowlist, or set dialectLint: false.',
+    'Fix that fragment and re-run. If the fragment is data rather than syntax, quote it; a leading caret (^program) forces an external binary. To exempt this call site, add it to foreignShellAllowlist, or set syntaxLint: false.',
   ].join('\n')
 }
 
-/** Throw when a command contains a refused habit. */
-export function assertNuDialect(command: string, options: DialectOptions = {}): void {
+/** Throw when a command contains a refused syntax form. */
+export function assertNushellSyntax(command: string, options: SyntaxOptions = {}): void {
   if ((options.allow ?? []).some((pattern) => pattern.test(command))) return
-  const finding = findHabit(command)
+  const finding = findSyntaxIssue(command)
   if (finding !== undefined) throw new Error(refusal(finding, command))
 }
 

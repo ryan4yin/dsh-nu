@@ -14,7 +14,7 @@ The bundle's failure modes are end-to-end. A command either reaches Nushell and 
 
 Prefer executable, real-binary tests:
 
-- every dialect rule and hint has a command that the pinned Nushell really runs;
+- every syntax-preflight rule and hint has a command that the pinned Nushell really runs;
 - the teaching guide's executable claims run against the same binary;
 - the integration probe boots a real dsh composition in native and PTC modes and observes the live shell seam, prompt, tool description, and SDK text;
 - static fixtures are not stored. A hint sample is generated on each run, so it cannot disagree with the installed binary.
