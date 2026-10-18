@@ -1,0 +1,70 @@
+[
+  {
+    "id": "json-active",
+    "prompt": "Use the bash tool (it runs Nushell) at least once. Read data.json and count the users whose active field is true. End your answer with RESULT: <count>.",
+    "fixtures": {
+      "data.json": "{\"users\":[{\"name\":\"a\",\"active\":true},{\"name\":\"b\",\"active\":false},{\"name\":\"c\",\"active\":true}]}\n"
+    },
+    "expect": {
+      "finalMatches": "RESULT:\\s*2\\b"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 3
+  },
+  {
+    "id": "first-lines",
+    "prompt": "Use the bash tool once to print the first two lines of notes.txt in order. End your answer with RESULT: <line1> <line2>.",
+    "fixtures": {
+      "notes.txt": "alpha\nbeta\ngamma\ndelta\n"
+    },
+    "expect": {
+      "finalMatches": "RESULT:\\s*alpha\\s+beta"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 2
+  },
+  {
+    "id": "markdown-files",
+    "prompt": "Use one bash call to list only the Markdown files under the current directory, in any order. End your answer with RESULT: <comma-separated paths>.",
+    "fixtures": {
+      "README.md": "root\n",
+      "docs/a.md": "a\n",
+      "src/a.ts": "ts\n"
+    },
+    "expect": {
+      "finalMatches": "RESULT:\\s*((\\./)?README\\.md\\s*,\\s*(\\./)?docs/a\\.md|(\\./)?docs/a\\.md\\s*,\\s*(\\./)?README\\.md)"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 2
+  },
+  {
+    "id": "exit-code",
+    "prompt": "Use one bash call to run the external command ^nu --no-config-file -c 'exit 7', capture its exit code, and end with RESULT: <code>. Do not stop when the command fails.",
+    "fixtures": {},
+    "expect": {
+      "finalMatches": "RESULT:\\s*7\\b"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 3
+  },
+  {
+    "id": "workdir-state",
+    "prompt": "Use exactly two bash calls: first create sub/state.txt containing ready; second read it back. End your answer with RESULT: ready.",
+    "fixtures": {},
+    "expect": {
+      "finalMatches": "RESULT:\\s*ready"
+    },
+    "minShellCalls": 2,
+    "maxShellCalls": 2
+  },
+  {
+    "id": "stderr-discard",
+    "prompt": "Use one bash call to run ^nu --no-config-file -c 'print -e hidden; print visible' and show only its stdout. End your answer with RESULT: visible.",
+    "fixtures": {},
+    "expect": {
+      "finalMatches": "RESULT:\\s*visible"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 2
+  }
+]

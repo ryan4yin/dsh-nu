@@ -1,0 +1,6 @@
+# Baseline arm: keep the executor and guard, remove every teaching layer.
+- id: nu-teaching
+  config:
+    guide: off
+    rules: false
+    rewriteToolDescriptions: false

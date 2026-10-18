@@ -1,3 +1,6 @@
+# Local probes and real-model eval artifacts
+.work/
+
 # Logs
 logs
 *.log

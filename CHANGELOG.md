@@ -6,6 +6,11 @@ All notable changes to this project are recorded here. The format follows
 
 ## Unreleased
 
+### Added
+
+- A real-model teaching eval harness with two arms, task fixtures, guard-aware
+  scoring, cross-model judging, and a first-round report.
+
 ### Changed
 
 - The system-prompt guide now calls out the traps between `echo` and `print`,
