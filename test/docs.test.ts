@@ -47,6 +47,12 @@ test('the documentation set exists', () => {
   for (const file of FILES) assert.ok(existsSync(resolve(ROOT, file)), file)
 })
 
+test('the documentation contains no serialization placeholders', () => {
+  for (const file of FILES.filter((entry) => entry.endsWith('.md'))) {
+    assert.doesNotMatch(read(file), /@BT@/, file)
+  }
+})
+
 test('each English page and its Chinese mirror have the same heading structure', () => {
   for (const [en, zh] of PAIRS) {
     assert.deepEqual(headingLevels(read(zh)), headingLevels(read(en)), en + ' vs ' + zh)

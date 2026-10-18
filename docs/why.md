@@ -2,101 +2,49 @@
 
 English | [中文](zh/why.md)
 
-A shell is not just a command runner. It is a text protocol with hidden state,
-and a coding agent pays for every sharp edge in that protocol with wasted turns.
-This bundle exists because "just use bash" kept producing the same failure
-classes.
+Most shell failures in agent work come from the shell itself. A command prints text, and the next stage has to parse it. A background process has no handle, so the agent waits with a fixed `sleep`. Each tool presents a different dialect, and the model copies whichever one it saw last.
 
-## Mixed shells are a failure mode
+dsh-nu grew out of the harness rules that tried to contain this. Those rules went through several rounds: use PTC for multi-step work, use Nushell for shell work, use Python for general local processing, never hand a command string to another shell, and never turn a completion wait into a fixed delay.
 
-The obvious cost is wrong syntax: a flag belongs to another shell, a redirect
-means a comparison, an environment variable uses the wrong prefix. The expensive
-cost is quieter:
+## The cost of mixed shells
 
-- **Text where data should be.** `ps aux | grep server` often matches the
-  `grep` process itself; `cmd | grep pattern` reports `grep`'s status, so a
-  command that failed can look successful when `grep` finds nothing or matches
-  an error message.
-- **Guessing at completion with a fixed sleep.** An agent that has a 3-second
-  job writes `sleep 90` and waits. Another writes `sleep 120` or `sleep 400`
-  for a service that came up in 5 seconds. The number is a guess, so it is
-  either 30 times too long or too short, and a retry loop multiplies the cost.
-  A sleep is not a synchronization primitive.
-- **Hidden state and quiet success.** `cd` persists, word splitting and globbing
-  apply after expansion, quoting rules differ between shells, and pipeline
-  status is whatever the last stage says. The command "succeeds" while the work
-  it reported on failed.
-- **A moving dialect.** The model sees bash in one tool, PowerShell in another,
-  and a shell string inside documentation in a third. It copies the most recent
-  one, gets a parse error, and learns to try another dialect instead of fixing
-  the command.
+Wrong syntax is the obvious cost. A flag belongs to another shell, a redirect means a comparison, an environment variable uses the wrong prefix. The bigger cost is quieter:
 
-That is why the harness rules went through several iterations: prefer PTC for
-multi-step work, use Nushell for shell work, use Python for general local
-processing, never hand a command string to another shell, and never turn a
-completion wait into a fixed delay.
+- `ps aux | grep server` often matches the `grep` process itself. `cmd | grep pattern` reports `grep`'s status, so a command that failed can look successful when `grep` finds nothing or matches an error message.
+- An agent with a job that finishes in 3 seconds writes `sleep 90`. Another writes `sleep 120` or `sleep 400` for a service that came up in 5 seconds. The number is a guess, so it is either far too long or too short, and a retry loop multiplies the cost.
+- `cd` persists. Word splitting and globbing apply after expansion. Quoting rules differ between shells. Pipeline status is whatever the last stage says, so the command "succeeds" while the work it reported on failed.
+- The model sees bash in one tool, PowerShell in another, and a shell string in documentation in a third. It copies the most recent one, gets a parse error, and learns to try another dialect instead of fixing the command.
 
 ## What Nushell changes
 
-Nushell gives the model one execution model instead of a family of dialects:
+Nushell gives the model one execution model instead of a family of dialects. Pipelines carry structured values, so `ls | where size > 1mb` filters data and `open --raw file | lines | where { |l| $l =~ "x" }` filters lines. There is one redirection spelling and one variable spelling, with no word splitting or pathname expansion after substitution. Durations are typed, so `sleep 2sec` is explicit, and errors are reported instead of hidden in a silent exit status. Each call is one process, so `cd` and shell variables do not leak between calls; the tool's `workdir` is the working directory contract.
 
-- pipelines carry structured values, not formatted text; `ls | where size > 1mb`
-  filters data and `open --raw file | lines | where { |l| $l =~ "x" }` filters
-  lines;
-- one redirection spelling and one variable spelling, with no word splitting or
-  pathname expansion after substitution;
-- typed durations (`sleep 2sec`) and explicit errors instead of a silent exit
-  status;
-- one process per call, so `cd` and shell variables do not leak between calls.
-  The tool call's `workdir` is the working directory contract.
+Nushell is a better shell. It is still a shell, and it does not schedule work.
 
-Nushell is a better shell. It is still a shell, not a scheduler.
+## What dsh-nu adds
 
-## What this bundle adds
+- Every shell call becomes `nu --no-config-file -c "<command>"`. The harness never spawns bash or PowerShell for the model.
+- A command that would hand work to another shell is refused before a process exists, with the offending statement quoted.
+- Bash and PowerShell habits that fail in Nushell are refused with the Nushell spelling to use instead.
+- A failure Nushell actually reported gets one line naming the fix.
+- The shell tool descriptions, the PTC SDK text, and a short prompt section all describe Nushell, so the tool schema does not keep teaching the old dialect.
 
-- **One executor.** Every shell call becomes `nu --no-config-file -c "<command>"`;
-  the harness never spawns bash or PowerShell for the model.
-- **A guard.** A command that would hand work to another shell is refused before
-  a process exists, with the offending statement quoted.
-- **A dialect preflight.** Bash and PowerShell habits that fail in Nushell are
-  refused with the Nushell spelling that replaces them.
-- **Hints.** A failure Nushell actually reported gets one actionable line that
-  names the fix.
-- **Teaching.** The shell tool descriptions, the PTC SDK text, and a short
-  prompt section all describe Nushell, so the model is not taught the old
-  dialect by the tool schema.
-
-The rules and the hints are tested against the actual behaviour of the pinned
-Nushell version; they are not guesses about what Nushell probably does.
+The test suite runs the rules and hints against the pinned Nushell binary.
 
 ## What Nushell does not fix
 
-A shell swap cannot fix agent scheduling. The bundle can refuse `bash -c` and
-teach Nushell syntax, but it cannot tell whether a command has finished, and it
-should not pretend that `sleep 90` is a completion signal. The harness rules
-still have to do that work:
+A shell swap cannot fix agent scheduling. dsh-nu can refuse `bash -c` and teach Nushell syntax, but it cannot tell whether a command has finished, and it should not treat `sleep 90` as a completion signal. That work stays in the harness rules:
 
-- await the work's own completion — the runtime's job wait, `kubectl wait
-  --timeout`, or the process exit — instead of sleeping before a check;
-- make any poll check the condition and exit as soon as it holds;
-- bound retries and backoff with a total time limit, and keep a retry delay to
-  seconds, never a progress wait;
-- keep the producer's exit status when filtering output (`| complete` in
-  Nushell);
-- start servers and watchers as background jobs and keep their handles, not as
-  `&` plus `ps | grep`.
+- wait for the work itself: the runtime's job wait, `kubectl wait --timeout`, or the process exit;
+- make a poll check the condition and exit as soon as it holds;
+- give retries and backoff a total time limit, and keep a retry delay to seconds rather than using it as progress;
+- keep the producer's exit status when filtering output (`| complete` in Nushell);
+- start servers and watchers as background jobs and keep their handles, instead of using `&` plus `ps | grep`.
 
-Those are process-management and model-behaviour rules, not syntax. The shell
-bundle enforces the dialect boundary; the harness rules enforce the waiting and
-status discipline.
+These are process-management and model-behaviour rules, not syntax. dsh-nu enforces the dialect boundary; the harness enforces waiting and exit-status discipline.
 
-## When this is not for you
+## When not to use dsh-nu
 
-- You need a shell that this project does not implement (a language runtime that
-  only ships a bash entrypoint, for example). The allowlist and
-  `enforceNushellOnly: false` exist for that case, but they give up the
-  guarantee the bundle is for.
-- You run a dsh or Nushell version other than the tested pair. The bundle boots
-  with a warning, but the dialect rules and hints are tuned to the pinned pair.
-- You need Windows PowerShell semantics from the model-facing shell tool. The
-  tool name stays `pwsh` on Windows, but the program behind it is Nushell.
+- You need a shell this project does not implement, such as a language runtime that only ships a bash entrypoint. The allowlist and `enforceNushellOnly: false` cover that case, at the cost of the guarantee dsh-nu exists to provide.
+- You run a dsh or Nushell version other than the tested pair. The bundle boots with a warning, but the dialect rules and hints are tuned to the pair.
+- You need Windows PowerShell semantics from the model-facing shell tool. The tool name stays `pwsh` on Windows, but the program behind it is Nushell.
