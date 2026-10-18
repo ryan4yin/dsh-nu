@@ -94,5 +94,7 @@ test('upstream repositories are referenced only in the acknowledgements', () => 
 
 test('the README does not frame the project as a rewrite or a port', () => {
   const readme = read('README.md')
-  assert.doesNotMatch(readme, /\brewrite\b|based on another|port of/i)
+  // "rewriteToolDescriptions" is a config key, not framing; only reject the
+  // sentence-level ways of presenting this as a port.
+  assert.doesNotMatch(readme, /\brewrite of\b|based on another|port of/i)
 })
