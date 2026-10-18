@@ -4,12 +4,13 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 0.2.0 (2026-10-18)
 
 ### Added
 
 - A real-model teaching eval harness with full, compact, and off arms, task
-  fixtures, guard-aware scoring, cross-model judging, and dated reports.
+  fixtures, guard-aware scoring, cross-model judging, and dated reports. It
+  includes wait/background cases and tracks long sleeps and blocking shapes.
 
 ### Changed
 
@@ -18,6 +19,8 @@ All notable changes to this project are recorded here. The format follows
   `e>| ignore`. Each claim has a real-Nushell assertion. It also rejects fixed
   sleeps as completion waits, stream-follow waits, and `ps | grep` process
   lookups.
+- Model-facing prose now lives as Markdown under `src/guides/`; the build copies
+  it to `dist/guides`, so the published package is unchanged at runtime.
 
 ## 0.1.0 (2026-10-18)
 
