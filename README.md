@@ -32,6 +32,8 @@ dsh plugin --profile tui add dsh-nu@0.1.0
 
 Use `--profile web` for the browser app. The first `dsh plugin` call creates the profile; the bundle's patch disables the platform shell executors and mounts the Nushell executor and teaching layer. Start the profile with `dsh tui` (or `dsh web`).
 
+If pnpm reports `ERR_PNPM_NO_MATURE_MATCHING_VERSION` for a fresh release, it is applying `minimumReleaseAge`. Wait for the cutoff, or add `--config.minimumReleaseAge=0` to the same command.
+
 ## Development
 
 The repository ships a flake with the tested Node and Nushell versions:

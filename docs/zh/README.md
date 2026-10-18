@@ -32,6 +32,8 @@ dsh plugin --profile tui add dsh-nu@0.1.0
 
 浏览器界面把 `--profile` 换成 `web`。第一次运行 `dsh plugin` 会创建 profile；bundle 的 patch 会停用平台 shell 执行器，挂载 Nushell 执行器和教学层。用 `dsh tui`（或 `dsh web`）启动。
 
+刚发布时，pnpm 可能因为 `minimumReleaseAge` 报 `ERR_PNPM_NO_MATURE_MATCHING_VERSION`。等过冷却期，或者在原命令后加上 `--config.minimumReleaseAge=0`。
+
 ## 开发
 
 仓库自带 flake，提供测试过的 Node 和 Nushell 版本：
