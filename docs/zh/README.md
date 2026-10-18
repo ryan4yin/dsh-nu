@@ -36,6 +36,8 @@ npm run build
 
 `dev/link-peers.mjs` 把 dsh 的 peer 包链接进 `node_modules`，测试可以直接驱动真实 seam，而不需要发布。
 
+测试使用的运行时是 Node 24。包允许 Node 22.19 及以上，但除 24 之外的版本没有测试过。
+
 ## 配置
 
 ```yaml

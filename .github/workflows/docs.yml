@@ -1,0 +1,27 @@
+name: Docs
+
+on:
+  pull_request:
+    paths:
+      - '**/*.md'
+      - 'docs/**'
+      - 'LICENSE'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Documentation tests
+        run: node --import tsx --test test/docs.test.ts
