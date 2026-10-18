@@ -14,7 +14,7 @@ npm run test:integration        # real dsh boot: native + PTC (POSIX)
 npm run probe                   # composed config probe against the real dsh
 npm run eval -- --dsh-home <dir> --model-patch <file> --label <name> --samples 3
 npm run eval:judge -- --run <eval-dir> --dsh-home <dir> --model-patch <file> --label <name>
-npm run eval:cross -- --dir <judge-dir> --dir <judge-dir>
+npm run eval:judge-summary -- --dir <judge-dir> --dir <judge-dir>
 npm pack --dry-run
 ```
 

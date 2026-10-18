@@ -72,7 +72,7 @@
     "test:integration": "node test/integration.mjs",
     "eval": "node --import tsx eval/run.mjs",
     "eval:judge": "node --import tsx eval/judge.mjs",
-    "eval:cross": "node --import tsx eval/cross-score.mjs",
+    "eval:judge-summary": "node --import tsx eval/judge-summary.mjs",
     "coverage": "node --import tsx --test --experimental-test-coverage \"test/*.test.ts\"",
     "link-peers": "node dev/link-peers.mjs",
     "probe": "node dev/probe.mjs",

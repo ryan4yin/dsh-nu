@@ -18,9 +18,9 @@ function allArgs(name) {
   return values
 }
 
-const out = resolve(arg('out', '.work/eval-cross'))
+const out = resolve(arg('out', '.work/eval-judge-summary'))
 const dirs = allArgs('dir').map((path) => resolve(path))
-if (dirs.length === 0) throw new Error('usage: cross-score.mjs --dir <judge-output-dir> [--dir ...]')
+if (dirs.length === 0) throw new Error('usage: judge-summary.mjs --dir <judge-output-dir> [--dir ...]')
 mkdirSync(out, { recursive: true })
 
 const rows = []
@@ -63,9 +63,9 @@ const summary = {
     mean: values.reduce((sum, value) => sum + value, 0) / values.length,
   }]))])),
 }
-writeFileSync(join(out, 'cross-score.json'), JSON.stringify(summary, null, 2) + '\n')
+writeFileSync(join(out, 'judge-summary.json'), JSON.stringify(summary, null, 2) + '\n')
 const lines = [
-  '# Cross-model score',
+  '# Judge summary',
   '',
   'Generated: ' + summary.generatedAt,
   '',
@@ -76,5 +76,5 @@ const lines = [
   ...Object.entries(summary.cells).flatMap(([actor, arms]) => Object.entries(arms).map(([arm, cell]) =>
     '| ' + actor + ' | ' + arm + ' | ' + cell.samples + ' | ' + cell.mean.toFixed(2) + ' |')),
 ]
-writeFileSync(join(out, 'cross-score.md'), lines.join('\n') + '\n')
+writeFileSync(join(out, 'judge-summary.md'), lines.join('\n') + '\n')
 console.log(lines.join('\n'))

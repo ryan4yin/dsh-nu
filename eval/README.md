@@ -96,10 +96,10 @@ npm run eval:judge -- \
 Then combine the judge outputs (each judge excludes its own actor):
 
 ```sh
-npm run eval:cross -- \
+npm run eval:judge-summary -- \
   --dir .work/eval-judge/gpt-6-luna \
   --dir .work/eval-judge/deepseek-flash \
-  --out .work/eval-cross
+  --out .work/eval-judge-summary
 ```
 
 The judge sees the task, final answer, commands, and results, but not the actor
