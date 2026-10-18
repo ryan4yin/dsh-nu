@@ -7,9 +7,11 @@
  * node_modules/@deepseek-ai/* at the packages inside a dsh installation.
  *
  * Usage: node dev/link-peers.mjs --root <dsh-install-root>
- * `<dsh-install-root>` is the directory that contains `lib/node_modules/@deepseek-ai`.
+ * `<dsh-install-root>` is the dsh installation prefix; both a flat package
+ * scope and the scope nested under the dsh package are accepted.
  */
 
+import { existsSync } from 'node:fs'
 import { mkdir, readdir, readlink, rm, symlink } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { argv } from 'node:process'
@@ -29,8 +31,19 @@ if (root === undefined) {
   process.exit(1)
 }
 
-const source = join(resolve(root), 'lib', 'node_modules', SCOPE)
+const base = resolve(root)
+const candidates = [
+  join(base, 'lib', 'node_modules', SCOPE, 'dsh', 'node_modules', SCOPE),
+  join(base, 'node_modules', SCOPE, 'dsh', 'node_modules', SCOPE),
+  join(base, 'lib', 'node_modules', SCOPE),
+]
+const source = candidates.find((candidate) => existsSync(join(candidate, 'dsh-shell'))) ?? candidates.find((candidate) => existsSync(candidate))
 const target = join(process.cwd(), 'node_modules', SCOPE)
+
+if (source === undefined) {
+  console.error('dsh-nu: no dsh package scope found under ' + base + '; looked in:' + candidates.map((candidate) => '\n  ' + candidate).join(''))
+  process.exit(1)
+}
 
 let entries
 try {
