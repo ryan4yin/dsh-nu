@@ -40,7 +40,60 @@ npm run build
 
 ## Configuration
 
-The bundle patch is `cordis.patch.yml`. `examples/preset-nu-shell.md` lists the preset-level shell bypasses to disable.
+```yaml
+- id: nushell-executor
+  name: dsh-nu/executor
+  config:
+    nuPath: ""
+    nuArgs: ["--no-config-file", "-c"]
+    enforceNushellOnly: true
+    dialectLint: true
+    dialectHints: true
+    requireNu: true
+    verifyNu: true
+    foreignShellAllowlist: []
+
+- id: nushell-teaching
+  name: dsh-nu/teaching
+  config:
+    guide: full          # full | compact | off
+    rules: true
+    rewriteToolDescriptions: true
+```
+
+| Field | Default | Meaning |
+|---|---|---|
+| `nuPath` | `$DSH_NU_PATH`, then `nu` | Nushell executable: field, then environment, then PATH |
+| `nuArgs` | `["--no-config-file","-c"]` | Argv prefix; the command is appended last |
+| `enforceNushellOnly` | `true` | Refuse handing the command to another shell |
+| `foreignShellAllowlist` | `[]` | Whole-command regexes exempt from the guard and the dialect lint |
+| `dialectLint` | `true` | Refuse bash/PowerShell habits before spawning |
+| `dialectHints` | `true` | Append one `Nushell hint (…)` line to a failed call |
+| `guide` | `full` | Prompt guide: `full`, `compact`, or `off` |
+| `rules` | `true` | Prepend the shell-rules section |
+| `rewriteToolDescriptions` | `true` | Rewrite the `bash` / `pwsh` tool descriptions |
+| `requireNu` / `verifyNu` | `true` / `true` | Fail boot when `nu` cannot be resolved or fails its `--version` probe |
+| `verifyTimeoutMs` | `10000` | Bound for that probe |
+
+Sandbox budgets (`cwd`, `timeoutMs`, …) stay on the `nushell-executor` row, not in
+dsh's shared `shell` settings namespace. Override any row by id in the profile's
+own `cordis.patch.yml`. `examples/preset-nu-shell.md` lists the preset-level
+shell bypasses to disable.
+
+## What "only Nushell" does not cover
+
+- **Preset rows that spawn their own shell**: a custom plugin that calls
+  `ctx.subprocess.spawn` directly, or a PTY persistent-shell group. Disable
+  them for a Nu-only deployment; see `examples/preset-nu-shell.md`.
+- **Quoted handoffs**: a shell named inside a quoted argument is data, not a
+  command position. The guard rejects handoffs in command position and in
+  wrapper chains; it is not a sandbox.
+- **Other shell seams**: hook bridges, persistent terminals, and tmux context
+  use their own services or scripts and are outside this bundle. Keep them off
+  for a strict deployment.
+- **Sandboxing is unchanged**: `danger-full-access` runs directly, and confined
+  modes wrap the Nushell argv through `ctx.sandbox.confine()` with the same
+  `mode` / `denied` / `enforcement` reporting.
 
 ## Documentation
 
@@ -49,6 +102,10 @@ The bundle patch is `cordis.patch.yml`. `examples/preset-nu-shell.md` lists the 
 - [Verification](docs/verification.md)
 - [Nushell friction review](docs/nushell-friction-review.md)
 - [Distribution and support (ADR)](docs/adr/0001-distribution-and-support.md)
+
+## License
+
+MIT. See [LICENSE](LICENSE).
 
 ## Acknowledgements
 
