@@ -22,7 +22,7 @@ model-facing names, so saved sessions and prompt caches stay valid.
       config:
         nuPath: /run/current-system/sw/bin/nu
         enforceNushellOnly: true
-        dialectLint: true
+        syntaxLint: true
     - id: nu-teaching
       name: dsh-nu/teaching
       config:
@@ -54,8 +54,8 @@ providers register the same service, so a missing disable is visible at boot.
 | `nuArgs` | `['--no-config-file', '-c']` | argv prefix; the command is appended |
 | `enforceNushellOnly` | `true` | refuse commands that hand off to another shell |
 | `foreignShellAllowlist` | `[]` | whole-command regexes exempt from both checks |
-| `dialectLint` | `true` | refuse bash/PowerShell habits before spawning |
-| `dialectHints` | `true` | append one hint to a failed command's stderr |
+| `syntaxLint` | `true` | refuse bash/PowerShell syntax before spawning |
+| `syntaxHints` | `true` | append one hint to a failed command's stderr |
 | `requireNu` | `true` | fail boot when nu cannot be resolved |
 | `verifyNu` | `true` | run `nu --version` once at boot |
 | `verifyTimeoutMs` | `10000` | bound for that probe |

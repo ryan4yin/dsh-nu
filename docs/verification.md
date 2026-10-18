@@ -6,7 +6,7 @@ English | [中文](zh/verification.md)
 
 `npm test` covers:
 
-- unit tests for executable resolution, argv assembly, the foreign-shell scanner, the dialect rules, the teaching rewrites, the executor seam, boot probing, confinement, and inherited budgets;
+- unit tests for executable resolution, argv assembly, the foreign-shell scanner, the syntax-preflight rules, the teaching rewrites, the executor seam, boot probing, confinement, and inherited budgets;
 - a differential corpus. Every preflight refusal runs against the pinned Nushell and must fail, except the silent redirects, which run and are asserted separately; every allowed command must run;
 - hint coverage. Every hint id has a real failing command, and the test checks the hint against that command's actual stderr;
 - claims tests. The teaching guide's executable statements run against the pinned Nushell;
@@ -48,6 +48,6 @@ A code pull request runs Ubuntu, macOS, and Windows with the pinned Nushell inst
 ## Known limits
 
 - The supported pair is dsh `0.2.1-rc.2` and Nushell `0.115.1`.
-- The preflight is a heuristic scanner, not a parser. A habit inside a string or comment is data and passes; an unusual construct can still need an allowlist entry.
+- The preflight is a heuristic scanner, not a parser. A bash/PowerShell syntax form inside a string or comment is data and passes; an unusual construct can still need an allowlist entry.
 - Hints only fire after Nushell reports an error. A command refused before spawning has no hint.
 - Windows has no differential hint sample for file permissions in CI; the permission sample is skipped there.

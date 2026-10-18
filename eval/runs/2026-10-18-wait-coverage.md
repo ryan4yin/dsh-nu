@@ -68,7 +68,7 @@ Flash. No run waited a fixed 30-120 seconds.
 ## Results
 
 Three samples per case and arm. `answer` is the expected result; `clean` means
-the first shell call passed the guard and dialect preflight.
+the first shell call passed the guard and syntax preflight.
 
 | model | case | arm | success | clean | refused | long sleep | blocking |
 |---|---|---|---:|---:|---:|---:|---:|

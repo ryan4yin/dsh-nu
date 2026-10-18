@@ -42,7 +42,7 @@ When changing the Nushell or DSH pins:
    `package.json` only after those pass.
 2. Reproduce a failing command on the pinned binary before adding or changing a
    rule or hint. Add the executable assertion first; see
-   `test/claims.test.ts` and `test/dialect.test.ts`.
+   `test/claims.test.ts` and `test/syntax.test.ts`.
 3. Update `full.md` and `compact.md` together. Compact is a condensed version
    of the same policy, not a separate policy. Keep `rules.md` to rules a shell
    call must never break.

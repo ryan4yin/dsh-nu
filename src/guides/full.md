@@ -49,4 +49,4 @@ Shell calls run through Nushell as `nu --no-config-file -c "<command>"`. Each ca
 
 This bundle fails closed when Nushell cannot be resolved; it never substitutes another shell.
 
-The dialect preflight refuses bash/PowerShell habits before running them: numbered redirection, shell-style `>` and `2>` redirects, `$env:VAR`, bare assignment, `foreach`, cmdlets, `&&` / `||`, command substitution, `$?`, comma-separated columns, and bash flags on Nushell builtins. Fix the fragment the refusal names instead of working around it.
+The syntax preflight refuses bash/PowerShell syntax before running them: numbered redirection, shell-style `>` and `2>` redirects, `$env:VAR`, bare assignment, `foreach`, cmdlets, `&&` / `||`, command substitution, `$?`, comma-separated columns, and bash flags on Nushell builtins. Fix the fragment the refusal names instead of working around it.

@@ -9,7 +9,7 @@ Date: 2026-10-18
 - Cases: six fixed tasks covering JSON, first lines, Markdown discovery, exit codes,
   cross-call state, and stderr redirection.
 - Arms: `full` (shipped teaching) and `off` (`guide: off`, `rules: false`,
-  `rewriteToolDescriptions: false`). Both keep the guard and dialect preflight.
+  `rewriteToolDescriptions: false`). Both keep the guard and syntax preflight.
 - Samples: three per case and arm for each actor, 36 samples per actor.
 - Actors: GPT-6 Luna and DeepSeek Flash. Judges: each actor scored the anonymised
   samples from both actors, excluding its own actor from the summary.

@@ -1,4 +1,4 @@
-Execute a Nushell command. This deployment runs every command through Nushell (nu --no-config-file -c); bash and PowerShell are never spawned. The dialect is Nushell, not bash or PowerShell. If Nushell cannot be resolved, this bundle fails closed.
+Execute a Nushell command. This deployment runs every command through Nushell (nu --no-config-file -c); bash and PowerShell are never spawned. The shell syntax is Nushell, not bash or PowerShell. If Nushell cannot be resolved, this bundle fails closed.
 
 Provide `description` before `command`: a clear, concise description of what the command does in active voice, 5-10 words, shown to the user.
 The `command` argument is Nushell syntax. Each call is a fresh process, so state does not persist.

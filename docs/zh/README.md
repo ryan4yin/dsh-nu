@@ -6,7 +6,7 @@ dsh-nu 强制 DeepSeek Harness 用 Nushell 执行所有 shell 命令，禁用 `b
 
 - **换执行器**：通过 DeepSeek Harness 提供的底层扩展接口，在运行时把 `bash` / `pwsh` 执行器换成 Nushell 执行器（命令通过 `nu --no-config-file -c "<command>"` 执行）。dsh 侧看到的仍然是同一个 `bash` / `pwsh` 工具，调用方式不用变；这让 Nushell 执行器能无缝接入 dsh，兼容其他插件与功能。代价是看起来会有点奇怪：调用 `bash`/`pwsh` 工具，传入的却是 Nushell 脚本。
 - **教模型**：在 system prompt 里加入一小节 Nushell 规则和语法指南；这部分教学内容会占用一定上下文，但很关键，关掉后模型调用 shell 工具时会频繁报错。
-- **拦 handoff**：Nushell 命令如果把工作交给其他 shell，预检会在进程启动前拒绝它；`bash` 和 PowerShell 习惯也会在启动前被拦截，并在错误信息中给出对应的 Nushell 写法。
+- **拦 handoff**：Nushell 命令如果把工作交给其他 shell，guard 会在进程启动前拒绝它；bash 和 PowerShell 语法也会被非 Nushell 语法拦截拒绝，并在错误信息中给出对应的 Nushell 写法。
 
 ## 状态
 
@@ -61,8 +61,8 @@ npm run build
     nuPath: ""
     nuArgs: ["--no-config-file", "-c"]
     enforceNushellOnly: true
-    dialectLint: true
-    dialectHints: true
+    syntaxLint: true
+    syntaxHints: true
     requireNu: true
     verifyNu: true
     foreignShellAllowlist: []
@@ -80,14 +80,16 @@ npm run build
 | `nuPath` | `$DSH_NU_PATH`，否则 `nu` | Nushell 可执行文件：先看字段，再看环境变量，最后看 PATH |
 | `nuArgs` | `["--no-config-file","-c"]` | argv 前缀；命令追加在最后 |
 | `enforceNushellOnly` | `true` | 拒绝把命令交给其他 shell |
-| `foreignShellAllowlist` | `[]` | 整条命令正则，豁免 guard 与方言检查 |
-| `dialectLint` | `true` | 启动进程前拦下 bash/PowerShell 习惯 |
-| `dialectHints` | `true` | 调用失败时追加一行 `Nushell hint (…)` |
+| `foreignShellAllowlist` | `[]` | 整条命令正则，豁免 guard 与非 Nushell 语法拦截 |
+| `syntaxLint` | `true` | 启动进程前拦下 bash/PowerShell 语法 |
+| `syntaxHints` | `true` | 调用失败时追加一行 `Nushell hint (…)` |
 | `guide` | `full` | prompt 指南：`full`、`compact`、`off` |
 | `rules` | `true` | 在 prompt 前加上 shell 规则段 |
 | `rewriteToolDescriptions` | `true` | 改写 `bash` / `pwsh` 工具描述 |
 | `requireNu` / `verifyNu` | `true` / `true` | nu 无法解析或 `--version` 探测失败时，启动直接失败 |
 | `verifyTimeoutMs` | `10000` | 版本探测的超时时间 |
+
+旧名 `dialectLint` / `dialectHints` 仍作为已弃用别名接受。
 
 按目标选 guide：
 

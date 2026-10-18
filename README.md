@@ -6,7 +6,7 @@ dsh-nu forces DeepSeek Harness to run every shell command in Nushell, with the `
 
 - **Swap the executor**: Through the low-level extension point DeepSeek Harness exposes, it replaces the `bash` / `pwsh` executor with a Nushell executor at runtime (commands run as `nu --no-config-file -c "<command>"`). dsh still sees the same `bash` / `pwsh` tool with the same calling convention, so the Nushell executor plugs into dsh and stays compatible with every other plugin and feature. The oddity is cosmetic: the model calls a tool named `bash` / `pwsh` and passes it Nushell script.
 - **Teach the model**: It adds a short Nushell rules section and syntax guide to the system prompt. That teaching text costs some context but matters: with it turned off, the model hits frequent errors when calling the shell tool.
-- **Refuse handoffs**: When a Nushell command hands work to another shell, the preflight refuses it before a process starts; `bash` and PowerShell habits are refused the same way, with the Nushell spelling in the error.
+- **Refuse handoffs**: When a Nushell command hands work to another shell, the guard refuses it before a process starts; bash and PowerShell syntax is refused the same way by the syntax preflight, with the Nushell spelling in the error.
 
 ## Status
 
@@ -63,8 +63,8 @@ Real-model teaching evals are separate from `npm test`; see [`eval/README.md`](.
     nuPath: ""
     nuArgs: ["--no-config-file", "-c"]
     enforceNushellOnly: true
-    dialectLint: true
-    dialectHints: true
+    syntaxLint: true
+    syntaxHints: true
     requireNu: true
     verifyNu: true
     foreignShellAllowlist: []
@@ -82,14 +82,16 @@ Real-model teaching evals are separate from `npm test`; see [`eval/README.md`](.
 | `nuPath` | `$DSH_NU_PATH`, then `nu` | Nushell executable: field, then environment, then PATH |
 | `nuArgs` | `["--no-config-file","-c"]` | Argv prefix; the command is appended last |
 | `enforceNushellOnly` | `true` | Refuse handing the command to another shell |
-| `foreignShellAllowlist` | `[]` | Whole-command regexes exempt from the guard and the dialect lint |
-| `dialectLint` | `true` | Refuse bash/PowerShell habits before spawning |
-| `dialectHints` | `true` | Append one `Nushell hint (…)` line to a failed call |
+| `foreignShellAllowlist` | `[]` | Whole-command regexes exempt from the guard and the syntax preflight |
+| `syntaxLint` | `true` | Refuse bash/PowerShell syntax before spawning |
+| `syntaxHints` | `true` | Append one `Nushell hint (…)` line to a failed call |
 | `guide` | `full` | Prompt guide: `full`, `compact`, or `off` |
 | `rules` | `true` | Prepend the shell-rules section |
 | `rewriteToolDescriptions` | `true` | Rewrite the `bash` / `pwsh` tool descriptions |
 | `requireNu` / `verifyNu` | `true` / `true` | Fail boot when `nu` cannot be resolved or fails its `--version` probe |
 | `verifyTimeoutMs` | `10000` | Bound for that probe |
+
+The old `dialectLint` / `dialectHints` names are still accepted as deprecated aliases.
 
 Choose the guide by goal:
 

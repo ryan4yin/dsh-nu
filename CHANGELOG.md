@@ -8,7 +8,7 @@ All notable changes to this project are recorded here. The format follows
 
 ### Added
 
-- The dialect preflight refuses shell-style stdout redirects (`cmd > out.txt`) and
+- The syntax preflight refuses shell-style stdout redirects (`cmd > out.txt`) and
   numbered stderr spellings Nushell lexes as words (`2>/dev/null`, `2>nul`,
   `2>$null`, `2>> file`, `&>`, `1> file`). Nushell exits 0 for those without
   redirecting anything, so the refusal names `o>`, `e>`, `o+e>`, `e>| ignore`,
@@ -16,6 +16,15 @@ All notable changes to this project are recorded here. The format follows
 - The always-on rules and the shell-tool description name the refused shell forms,
   so a model can write `o>` / `e>` instead of learning the refusal from a failed
   call.
+
+### Changed
+
+- Renamed the dialect layer to syntax preflight. Config keys `dialectLint` /
+  `dialectHints` are now `syntaxLint` / `syntaxHints`; the module path
+  `dsh-nu/dialect` is now `dsh-nu/syntax`, and the exported functions
+  `assertNuDialect` / `findHabit` are now `assertNushellSyntax` /
+  `findSyntaxIssue`. The old config keys, module path, and function names remain
+  as deprecated aliases. The release that includes this rename will be 0.3.0.
 
 ## 0.2.1 (2026-10-18)
 
@@ -38,8 +47,8 @@ All notable changes to this project are recorded here. The format follows
   closure parameters (`{ |sh| … }`), record keys, names the command defines
   itself, and a `command -v bash` query alone.
 - A denied Nushell file effect under confinement now keeps its sandbox facts:
-  the executor adds Nushell's `read-only_filesystem_or_storage_medium` dialect
-  to the confinement signatures, so `sandbox.denied` is true and background
+  the executor adds Nushell's `read-only_filesystem_or_storage_medium` denial
+  signature to the confinement signatures, so `sandbox.denied` is true and background
   settlement classifies it too.
 
 ## 0.2.0 (2026-10-18)
@@ -73,7 +82,7 @@ bundle for DeepSeek Harness.
   reporting.
 - A guard that refuses handing a command to another shell before a process
   exists, with an allowlist for deliberate exceptions.
-- A dialect preflight that refuses bash and PowerShell habits before spawning
+- A syntax preflight that refuses bash and PowerShell syntax before spawning
   and names the Nushell spelling. A hint line covers failures that reach
   Nushell.
 - Teaching for the system prompt, the model-facing shell tool descriptions, and
@@ -84,7 +93,7 @@ bundle for DeepSeek Harness.
 
 ### Verification
 
-- Real `nu` differential tests for every dialect rule, and real failure samples
+- Real `nu` differential tests for every syntax-preflight rule, and real failure samples
   for every hint class.
 - Executable claims tests for the guide's statements about Nushell.
 - A real dsh boot probe that runs native and PTC compositions and checks the

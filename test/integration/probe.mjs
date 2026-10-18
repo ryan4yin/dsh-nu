@@ -36,13 +36,13 @@ export async function apply(ctx) {
   }
   record('a foreign-shell handoff is refused', /refusing to hand this command to bash|Nushell only/.test(refused), refused)
 
-  let dialect = ''
+  let syntaxRefusal = ''
   try {
     await run(shell, 'print hi 2>&1')
   } catch (error) {
-    dialect = error instanceof Error ? error.message : String(error)
+    syntaxRefusal = error instanceof Error ? error.message : String(error)
   }
-  record('a bash redirection is refused before spawning', /refusing a stderr-redirect/.test(dialect), dialect)
+  record('a bash redirection is refused before spawning', /refusing a stderr-redirect/.test(syntaxRefusal), syntaxRefusal)
 
   const marker = await run(shell, 'mut probeMarker = 1')
   const leaked = await run(shell, 'print $probeMarker')
@@ -79,7 +79,7 @@ export async function apply(ctx) {
   record('the prompt carries the shell rules', prompt.includes('Shell: Nushell only'))
   record('the prompt carries the syntax guide', prompt.includes('Nushell syntax guide'))
   const tool = assembly.tools?.find((entry) => entry.name === 'bash' || entry.name === 'pwsh')
-  if (tool !== undefined) record('the shell tool description is Nushell', /dialect is Nushell/.test(tool.description), tool.name)
+  if (tool !== undefined) record('the shell tool description is Nushell', /shell syntax is Nushell/.test(tool.description), tool.name)
 
   const sdk = assembly.sections.find((section) => section.name === 'tools:sdk')
   if (process.env.DSH_NU_PROBE_PTC === '1') {
