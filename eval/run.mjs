@@ -169,7 +169,7 @@ function blockingKinds(command) {
   if (/\bps\s+(?:aux|-ef)\b[^\n]*\bgrep\b/.test(command)) kinds.push('ps-grep')
   if (/\bpgrep\b/.test(command)) kinds.push('pgrep')
   if (/\bpkill\b/.test(command)) kinds.push('pkill')
-  if (/\byes\b[^\n]*\|/.test(command)) kinds.push('yes-pipe')
+  if (/(?:^|[;&|(]\s*)yes\s*\|/.test(command)) kinds.push('yes-pipe')
   return kinds
 }
 
