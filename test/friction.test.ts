@@ -37,7 +37,7 @@ const COMMANDS: ReadonlyArray<{ command: string; cwd?: 'temp' | 'repo' }> = [
   { command: 'mkdir d; "x" | save -f d/a.txt; cp d/a.txt d/b.txt; ls d | length', cwd: 'temp' },
   { command: 'mkdir d; "x" | save -f d/a.txt; open --raw d/a.txt | lines | first 1', cwd: 'temp' },
   { command: 'do { ^git rev-parse --is-inside-work-tree } | complete | get exit_code', cwd: 'repo' },
-  { command: 'do -i { ^false } | complete | get exit_code', cwd: 'repo' },
+  { command: "do -i { ^nu -c 'exit 1' } | complete | get exit_code", cwd: 'repo' },
   { command: '^git status --short | lines | length', cwd: 'repo' },
   { command: 'git status --short | length', cwd: 'repo' },
   { command: '^git log --oneline -1', cwd: 'repo' },
