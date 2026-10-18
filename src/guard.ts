@@ -12,7 +12,7 @@
 const FOREIGN_SHELLS = new Set(['bash', 'sh', 'dash', 'zsh', 'ksh', 'mksh', 'ash', 'fish', 'csh', 'tcsh', 'pwsh', 'powershell', 'cmd', 'wsl'])
 
 /** Programs that run another program, so their arguments decide the shell. */
-const LAUNCHERS = new Set(['env', 'xargs', 'sudo', 'doas', 'nohup', 'timeout', 'nice', 'stdbuf', 'command', 'exec', 'busybox'])
+const LAUNCHERS = new Set(['env', 'xargs', 'sudo', 'doas', 'nohup', 'timeout', 'nice', 'stdbuf', 'exec', 'busybox'])
 
 /** A leading NAME=value token, valid environment syntax in both shells. */
 const ENV_ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/
@@ -40,6 +40,54 @@ function shellIn(token: string): string | undefined {
   if (firstWord !== undefined && firstWord !== token) {
     const nested = programName(firstWord)
     if (FOREIGN_SHELLS.has(nested)) return nested
+  }
+  return undefined
+}
+
+/** Names the command defines itself; a call to one is not a foreign shell. */
+function definedNames(view: string): ReadonlySet<string> {
+  const names = new Set<string>()
+  for (const match of view.matchAll(/\b(?:export\s+)?(?:def|alias)\s+([A-Za-z_][A-Za-z0-9_-]*)/g)) {
+    names.add((match[1] ?? '').toLowerCase())
+  }
+  return names
+}
+
+/**
+ * Whether the `|` at this offset opens a closure parameter list, such as
+ * `{ |sh| … }`, rather than separating pipeline stages. A parameter may be named
+ * `sh`, `cmd`, or `bash`, and that declaration is not a handoff.
+ */
+function opensClosureParams(command: string, index: number): boolean {
+  let back = index - 1
+  while (back >= 0 && /\s/.test(command[back] ?? '')) back -= 1
+  if (back < 0 || command[back] !== '{') return false
+  return /^\s*[A-Za-z_][A-Za-z0-9_-]*(?:\s*,\s*[A-Za-z_][A-Za-z0-9_-]*)*\s*\|/.test(command.slice(index + 1))
+}
+
+/** A program position inside a block or a subexpression. */
+const NESTED_PROGRAM = /(?:^|[\n;|&({])\s*(\^?)([A-Za-z_][A-Za-z0-9_.\\/-]*)/g
+
+/**
+ * Find a foreign-shell handoff at a command position nested in a block or a
+ * subexpression, where the statement-level scan only sees the block's head:
+ * `do { bash -c … }`, `let x = (sh -c …)`. Strings and comments are blanked
+ * first, record keys and defined names are skipped, and a closure parameter
+ * list is a declaration rather than a command position.
+ */
+function findNestedHandoff(command: string, view: string, defined: ReadonlySet<string>): ShellHandoff | undefined {
+  for (const match of view.matchAll(NESTED_PROGRAM)) {
+    const start = match.index ?? 0
+    if (view[start] === '|' && opensClosureParams(command, start)) continue
+    // `&` is a bare-word character (print a&sh is one word) and separates only when it stands alone.
+    if (view[start] === '&' && start > 0 && !/\s/.test(view[start - 1] ?? '')) continue
+    const token = match[2] ?? ''
+    const name = programName((match[1] ?? '') + token)
+    if (!FOREIGN_SHELLS.has(name) || defined.has(name)) continue
+    const offset = start + match[0].length - token.length
+    const next = view[offset + token.length]
+    if (next === ':' || next === '=') continue
+    return { shell: name, statement: command.trim().slice(0, 400) }
   }
   return undefined
 }
@@ -227,17 +275,34 @@ export function tokenize(statement: string): string[] {
   return tokens
 }
 
-/** Split one statement's tokens into pipeline stages. */
+/**
+ * Split one statement's tokens into pipeline stages, keeping a closure
+ * parameter list (`{ |sh| … }`) out of the stages: those bars declare names,
+ * they do not separate commands.
+ */
 function stages(statement: string): string[][] {
   const result: string[][] = []
   let stage: string[] = []
+  let params = false
+  let previous: string | undefined
   for (const token of tokenize(statement)) {
+    if (params) {
+      if (token === '|') params = false
+      previous = token
+      continue
+    }
+    if (token === '|' && previous === '{') {
+      params = true
+      previous = token
+      continue
+    }
     if (token === '|') {
       if (stage.length > 0) result.push(stage)
       stage = []
     } else {
       stage.push(token)
     }
+    previous = token
   }
   if (stage.length > 0) result.push(stage)
   return result
@@ -245,6 +310,8 @@ function stages(statement: string): string[][] {
 
 /** Find the first foreign-shell handoff in a command. */
 export function findHandoff(command: string): ShellHandoff | undefined {
+  const view = codeView(command)
+  const defined = definedNames(view)
   for (const statement of splitStatements(command)) {
     for (const stage of stages(statement)) {
       let index = 0
@@ -263,7 +330,7 @@ export function findHandoff(command: string): ShellHandoff | undefined {
       }
     }
   }
-  return undefined
+  return findNestedHandoff(command, view, defined)
 }
 
 /** Compile the allowlist: whole-command regular expressions, validated. */
