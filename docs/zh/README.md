@@ -2,7 +2,7 @@
 
 [English](../../README.md) | 中文
 
-dsh-nu 是 DeepSeek Harness 的插件包：它只让编码 agent 用 Nushell 作为 shell，并引导模型用 Nushell 写命令，而不是 bash 或 PowerShell。
+dsh-nu 通过替换 shell 执行器（真正运行命令的那个程序），而不是替换 shell 接口，让 Nushell 成为 DeepSeek Harness 编码 agent 唯一能用的 shell。模型调用的工具仍叫 `bash` / `pwsh`，因此 dsh 的沙箱（`dsh-sandbox-local` 与 `dsh-sandbox-policy`）及 `read-only` / `workspace-write` / `danger-full-access` 三种模式、`mode` / `denied` / `enforcement` 报告都被原样继承。插件同时引导模型用 Nushell 写命令，而不是 bash 或 PowerShell。
 
 每次 shell 调用都是一个独立进程：
 
@@ -19,10 +19,6 @@ dsh-nu 注册唯一的 `ctx.shell` provider，把模型看到的 shell 工具描
 ## 兼容性
 
 dsh-nu 只支持这一组合。peer 依赖只覆盖 dsh 家族；启动时如果安装的 dsh 或 Nushell 与测试组合不同，会输出警告。其他版本没有测试过。
-
-## 沙箱
-
-dsh-nu 不自己实现沙箱。它继承 dsh 自带的 sandboxed shell executor（`SandboxBashExecutor`，Windows 上是 PowerShell 版），只替换启动的程序。`dsh-sandbox-local` 与 `dsh-sandbox-policy` 仍由 dsh 挂载，所以 `read-only`、`workspace-write`、`danger-full-access` 三种模式以及 `mode` / `denied` / `enforcement` 报告都与 dsh 一致。
 
 ## 安装
 
