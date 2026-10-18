@@ -4,6 +4,16 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- The dialect preflight refuses shell-style stdout redirects (`cmd > out.txt`) and
+  numbered stderr spellings Nushell lexes as words (`2>/dev/null`, `2>nul`,
+  `2>$null`, `2>> file`, `&>`, `1> file`). Nushell exits 0 for those without
+  redirecting anything, so the refusal names `o>`, `e>`, `o+e>`, `e>| ignore`,
+  or `(do { cmd } | complete)`.
+
 ## 0.2.1 (2026-10-18)
 
 ### Changed
