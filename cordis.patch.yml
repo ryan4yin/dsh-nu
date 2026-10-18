@@ -7,6 +7,10 @@
 #
 # The shell tool rows stay enabled: they call ctx.shell and the tool name the
 # model sees stays "bash"/"pwsh", which keeps prompts and saved sessions stable.
+#
+# The sandbox is not part of this bundle: dsh-sandbox-local and
+# dsh-sandbox-policy stay mounted, and the Nu executor below extends the
+# platform sandbox executor, so confinement and denial reporting are unchanged.
 
 - id: bash-sandbox
   disabled: true

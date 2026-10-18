@@ -20,6 +20,10 @@ The bundle registers the single `ctx.shell` provider, replaces the model-facing 
 
 dsh-nu supports only that pair. The peer ranges cover the dsh family, and boot logs a warning if the installed dsh or Nushell differs. Other versions have not been tested.
 
+## Sandbox
+
+dsh-nu does not implement its own sandbox. It extends dsh's first-party sandboxed shell executor (`SandboxBashExecutor`, or the PowerShell twin on Windows) and changes only the program it spawns. `dsh-sandbox-local` and `dsh-sandbox-policy` stay mounted, so `read-only`, `workspace-write`, and `danger-full-access` keep their dsh semantics, and results keep the same `mode` / `denied` / `enforcement` reporting.
+
 ## Install
 
 Requires dsh `0.2.1-rc.2` and Nushell `0.115.1` on `PATH`.

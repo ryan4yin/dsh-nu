@@ -16,6 +16,20 @@ All notable changes to this project are recorded here. The format follows
 
 - Corrected the full guide's quoting rule: single quotes are literal, double
   quotes process escapes, and only `$"..."` interpolates.
+- The guard now refuses a foreign-shell handoff nested in a block or a
+  subexpression (`do { bash -c … }`, `let x = (sh -c …)`), while leaving
+  closure parameters (`{ |sh| … }`), record keys, names the command defines
+  itself, and a `command -v bash` query alone.
+- A denied Nushell file effect under confinement now keeps its sandbox facts:
+  the executor adds Nushell's `read-only_filesystem_or_storage_medium` dialect
+  to the confinement signatures, so `sandbox.denied` is true and background
+  settlement classifies it too.
+
+### Changed
+
+- The README, its Chinese translation, and `cordis.patch.yml` state that the
+  bundle reuses dsh's sandbox. The disabled `bash-sandbox` / `pwsh-sandbox`
+  rows are shell executors, not the sandbox itself.
 
 ## 0.2.0 (2026-10-18)
 

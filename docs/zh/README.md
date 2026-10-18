@@ -20,6 +20,10 @@ dsh-nu 注册唯一的 `ctx.shell` provider，把模型看到的 shell 工具描
 
 dsh-nu 只支持这一组合。peer 依赖只覆盖 dsh 家族；启动时如果安装的 dsh 或 Nushell 与测试组合不同，会输出警告。其他版本没有测试过。
 
+## 沙箱
+
+dsh-nu 不自己实现沙箱。它继承 dsh 自带的 sandboxed shell executor（`SandboxBashExecutor`，Windows 上是 PowerShell 版），只替换启动的程序。`dsh-sandbox-local` 与 `dsh-sandbox-policy` 仍由 dsh 挂载，所以 `read-only`、`workspace-write`、`danger-full-access` 三种模式以及 `mode` / `denied` / `enforcement` 报告都与 dsh 一致。
+
 ## 安装
 
 需要 `PATH` 上有 dsh `0.2.1-rc.2` 和 Nushell `0.115.1`。
