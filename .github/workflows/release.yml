@@ -49,12 +49,32 @@ jobs:
       - name: Pack
         run: npm pack
 
+      # Trusted publishing: no npm token is stored in this repository. The
+      # package's npm settings authorize this repository and workflow, and the
+      # runner exchanges its GitHub OIDC identity for a short-lived publish
+      # token. The first publish of a new package name cannot be configured in
+      # npm package settings yet, so 0.1.0 is published once manually; every
+      # later tag uses this job.
+      - name: Check whether this version is already published
+        id: published
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if npm view "dsh-nu@${version}" version >/dev/null 2>&1; then
+            echo "exists=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "exists=false" >> "${GITHUB_OUTPUT}"
+          fi
+
       - name: Publish to npm
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        if: steps.published.outputs.exists == 'false'
+        run: npm publish --provenance --access public
 
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" ./*.tgz --repo "${GITHUB_REPOSITORY}" --generate-notes --title "${GITHUB_REF_NAME}"
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "release ${GITHUB_REF_NAME} already exists"
+          else
+            gh release create "${GITHUB_REF_NAME}" ./*.tgz --repo "${GITHUB_REPOSITORY}" --generate-notes --title "${GITHUB_REF_NAME}"
+          fi
