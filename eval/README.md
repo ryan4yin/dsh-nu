@@ -108,6 +108,28 @@ name or arm. Run one judge per model and compare the means; a judge never scores
 its own actor in the summary. Deterministic task success and preflight counts
 remain the primary evidence because judge scores are noisy.
 
+## Test in layers
+
+Run the cheapest layer that can answer the current question; the full matrix is
+the last step, not the first.
+
+1. **Reproduce on the old version.** Pick the case that matches the observed
+   failure, run only that case, one arm, three samples, and the smaller model.
+   Confirm `refused > 0`. A case that does not reproduce is not a fix candidate.
+2. **Retest narrowly.** After changing the guide, rerun the same case, model,
+   and arm; aim for `refused = 0`. Iterate on the guide, not on the eval.
+3. **Add cases.** Add the next failing class and keep the small model. Skip
+   cells that passed in the previous round; they belong to acceptance.
+4. **Add models.** Once the small model is clean, run the larger model on the
+   same cases. Do not pay for the larger model while the wording is still wrong.
+5. **Acceptance.** Run the remaining cases and the other arm once, then a larger
+   sample count (5-10) if the decision is close. Report the per-case table and
+   the refusal ids; tokens per cell show the cost of the wording.
+
+Use `--cases`, `--arms`, `--samples`, and `--concurrency 6`; concurrency cuts
+wall time by an order of magnitude and does not change the graded results. Keep
+raw samples under `.work/` and commit only the dated report.
+
 ## Interpreting a round
 
 - A full arm that succeeds without a refusal is the expected result.
