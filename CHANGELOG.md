@@ -13,6 +13,9 @@ All notable changes to this project are recorded here. The format follows
   `2>$null`, `2>> file`, `&>`, `1> file`). Nushell exits 0 for those without
   redirecting anything, so the refusal names `o>`, `e>`, `o+e>`, `e>| ignore`,
   or `(do { cmd } | complete)`.
+- The always-on rules and the shell-tool description name the refused shell forms,
+  so a model can write `o>` / `e>` instead of learning the refusal from a failed
+  call.
 
 ## 0.2.1 (2026-10-18)
 
