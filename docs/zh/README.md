@@ -72,27 +72,27 @@ dsh-nu 不打包 dsh 本身。这个 flake 从当前 checkout 构建插件，dsh
     };
   };
 
-  outputs = { self, nixpkgs, nur-ryan4yin, dsh-nu }: {
-    nixosConfigurations.example = nixpkgs.lib.nixosSystem {
+  outputs = { self, nixpkgs, nur-ryan4yin, dsh-nu }:
+    let
       system = "x86_64-linux";
-      modules = [
-        ({ pkgs, ... }:
-          let
-            dsh = nur-ryan4yin.packages.${pkgs.stdenv.hostPlatform.system}.dsh;
-          in {
-            environment.systemPackages = [
-              (dsh.withPlugins [
-                (dsh-nu.lib.mkDshNuPackage { inherit pkgs dsh; })
-              ])
-            ];
-          })
+      pkgs = nixpkgs.legacyPackages.${system};
+
+      # dsh 来自 nur-ryan4yin；withPlugins 负责应用 bundle patch。
+      dsh = nur-ryan4yin.packages.${system}.dsh;
+      dshWithNu = dsh.withPlugins [
+        (dsh-nu.lib.mkDshNuPackage { inherit pkgs dsh; })
       ];
+    in {
+      packages.${system}.default = dshWithNu;
+
+      # 把 `dshWithNu` 装到原本放 dsh 的位置，例如：
+      #   environment.systemPackages = [ dshWithNu ];
+      #   home.packages = [ dshWithNu ];
     };
-  };
 }
 ```
 
-`mkDshNuPackage` 只需要 dsh 安装里的 `@deepseek-ai` peer 包，`llm-agents.nix` 的 dsh 也可以传进来。应用 bundle 还需要一个加 `--patch` 的包装，这由 `nur-ryan4yin` 的 `withPlugins` 提供。用 `nix flake update dsh-nu` 更新 bundle。
+`nix build` 产出的就是这个 `dsh` 可执行文件。`mkDshNuPackage` 只需要 dsh 安装里的 `@deepseek-ai` peer 包，`llm-agents.nix` 的 dsh 也可以传进来；应用 bundle 仍然需要一个加 `--patch` 的包装，这由 `nur-ryan4yin` 的 `withPlugins` 提供。用 `nix flake update dsh-nu` 更新 bundle。
 
 ## 配置
 
