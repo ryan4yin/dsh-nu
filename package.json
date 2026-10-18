@@ -1,6 +1,6 @@
 {
   "name": "dsh-nu",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Nushell as the only shell for DeepSeek Harness: every shell call runs nu, foreign shells are refused before they spawn, and the model is taught Nushell.",
   "keywords": [
     "nushell",

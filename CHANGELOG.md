@@ -4,6 +4,55 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.1 (2026-10-19)
+
+### Added
+
+- The guides and the shell-tool description name the bash idioms that trigger
+  most refusals (`2>/dev/null`, `2>&1`, `cmd > file`, `&&`, `mkdir -p`,
+  `ls -R`, `$env:VAR`, bare assignment) and give each Nushell rewrite, so a
+  model can avoid a refusal instead of learning it from a failed call.
+- The guard follows interpolation subexpressions and every command position
+  inside blocks and subexpressions, so `do { bash -c … }` and `$"(sh -c …)"`
+  are refused before a process starts.
+
+### Changed
+
+- The README configuration example uses the bundle's row ids (`nu-executor`,
+  `nu-teaching`) and documents the teaching `timeoutMs` and `toolNames` fields.
+  It also lists pnpm in the install requirements and says `guide: off` keeps
+  the always-on rules.
+- CI runs the platform matrix when a guide changes, and the release job
+  publishes to npm before creating the GitHub release, so a release never
+  points at a version npm does not serve.
+
+### Fixed
+
+- The syntax preflight no longer refuses valid Nushell: per-command env
+  prefixes (`FOO=1 cmd`), `=~` comparisons, match-arm bindings, `^program`
+  calls, datetime comparison targets, list commas, and multiline data or
+  closure parameters. A `#` inside a word no longer starts a comment.
+- The preflight refuses path-like stdin redirects (`<`, `<<`, `<<<`) and the
+  remaining stderr spellings Nushell lexes as words, while a bare `>` is
+  accepted as a comparison.
+- Every confined call works on Windows: the executor accepts the shell spec the
+  parent passes. A hint now appears only for a failing, non-denied exit, and
+  boot fails when the Nushell probe prints no version.
+- Nu shell calls keep the platform's 60 s timeout; disabling the bash sandbox
+  row no longer drops it to 120 s.
+- The PTC `tools:sdk` text no longer claims bash semantics for parameter
+  expansion, `$env:` syntax, variable case, or pwsh sandbox modes. The guides
+  correct the `path join`, `path exists`, `str replace`, redirect, and
+  `ps | grep` examples, and the docs correct the stdin-redirect, prefix
+  assignment, interpolation, hint, dotfile, and datetime claims.
+- The integration probe matches the current denial and PTC behavior, and the
+  developer probe profile resolves to the checkout instead of its own
+  directory.
+- The eval judge prompt no longer includes the arm name, and the published
+  tarball now ships `docs/` and `eval/README.md`.
+- The lockfile no longer records 16 linked dsh peers under `/nix/store`, which
+  broke `npm ci` outside that store.
+
 ## 0.3.0 (2026-10-18)
 
 ### Added
