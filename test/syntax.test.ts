@@ -104,6 +104,10 @@ const ALLOWED = [
   'mkdir a/b; "a/b" | path exists',
   'rm -r -f a',
   'ls --all | length',
+  '[a b] | where $it =~ "a" | length',
+  '[a b] | where { |l| $l =~ "a" } | length',
+  '^ls -R .',
+  '^mkdir -p out/nested',
 ]
 
 test('every rule rejects its sample', () => {
@@ -316,6 +320,10 @@ test('the preflight does not refuse commands the tested Nushell accepts', { skip
       'mkdir a/b; "a/b" | path exists',
       'rm -r -f a',
       'ls --all | length',
+      '[a b] | where $it =~ "a" | length',
+      '[a b] | where { |l| $l =~ "a" } | length',
+      '^ls -R .',
+      '^mkdir -p out/nested; "out/nested" | path exists',
     ]
     for (const command of runnable) {
       const result = runNu(command, cwd)

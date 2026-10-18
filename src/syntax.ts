@@ -91,7 +91,8 @@ const RULES: readonly Rule[] = [
   },
   {
     id: 'bare-assignment',
-    match: /(?:^|[\s;|(])\$[A-Za-z_][A-Za-z0-9_]*\s*=(?!=)/,
+    // `$x =~ ...` is a comparison, not an assignment.
+    match: /(?:^|[\s;|(])\$[A-Za-z_][A-Za-z0-9_]*\s*=(?![=~])/,
     fix: 'Nushell has no bare $x = assignment: bind with let x = ... (immutable) or mut x = ... (reassignable); the environment is $env.x = ....',
   },
   {
@@ -121,7 +122,8 @@ const RULES: readonly Rule[] = [
   },
   {
     id: 'bash-flag',
-    match: /\b(?:ls\s+-[A-Za-z]*R|mkdir\s+-[A-Za-z]*p)/,
+    // A leading caret forces the external binary, whose flags are its own.
+    match: /(?<!\^)\b(?:ls\s+-[A-Za-z]*R|mkdir\s+-[A-Za-z]*p)/,
     fix: 'Unknown Nushell flags: mkdir a/b (parents are automatic), ls --all --long. External tools keep their own flags, but Nushell builtins do not accept bash ones.',
   },
   {
