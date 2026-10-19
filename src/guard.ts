@@ -185,15 +185,6 @@ function launcherProgram(name: string, atoms: readonly Atom[]): { value: string;
       while (index < atoms.length) {
         const atom = atoms[index]!
         if (atom.flag) {
-          if (atom.content === '-S' || atom.content === '--split-string') {
-            const value = atoms[index + 1]?.value
-            const words = value === undefined ? [] : splitWords(value)
-            return firstProgramWord(words)
-          }
-          const split = atom.content.startsWith('--split-string=')
-            ? atom.content.slice('--split-string='.length)
-            : atom.content.startsWith('-S') && atom.content.length > 2 ? atom.content.slice(2) : undefined
-          if (split !== undefined) return firstProgramWord(splitWords(literalValue(split) ?? split))
           index += ['-u', '--unset', '--chdir', '-C', '-P'].includes(atom.content) ? 2 : 1
           continue
         }
@@ -267,24 +258,9 @@ function launcherProgram(name: string, atoms: readonly Atom[]): { value: string;
       if (atoms.some((atom) => atom.flag && (atom.content === '-v' || atom.content === '-V'))) return undefined
       return generic(new Set())
     }
-    case 'script': {
-      // `script -c "cmd"` runs cmd through a shell; judge the first word.
-      const command = flagValue(atoms, 0, ['-c', '--command'])
-      if (command === undefined) return undefined
-      return firstProgramWord(splitWords(command))
-    }
     default:
       return undefined
   }
-}
-
-/** The first non-assignment word of a shell-word list. */
-function firstProgramWord(words: readonly string[]): { value: string; index: number } | undefined {
-  for (let index = 0; index < words.length; index += 1) {
-    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[index]!)) continue
-    return { value: words[index]!, index }
-  }
-  return undefined
 }
 
 /** Split a shell-word string (quotes and backslashes honored) into words. */
