@@ -1,5 +1,7 @@
 # dsh-nu
 
+[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
+
 [English](../../README.md) | 中文
 
 dsh-nu 强制 DeepSeek Harness 用 Nushell 执行所有 shell 命令，禁用 `bash` / `pwsh` 执行器。它主要做三件事：

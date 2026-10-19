@@ -1,5 +1,7 @@
 # dsh-nu
 
+[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
+
 English | [中文](docs/zh/README.md)
 
 dsh-nu forces DeepSeek Harness to run every shell command in Nushell, with the `bash` / `pwsh` executors disabled. It does three things:
