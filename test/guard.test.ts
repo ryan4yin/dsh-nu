@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { assertNuOnly, compileAllowlist, findHandoff, splitStatements } from '../src/guard.ts'
+import { assertNuOnly, compileAllowlist, findHandoff } from '../src/guard.ts'
 
-function shellOf(command: string): string | undefined {
-  return findHandoff(command)?.shell
+async function shellOf(command: string): Promise<string | undefined> {
+  return (await findHandoff(command))?.shell
 }
 
-test('refuses direct foreign shells, with or without a path or suffix', () => {
+test('refuses direct foreign shells, with or without a path or suffix', async () => {
   for (const [command, shell] of [
     ['bash -c "echo hi"', 'bash'],
     ['/bin/bash -c "echo hi"', 'bash'],
@@ -20,72 +20,119 @@ test('refuses direct foreign shells, with or without a path or suffix', () => {
     ['^bash -c "echo hi"', 'bash'],
     ['FOO=1 bash -c "echo hi"', 'bash'],
   ] as const) {
-    assert.equal(shellOf(command), shell, command)
+    assert.equal(await shellOf(command), shell, command)
   }
 })
 
-test('refuses a shell anywhere in a pipeline or after a semicolon', () => {
-  assert.equal(shellOf('ls | bash -c "cat"'), 'bash')
-  assert.equal(shellOf('print hi; bash -c "echo hi"'), 'bash')
-  assert.equal(shellOf('print hi\nbash -c "echo hi"'), 'bash')
+test('refuses a shell anywhere in a pipeline or after a semicolon or newline', async () => {
+  assert.equal(await shellOf('ls | bash -c "cat"'), 'bash')
+  assert.equal(await shellOf('print hi; bash -c "echo hi"'), 'bash')
+  assert.equal(await shellOf('print hi\nbash -c "echo hi"'), 'bash')
 })
 
-test('refuses launchers that would start a foreign shell', () => {
+test('refuses launchers that would start a foreign shell', async () => {
   for (const command of [
-    'env -S "bash -c \"echo hi\""',
+    'env -S "bash -c \\"echo hi\\""',
+    "env -S'bash -c \"echo hi\"'",
+    "env --split-string='bash -c \"echo hi\"'",
     'env FOO=1 bash -c "echo hi"',
     'xargs -0 zsh -c "echo hi"',
     'sudo bash -c "echo hi"',
     'timeout 5 sh -c "echo hi"',
     'nice -n 5 fish -c "echo hi"',
     'busybox sh -c "echo hi"',
+    '^watch -n 1 bash -c "echo W"',
+    'exec bash -c "echo hi"',
+    'taskset 0x3 bash -c "echo hi"',
+    'taskset -c 0-3 bash -c "echo hi"',
+    'taskset -c0-3 bash -c "echo hi"',
+    'flock /tmp/x.lock sh -c "echo hi"',
   ]) {
-    assert.notEqual(findHandoff(command), undefined, command)
+    assert.notEqual(await findHandoff(command), undefined, command)
   }
 })
 
-test('refuses a handoff nested in a block or a subexpression', () => {
+test('does not treat a launcher argument as the launched program', async () => {
+  for (const command of [
+    'env echo bash',
+    'env FOO=1 echo bash',
+    'timeout 5 echo bash',
+    'timeout 5 grep -r sh /tmp',
+    'command -v bash',
+    'flock /tmp/x.lock echo -c hi',
+  ]) {
+    assert.equal(await findHandoff(command), undefined, command)
+  }
+})
+
+test('refuses a handoff nested in a block or a subexpression', async () => {
   for (const command of [
     'do { bash -c "echo hi" }',
     'let x = (sh -c "echo hi")',
     'if true { zsh -c "echo hi" }',
     'for x in [1] { pwsh -Command Get-ChildItem }',
   ]) {
-    assert.notEqual(findHandoff(command), undefined, command)
+    assert.notEqual(await findHandoff(command), undefined, command)
   }
   for (const command of [
-    'command -v bash',
     'print "do { bash -c x }"',
     'let r = { bash: 1 }',
     '[1 2] | each { |sh| $sh }',
     'def bash [] { print hi }',
   ]) {
-    assert.equal(findHandoff(command), undefined, command)
+    assert.equal(await findHandoff(command), undefined, command)
   }
 })
 
-test('allows quoted, commented, raw, and external lookalikes', () => {
+test('a block-scoped definition does not mask a real shell invocation', async () => {
+  for (const command of [
+    'do { def bash [] { print custom } }; bash -c "echo hi"',
+    'if false { def bash [] { print custom } }; bash -c "echo hi"',
+    'do { alias bash = print }; bash -c "echo hi"',
+  ]) {
+    assert.notEqual(await findHandoff(command), undefined, command)
+  }
+})
+
+test('follows launchers through run-external, env -S, raw strings, and attached flags', async () => {
+  for (const command of [
+    'run-external env bash',
+    'run-external timeout 5 bash -c "echo hi"',
+    'env -S "-u FOO bash -c \'echo hi\'"',
+    'env -S "-- bash -c \'echo hi\'"',
+    'env -S "FOO=1 timeout 5 bash -c \'echo hi\'"',
+    'env -S "timeout 5 env bash -c \'echo hi\'"',
+    `env -S r#'bash -c "echo hi"'#`,
+    `nu -c r#'bash -c "echo hi"'#`,
+    `nu --commands='bash -c "echo hi"'`,
+    'flock --timeout 1 /tmp/x.lock bash -c "echo hi"',
+    'flock -c \'bash -c "echo hi"\'',
+    'sudo --user root bash -c "echo hi"',
+  ]) {
+    assert.notEqual(await findHandoff(command), undefined, command)
+  }
+})
+
+test('a dynamic run-external program is out of reach, not a later argument', async () => {
+  assert.equal(await findHandoff('let prog = "echo"; run-external $prog -- bash'), undefined)
+})
+
+test('allows quoted, commented, raw, and external lookalikes', async () => {
   for (const command of [
     'print "bash -c echo hi"',
     "print 'bash -c echo hi'",
     "print r#'bash -c echo hi'#",
     '# bash -c echo hi',
-    'nu -c "bash -c echo hi"',
     'bashful --help',
     'print bash',
     'print "env -S bash"',
+    "'bash -c \"echo hi\"' | save -f out",
   ]) {
-    assert.equal(findHandoff(command), undefined, command)
+    assert.equal(await findHandoff(command), undefined, command)
   }
 })
 
-test('splitStatements keeps quoted semicolons and drops comments', () => {
-  assert.deepEqual(splitStatements('ls; print hi'), ['ls', 'print hi'])
-  assert.deepEqual(splitStatements('print "a; b"'), ['print "a; b"'])
-  assert.deepEqual(splitStatements('# note\nls'), ['ls'])
-})
-
-test('refuses nested handoffs through paths, env prefixes, and launchers', () => {
+test('refuses nested handoffs through paths, env prefixes, and launchers', async () => {
   for (const command of [
     'do { /bin/sh -c "echo P" }',
     'do { env bash -c "echo L" }',
@@ -95,19 +142,18 @@ test('refuses nested handoffs through paths, env prefixes, and launchers', () =>
     'time bash -c "echo T"',
     'setsid bash -c "echo S"',
     'flock /tmp/x.lock bash -c "echo F"',
-    'watch -n 1 bash -c "echo W"',
   ]) {
-    assert.notEqual(findHandoff(command), undefined, command)
+    assert.notEqual(await findHandoff(command), undefined, command)
   }
 })
 
-test('a mid-word # is not a comment, so a handoff after it is still refused', () => {
-  assert.equal(findHandoff('print a#b'), undefined)
-  assert.equal(findHandoff('print a#b; bash -c "echo H"')?.shell, 'bash')
-  assert.equal(findHandoff('print (1)#b; sh -c "echo H"')?.shell, 'sh')
+test('a mid-word # is not a comment, so a handoff after it is still refused', async () => {
+  assert.equal(await findHandoff('print a#b'), undefined)
+  assert.equal((await findHandoff('print a#b; bash -c "echo H"'))?.shell, 'bash')
+  assert.equal((await findHandoff('print (1)#b; sh -c "echo H"'))?.shell, 'sh')
 })
 
-test('valid multiline data, match arms, record keys, and rest params are not handoffs', () => {
+test('valid multiline data, match arms, record keys, and rest params are not handoffs', async () => {
   for (const command of [
     'print a#b',
     'let words = [\n  bash\n]\nprint ($words | length)',
@@ -121,18 +167,18 @@ test('valid multiline data, match arms, record keys, and rest params are not han
     'def sh [] { print custom }; sh',
     'alias sh = print; sh hi',
   ]) {
-    assert.equal(findHandoff(command), undefined, command)
+    assert.equal(await findHandoff(command), undefined, command)
   }
 })
 
-test('refuses a handoff inside an interpolated string', () => {
+test('refuses a handoff inside an interpolated string', async () => {
   for (const command of [
     `print $"a(bash -c 'echo I')b"`,
     `print $'(sh -c "echo H")'`,
     `let x = $"(env bash -c 'echo X')"`,
     `print $"outer ($"inner (bash -c 'echo N')") end"`,
   ]) {
-    assert.notEqual(findHandoff(command), undefined, command)
+    assert.notEqual(await findHandoff(command), undefined, command)
   }
   for (const command of [
     'print "literal (bash -c x)"',
@@ -141,29 +187,34 @@ test('refuses a handoff inside an interpolated string', () => {
     String.raw`print $"literal \(1 + 2\)"`,
     'print $"(1 + 2)"',
   ]) {
-    assert.equal(findHandoff(command), undefined, command)
+    assert.equal(await findHandoff(command), undefined, command)
   }
 })
 
-test('splitStatements ignores newlines inside brackets and semicolons inside quotes', () => {
-  assert.deepEqual(splitStatements('let r = {\n  a: 1\n}\nprint $r'), ['let r = {\n  a: 1\n}', 'print $r'])
-  assert.deepEqual(splitStatements('print [\n  1\n  2\n]'), ['print [\n  1\n  2\n]'])
-  assert.deepEqual(splitStatements('let a = 1; let b = 2'), ['let a = 1', 'let b = 2'])
-  assert.deepEqual(splitStatements('print a#b'), ['print a#b'])
-  assert.deepEqual(splitStatements('print [1, # note\n2]'), ['print [1, \n2]'])
+test('follows a literal nu -c script, but not a dynamic one', async () => {
+  assert.equal(await shellOf('nu -c \'bash -c "echo hi"\''), 'bash')
+  assert.equal(await shellOf('run-external bash -- -c "echo hi"'), 'bash')
+  assert.equal(await shellOf('run-external nu -- -c \'bash -c "echo hi"\''), 'bash')
+  assert.equal(await findHandoff('nu -c $script'), undefined)
 })
 
-test('the allowlist exempts exact whole commands and are validated', () => {
+test('a defined name parses as an internal call, not an external handoff', async () => {
+  assert.equal(await findHandoff('def sh [] { print custom }; sh'), undefined)
+  assert.equal(await shellOf('def sh [] { print custom }; /bin/sh -c "echo x"'), 'sh')
+  assert.equal(await shellOf('def sh [] { print custom }; ^sh -c "echo x"'), 'sh')
+})
+
+test('the allowlist exempts exact whole commands and is validated', async () => {
   const allow = compileAllowlist(['^bash -c'])
-  assert.doesNotThrow(() => assertNuOnly('bash -c "echo hi"', { allow }))
-  assert.throws(() => assertNuOnly('sh -c "echo hi"', { allow }), /sh/)
+  await assert.doesNotReject(assertNuOnly('bash -c "echo hi"', { allow }))
+  await assert.rejects(assertNuOnly('sh -c "echo hi"', { allow }), /sh/)
   assert.throws(() => compileAllowlist('bash'), /array/)
   assert.throws(() => compileAllowlist(['(']), /regular expression/)
 })
 
-test('the refusal names the shell and the offending statement', () => {
-  assert.throws(
-    () => assertNuOnly('ls | zsh -c "echo hi"'),
-    (error: Error) => error.message.includes('zsh') && error.message.includes('ls | zsh -c'),
+test('the refusal names the shell and the offending statement', async () => {
+  await assert.rejects(
+    assertNuOnly('ls | zsh -c "echo hi"'),
+    (error: Error) => error.message.includes('zsh') && error.message.includes('ls | zsh'),
   )
 })

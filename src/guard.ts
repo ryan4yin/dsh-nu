@@ -2,27 +2,57 @@
  * The Nushell-only guard: reject a command that would hand execution to a
  * different shell, before any process exists.
  *
- * This is a scanner, not a parser. It tracks quoting, comments, and raw strings,
- * splits a command into statements and pipeline stages, and answers one question
- * per stage: does this stage start a foreign shell, or a wrapper that launches
- * one?
+ * The guard reads Nushell's own token stream (`src/ast.ts`), so quoting,
+ * comments, raw strings, closures, blocks, and interpolations are already
+ * resolved by the parser that will run the command. On top of those tokens it
+ * keeps one finite semantic layer:
+ *
+ * - foreign shell names (bare, path-qualified, or `^`-forced);
+ * - a fixed table of programs that launch another program;
+ * - `run-external`, because it takes the program as its first argument;
+ * - literal `nu -c "..."` scripts, followed recursively (depth 4).
+ *
+ * It is a guard, not a sandbox: a program that itself starts a shell, a dynamic
+ * shell name, or a shell name hidden in data is out of reach.
  */
+
+import { analyze, literalValue } from './ast.js'
+import type { AnalyzeOptions, AstToken } from './ast.js'
 
 /** Programs that are a different shell. */
 const FOREIGN_SHELLS = new Set(['bash', 'sh', 'dash', 'zsh', 'ksh', 'mksh', 'ash', 'fish', 'csh', 'tcsh', 'pwsh', 'powershell', 'cmd', 'wsl'])
 
 /** Programs that run another program, so their arguments decide the shell. */
-const LAUNCHERS = new Set(['env', 'xargs', 'sudo', 'doas', 'nohup', 'timeout', 'nice', 'stdbuf', 'exec', 'busybox', 'time', 'setsid', 'flock', 'taskset', 'chrt', 'script', 'watch', 'parallel'])
-
-/** A leading NAME=value token, valid environment syntax in both shells. */
-const ENV_ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/
+const LAUNCHERS = new Set([
+  'env', 'xargs', 'sudo', 'doas', 'nohup', 'timeout', 'nice', 'stdbuf', 'exec', 'busybox',
+  'time', 'setsid', 'flock', 'taskset', 'chrt', 'script', 'watch', 'parallel', 'command',
+])
 
 /** One foreign-shell handoff found in a command. */
 export interface ShellHandoff {
   /** The program that would do the work, normalized. */
   shell: string
-  /** The statement (pipeline stage) that contains it. */
+  /** The statement (or source slice) that contains it. */
   statement: string
+}
+
+/** Options for {@link findHandoff}. */
+export interface HandoffOptions extends AnalyzeOptions {}
+
+/** Options for {@link assertNuOnly}. */
+export interface NuOnlyOptions extends HandoffOptions {
+  allow?: readonly RegExp[]
+}
+
+/** How deep a literal `nu -c` script is followed. */
+const MAX_DEPTH = 4
+
+/** Literal argument value, or undefined when it is dynamic. */
+interface Atom {
+  value: string | undefined
+  content: string
+  flag: boolean
+  dynamic: boolean
 }
 
 /** Strip a path and a Windows executable suffix, then lower-case. */
@@ -32,529 +62,470 @@ function programName(token: string): string {
   return withoutPath.toLowerCase().replace(/\.exe$/, '')
 }
 
-/** Whether a token names a foreign shell, or starts a string that does. */
-function shellIn(token: string): string | undefined {
-  const name = programName(token)
-  if (FOREIGN_SHELLS.has(name)) return name
-  const firstWord = token.trim().split(/\s+/)[0]
-  if (firstWord !== undefined && firstWord !== token) {
-    const nested = programName(firstWord)
-    if (FOREIGN_SHELLS.has(nested)) return nested
+/** The foreign shell a program name spawns, if any. */
+function shellIn(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined
+  const name = programName(value)
+  return FOREIGN_SHELLS.has(name) ? name : undefined
+}
+
+/** Whether an atom is a flag-looking argument. */
+function isFlagToken(token: AstToken): boolean {
+  if (token.shape === 'shape_flag') return true
+  const content = token.content
+  return content.startsWith('-') && content.length > 1 && !content.startsWith('->')
+}
+
+/** The source text a token covers. */
+function sourceOf(command: string, token: AstToken): string {
+  if (token.end <= command.length && token.start <= token.end) return command.slice(token.start, token.end)
+  return token.content
+}
+
+/** A literal atom at `index`, or a dynamic one. */
+function readAtom(tokens: readonly AstToken[], command: string, index: number): Atom {
+  const token = tokens[index]!
+  if (token.shape === 'shape_string_interpolation') {
+    const quote = token.content.endsWith('"') ? '"' : "'"
+    let value = ''
+    let dynamic = false
+    let cursor = index + 1
+    while (cursor < tokens.length) {
+      const inner = tokens[cursor]!
+      if (inner.shape === 'shape_string_interpolation' && inner.content === quote) {
+        cursor += 1
+        break
+      }
+      if (inner.shape === 'shape_string') {
+        value += inner.content
+      } else if (inner.shape === 'shape_block' || inner.shape === 'shape_closure') {
+        dynamic = true
+        break
+      } else {
+        dynamic = true
+      }
+      cursor += 1
+    }
+    return { value: dynamic ? undefined : value, content: token.content, flag: false, dynamic }
+  }
+  if (token.shape === 'shape_string' || token.shape === 'shape_raw_string' || token.shape === 'shape_externalarg' || token.shape === 'shape_globpattern' || token.shape === 'shape_filepath' || token.shape === 'shape_int') {
+    const raw = sourceOf(command, token)
+    const value = token.shape === 'shape_int' ? token.content : literalValue(token.content)
+    return { value: value ?? raw, content: token.content, flag: isFlagToken(token), dynamic: value === undefined }
+  }
+  if (token.shape === 'shape_flag') return { value: token.content, content: token.content, flag: true, dynamic: false }
+  // Blocks, closures, subexpressions, variables, and anything the parser could
+  // not classify are dynamic: the nested commands inside them are still tokens
+  // of their own and get scanned separately.
+  return { value: undefined, content: token.content, flag: false, dynamic: true }
+}
+
+/** The atoms of one command head, stopping at the next command or pipeline. */
+function commandAtoms(tokens: readonly AstToken[], command: string, head: number): Atom[] {
+  const atoms: Atom[] = []
+  let index = head + 1
+  while (index < tokens.length) {
+    const token = tokens[index]!
+    if (
+      token.shape === 'shape_pipe' || token.shape === 'shape_operator'
+      || token.shape === 'shape_internalcall' || token.shape === 'shape_external'
+      || token.shape === 'shape_block' || token.shape === 'shape_closure'
+      || token.shape === 'shape_list' || token.shape === 'shape_table' || token.shape === 'shape_record'
+      || token.shape === 'shape_signature'
+    ) break
+    atoms.push(readAtom(tokens, command, index))
+    index += 1
+  }
+  return atoms
+}
+
+/** Find a flag value (`-c script`, `-cscript`, `--commands=script`) after `from`. */
+function flagValue(atoms: readonly Atom[], from: number, names: readonly string[]): string | undefined {
+  for (let index = from; index < atoms.length; index += 1) {
+    const atom = atoms[index]!
+    for (const name of names) {
+      if (atom.content === name) return atoms[index + 1]?.value
+      if (atom.content.startsWith(name + '=')) {
+        const rhs = atom.content.slice(name.length + 1)
+        return literalValue(rhs) ?? rhs
+      }
+      if (name.startsWith('-') && !name.startsWith('--') && atom.content.startsWith(name) && atom.content.length > name.length) {
+        const rhs = atom.content.slice(name.length).replace(/^=/, '')
+        return literalValue(rhs) ?? rhs
+      }
+    }
   }
   return undefined
 }
 
-/** A comment starts only at a token boundary; `a#b` is one bare word. */
-function commentStart(source: string, index: number): boolean {
-  if (index === 0) return true
-  return /[\s;|([{,]/.test(source[index - 1] ?? '')
-}
-
-/** Index just past a quoted string that starts at `index`. */
-function skipQuoted(source: string, index: number): number {
-  const quote = source[index]!
-  for (let cursor = index + 1; cursor < source.length; cursor += 1) {
-    const char = source[cursor]
-    if (char === '\\') {
-      cursor += 1
-      continue
+/** Resolve the program a launcher runs, as an index into `atoms`. */
+function launcherProgram(name: string, atoms: readonly Atom[]): { value: string; index: number } | undefined {
+  const generic = (valueFlags: ReadonlySet<string>, skipPositional = 0): { value: string; index: number } | undefined => {
+    let skipped = 0
+    let index = 0
+    while (index < atoms.length) {
+      const atom = atoms[index]!
+      if (atom.flag) {
+        index += valueFlags.has(atom.content) ? 2 : 1
+        continue
+      }
+      if (atom.dynamic || atom.value === undefined) return undefined
+      if (skipped < skipPositional) {
+        skipped += 1
+        index += 1
+        continue
+      }
+      return { value: atom.value, index }
     }
-    if (char === quote) return cursor + 1
+    return undefined
   }
-  return source.length
-}
-
-/** Index just past an interpolated string whose opening quote is at `index`. */
-function skipInterpolated(source: string, index: number): number {
-  const quote = source[index]!
-  for (let cursor = index + 1; cursor < source.length; cursor += 1) {
-    const char = source[cursor]
-    if (char === '\\') {
-      cursor += 1
-      continue
+  switch (name) {
+    case 'env': {
+      let index = 0
+      while (index < atoms.length) {
+        const atom = atoms[index]!
+        if (atom.flag) {
+          if (atom.content === '-S' || atom.content === '--split-string') {
+            const value = atoms[index + 1]?.value
+            const words = value === undefined ? [] : splitWords(value)
+            return firstProgramWord(words)
+          }
+          const split = atom.content.startsWith('--split-string=')
+            ? atom.content.slice('--split-string='.length)
+            : atom.content.startsWith('-S') && atom.content.length > 2 ? atom.content.slice(2) : undefined
+          if (split !== undefined) return firstProgramWord(splitWords(literalValue(split) ?? split))
+          index += ['-u', '--unset', '--chdir', '-C', '-P'].includes(atom.content) ? 2 : 1
+          continue
+        }
+        if (atom.value !== undefined && /^[A-Za-z_][A-Za-z0-9_]*=/.test(atom.value)) {
+          index += 1
+          continue
+        }
+        return atom.value === undefined ? undefined : { value: atom.value, index }
+      }
+      return undefined
     }
-    if (char === '$' && (source[cursor + 1] === '"' || source[cursor + 1] === "'")) {
-      cursor = skipInterpolated(source, cursor + 1) - 1
-      continue
+    case 'timeout':
+      return generic(new Set(['-k', '--kill-after', '-s', '--signal']), 1)
+    case 'nice':
+      return generic(new Set(['-n', '--adjustment']))
+    case 'stdbuf':
+      return generic(new Set(['-i', '-o', '-e']))
+    case 'sudo':
+    case 'doas':
+      return generic(new Set([
+        '-u', '-g', '-p', '-C', '-h', '-T', '-R', '-D', '-U', '-r',
+        '--user', '--group', '--prompt', '--chdir', '--host', '--role', '--type',
+        '--other-user', '--close-from', '--command-timeout',
+      ]))
+    case 'xargs':
+      return generic(new Set([
+        '-n', '-I', '-L', '-P', '-s', '-E', '-d', '-a',
+        '--max-args', '--replace', '--max-lines', '--max-procs', '--max-chars',
+        '--delimiter', '--arg-file', '--eof', '--process-slot-var',
+      ]))
+    case 'time':
+      return generic(new Set())
+    case 'nohup':
+    case 'exec':
+    case 'setsid':
+      return generic(new Set())
+    case 'flock': {
+      // flock [options] <lockfile> <program> ...
+      return generic(new Set(['-w', '--wait', '--timeout', '-E', '--conflict-exit-code', '-o', '--close']), 1)
     }
-    if (char === quote) return cursor + 1
+    case 'taskset': {
+      // `taskset -c 0-3 <program>` replaces the bare CPU mask; with a list
+      // option there is no positional mask to skip.
+      const firstPositional = atoms.findIndex((atom) => !atom.flag)
+      const options = firstPositional < 0 ? atoms : atoms.slice(0, firstPositional)
+      const hasListOption = options.some((atom) => (
+        atom.content === '-c' || atom.content === '--cpu-list'
+        || atom.content.startsWith('--cpu-list=') || (atom.content.startsWith('-c') && atom.content.length > 2)
+      ))
+      return generic(new Set(['-c', '--cpu-list']), hasListOption ? 0 : 1)
+    }
+    case 'chrt':
+      return generic(new Set(['-T', '--sched-runtime', '-P', '--sched-period', '--sched-deadline', '--priority', '--pid']), 1)
+    case 'watch':
+      return generic(new Set(['-n', '-d', '--interval']))
+    case 'parallel':
+      return generic(new Set(['-j', '-n', '-L', '-P', '--jobs', '--colsep']))
+    case 'busybox': {
+      let index = 0
+      while (index < atoms.length) {
+        if (atoms[index]!.flag) {
+          index += 1
+          continue
+        }
+        const value = atoms[index]!.value
+        return value === undefined ? undefined : { value, index }
+      }
+      return undefined
+    }
+    case 'command': {
+      if (atoms.some((atom) => atom.flag && (atom.content === '-v' || atom.content === '-V'))) return undefined
+      return generic(new Set())
+    }
+    case 'script': {
+      // `script -c "cmd"` runs cmd through a shell; judge the first word.
+      const command = flagValue(atoms, 0, ['-c', '--command'])
+      if (command === undefined) return undefined
+      return firstProgramWord(splitWords(command))
+    }
+    default:
+      return undefined
   }
-  return source.length
 }
 
-/** Index just past a raw string (`r#'…'#`) that starts at `index`, or -1. */
-function skipRaw(source: string, index: number): number {
-  const match = /^r(#+)(['"])/.exec(source.slice(index))
-  if (match === null) return -1
-  const closing = match[2]! + match[1]!
-  const end = source.indexOf(closing, index + match[0].length)
-  return end === -1 ? source.length : end + closing.length
+/** The first non-assignment word of a shell-word list. */
+function firstProgramWord(words: readonly string[]): { value: string; index: number } | undefined {
+  for (let index = 0; index < words.length; index += 1) {
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[index]!)) continue
+    return { value: words[index]!, index }
+  }
+  return undefined
 }
 
-/** Index of the `)` matching the `(` at `open`, skipping quoted text. */
-function matchingParen(source: string, open: number): number | undefined {
-  let depth = 0
-  for (let index = open; index < source.length; index += 1) {
-    const char = source[index]
-    if (char === '\\') {
+/** Split a shell-word string (quotes and backslashes honored) into words. */
+function splitWords(value: string): string[] {
+  const words: string[] = []
+  let word = ''
+  let quote: string | undefined
+  let started = false
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index]!
+    if (quote !== undefined) {
+      if (char === quote) quote = undefined
+      else if (char === '\\' && quote === '"' && index + 1 < value.length) {
+        index += 1
+        word += value[index]
+      } else word += char
+    } else if (char === '"' || char === "'") {
+      quote = char
+      started = true
+    } else if (/\s/.test(char)) {
+      if (started || word.length > 0) words.push(word)
+      word = ''
+      started = false
+    } else if (char === '\\' && index + 1 < value.length) {
+      index += 1
+      word += value[index]
+      started = true
+    } else {
+      word += char
+      started = true
+    }
+  }
+  if (started || word.length > 0) words.push(word)
+  return words
+}
+
+/** The `env -S` / `--split-string` words, when one is present. */
+function envSplitWords(atoms: readonly Atom[]): string[] | undefined {
+  for (const atom of atoms) {
+    if (atom.content === '-S' || atom.content === '--split-string') continue
+    if (atom.content.startsWith('--split-string=')) {
+      const value = atom.content.slice('--split-string='.length)
+      return splitWords(literalValue(value) ?? value)
+    }
+    if (atom.content.startsWith('-S') && atom.content.length > 2) {
+      const value = atom.content.slice(2)
+      return splitWords(literalValue(value) ?? value)
+    }
+  }
+  for (let index = 0; index < atoms.length; index += 1) {
+    const atom = atoms[index]!
+    if (atom.content === '-S' || atom.content === '--split-string') {
+      const value = atoms[index + 1]?.value
+      if (value === undefined) return undefined
+      return splitWords(value)
+    }
+  }
+  return undefined
+}
+
+/** Turn shell words into launcher atoms; quotes are already gone. */
+function wordsToAtoms(words: readonly string[]): Atom[] {
+  return words.map((word) => ({
+    value: word,
+    content: word,
+    flag: word.startsWith('-') && word.length > 1 && !word.startsWith('->'),
+    dynamic: false,
+  }))
+}
+
+/** Follow an `env -S` word list through env options to its program. */
+async function handoffFromWords(
+  words: readonly string[],
+  depth: number,
+  command: string,
+  options: HandoffOptions,
+): Promise<ShellHandoff | undefined> {
+  if (depth > MAX_DEPTH) return undefined
+  let index = 0
+  while (index < words.length) {
+    const word = words[index]!
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(word) || word === '--') {
       index += 1
       continue
     }
-    if (char === '#' && commentStart(source, index)) {
-      const newline = source.indexOf('\n', index)
-      if (newline === -1) return undefined
-      index = newline
+    if (word === '-S' || word === '--split-string') {
+      const value = words[index + 1]
+      return value === undefined ? undefined : handoffFromWords(splitWords(value), depth + 1, command, options)
+    }
+    if (word.startsWith('--split-string=')) {
+      const value = word.slice('--split-string='.length)
+      return handoffFromWords(splitWords(literalValue(value) ?? value), depth + 1, command, options)
+    }
+    if (word.startsWith('-S') && word.length > 2) {
+      const value = word.slice(2)
+      return handoffFromWords(splitWords(literalValue(value) ?? value), depth + 1, command, options)
+    }
+    if (['-u', '--unset', '--chdir', '-C', '-P'].includes(word)) {
+      index += 2
       continue
     }
-    const raw = char === 'r' ? skipRaw(source, index) : -1
-    if (raw !== -1) {
-      index = raw - 1
+    if (word.startsWith('-')) {
+      index += 1
       continue
     }
-    if (char === '$' && (source[index + 1] === '"' || source[index + 1] === "'")) {
-      index = skipInterpolated(source, index + 1) - 1
-      continue
+    const shell = shellIn(word)
+    if (shell !== undefined) return { shell, statement: command.trim().slice(0, 400) }
+    const name = programName(word)
+    const rest = wordsToAtoms(words.slice(index + 1))
+    if (LAUNCHERS.has(name)) return handoffFromLauncher(name, rest, depth, command, options)
+    if (name === 'nu') {
+      const script = flagValue(rest, 0, ['-c', '--commands'])
+      if (script !== undefined) {
+        const nested = await findHandoffIn(script, depth + 1, options)
+        if (nested !== undefined) return { shell: nested.shell, statement: script.trim().slice(0, 400) }
+      }
     }
-    if (char === '"' || char === "'" || char === String.fromCharCode(96)) {
-      index = skipQuoted(source, index) - 1
-      continue
-    }
-    if (char === '(') depth += 1
-    else if (char === ')') {
-      depth -= 1
-      if (depth === 0) return index
-    }
+    return undefined
   }
   return undefined
 }
 
-/**
- * Subexpressions inside an interpolated string (`$"sum (1 + 2)"`, `$'…'`).
- * Their parentheses are code, so a shell call or redirect inside one runs even
- * though the surrounding text is a string.
- */
-export function interpolationExpressions(source: string): string[] {
-  const expressions: string[] = []
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index]
-    if (char === '#' && commentStart(source, index)) {
-      const newline = source.indexOf('\n', index)
-      if (newline === -1) break
-      index = newline
-      continue
-    }
-    const raw = char === 'r' ? skipRaw(source, index) : -1
-    if (raw !== -1) {
-      index = raw - 1
-      continue
-    }
-    if (char === '$' && (source[index + 1] === '"' || source[index + 1] === "'")) {
-      const closing = skipInterpolated(source, index + 1)
-      const body = source.slice(index + 2, closing - 1)
-      for (let cursor = 0; cursor < body.length; cursor += 1) {
-        const bodyChar = body[cursor]
-        if (bodyChar === '\\') {
-          cursor += 1
-          continue
-        }
-        if (bodyChar === '$' && (body[cursor + 1] === '"' || body[cursor + 1] === "'")) {
-          cursor = skipInterpolated(body, cursor + 1) - 1
-          continue
-        }
-        if (bodyChar === '"' || bodyChar === "'" || bodyChar === String.fromCharCode(96)) {
-          cursor = skipQuoted(body, cursor) - 1
-          continue
-        }
-        if (bodyChar !== '(') continue
-        const end = matchingParen(body, cursor)
-        if (end === undefined) break
-        expressions.push(body.slice(cursor + 1, end))
-        cursor = end
-      }
-      index = closing - 1
-      continue
-    }
-    if (char === '"' || char === "'" || char === String.fromCharCode(96)) {
-      index = skipQuoted(source, index) - 1
-      continue
-    }
-  }
-  return expressions
+/** Whether a token is at a command position (not inside a string). */
+function isExternalHead(token: AstToken): boolean {
+  return token.shape === 'shape_external'
 }
-
-/** Names that statement-level `def` / `alias` declarations define. */
-function definedNames(statements: readonly string[]): ReadonlySet<string> {
-  const names = new Set<string>()
-  for (const statement of statements) {
-    const tokens = tokenize(statement)
-    let index = 0
-    if (tokens[index]?.toLowerCase() === 'export') index += 1
-    const keyword = tokens[index]?.toLowerCase()
-    if (keyword !== 'def' && keyword !== 'alias') continue
-    index += 1
-    while (tokens[index]?.startsWith('-') === true) index += 1
-    const name = tokens[index]
-    if (name !== undefined) names.add(programName(name))
-  }
-  return names
-}
-
-/**
- * Whether the `|` at this offset opens a closure parameter list, such as
- * `{ |sh| … }` or `{ |sh, ...rest| … }`, rather than separating pipeline
- * stages. A parameter may be named `sh`, `cmd`, or `bash`, and that
- * declaration is not a handoff.
- */
-function opensClosureParams(command: string, index: number): boolean {
-  let back = index - 1
-  while (back >= 0 && /\s/.test(command[back] ?? '')) back -= 1
-  if (back < 0 || command[back] !== '{') return false
-  const parameter = /^(\s*)(?:(?:\.\.\.|\$)?[A-Za-z_][A-Za-z0-9_-]*)(?:\s*,\s*(?:\.\.\.|\$)?[A-Za-z_][A-Za-z0-9_-]*)*\s*\|/
-  return parameter.test(command.slice(index + 1))
-}
-
-/** Characters that end a bare word, so they cannot appear in a program token. */
-const WORD_END = /[\s;|&(){}]/
-
-/** One bare word in the blanked view. */
-interface Word {
-  text: string
-  start: number
-  end: number
-}
-
-/** Read the next bare word at or after an offset, skipping whitespace. */
-function nextWord(view: string, start: number): Word | undefined {
-  let index = start
-  while (index < view.length && /\s/.test(view[index] ?? '')) index += 1
-  if (index >= view.length) return undefined
-  const begin = index
-  while (index < view.length && !WORD_END.test(view[index] ?? '')) index += 1
-  return index === begin ? undefined : { text: view.slice(begin, index), start: begin, end: index }
-}
-
-/** The next non-whitespace character at or after an offset. */
-function nextChar(view: string, start: number): string | undefined {
-  let index = start
-  while (index < view.length && /\s/.test(view[index] ?? '')) index += 1
-  return view[index]
-}
-
-/** The first program position after a delimiter, if it hands off to a shell. */
-function handoffAfter(view: string, start: number, statement: string, defined: ReadonlySet<string>): ShellHandoff | undefined {
-  let word = nextWord(view, start)
-  while (word !== undefined && ENV_ASSIGNMENT.test(word.text)) word = nextWord(view, word.end)
-  if (word === undefined) return undefined
-  // A record key or match arm, not a command: `{ sh: 1 }`, `{ bash => 1 }`.
-  const following = nextChar(view, word.end)
-  if (following === ':' || following === '=') return undefined
-  const name = programName(word.text)
-  if (FOREIGN_SHELLS.has(name)) {
-    if (defined.has(name) && !word.text.startsWith('^')) return undefined
-    return { shell: name, statement }
-  }
-  if (!LAUNCHERS.has(name)) return undefined
-  for (let argument = nextWord(view, word.end); argument !== undefined; argument = nextWord(view, argument.end)) {
-    if (argument.text.startsWith('-') || ENV_ASSIGNMENT.test(argument.text)) continue
-    const launched = programName(argument.text)
-    if (FOREIGN_SHELLS.has(launched)) return { shell: launched, statement }
-  }
-  return undefined
-}
-
-/**
- * Find a foreign-shell handoff at a command position nested in a block or a
- * subexpression, where the statement-level scan only sees the block's head:
- * `do { /bin/sh -c … }`, `do { env bash … }`, `do { FOO=1 bash … }`. Strings
- * and comments are blanked first, record keys, match arms, and defined names
- * are skipped, and a closure parameter list is a declaration rather than a
- * command position.
- */
-function findNestedHandoff(command: string, view: string, defined: ReadonlySet<string>): ShellHandoff | undefined {
-  const statement = command.trim().slice(0, 400)
-  let square = 0
-  for (let index = 0; index < view.length; index += 1) {
-    const char = view[index]
-    // Inside a list literal a newline separates values, not commands.
-    if (char === '[') { square += 1; continue }
-    if (char === ']') { square = Math.max(0, square - 1); continue }
-    if (char !== '(' && char !== '{' && char !== ';' && char !== '\n' && char !== '|' && char !== '&') continue
-    if (char === '\n' && square > 0) continue
-    if (char === '|' && opensClosureParams(command, index)) continue
-    // `&` is a bare-word character (print a&sh is one word) and separates only when it stands alone.
-    if (char === '&' && index > 0 && !/\s/.test(view[index - 1] ?? '')) continue
-    const handoff = handoffAfter(view, index + 1, statement, defined)
-    if (handoff !== undefined) return handoff
-  }
-  return undefined
-}
-
-/** Replace quoted text, raw strings, and comments with spaces, keeping offsets. */
-export function codeView(source: string): string {
-  let output = ''
-  let quote: string | undefined
-  let rawEnd: string | undefined
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index]!
-    if (rawEnd !== undefined) {
-      if (source.startsWith(rawEnd, index)) {
-        output += ' '.repeat(rawEnd.length)
-        index += rawEnd.length - 1
-        rawEnd = undefined
-      } else {
-        output += char === '\n' ? '\n' : ' '
-      }
-      continue
-    }
-    if (quote !== undefined) {
-      if (quote === '"' && char === '\\') {
-        index += 1
-        output += '  '
-      } else if (char === quote) {
-        quote = undefined
-        output += ' '
-      } else {
-        output += char === '\n' ? '\n' : ' '
-      }
-      continue
-    }
-    if (char === 'r' && (source[index + 1] === '#' || source[index + 1] === '"')) {
-      const match = /^r(#+)(['"])/.exec(source.slice(index))
-      if (match !== null) {
-        output += ' '.repeat(match[0].length)
-        index += match[0].length - 1
-        rawEnd = match[2]! + match[1]!
-        continue
-      }
-    }
-    if (char === "'" || char === '"' || char === String.fromCharCode(96)) {
-      quote = char
-      output += ' '
-      continue
-    }
-    if (char === '#' && commentStart(source, index)) {
-      const newline = source.indexOf('\n', index)
-      const end = newline === -1 ? source.length : newline
-      output += ' '.repeat(end - index) + (newline === -1 ? '' : '\n')
-      index = end
-      continue
-    }
-    output += char
-  }
-  return output
-}
-
-/**
- * Split a command into statements on unquoted semicolons and newlines at
- * bracket depth zero; a newline inside a list, record, or block does not start
- * a statement (it is whitespace between tokens).
- */
-export function splitStatements(source: string): string[] {
-  const statements: string[] = []
-  let current = ''
-  let quote: string | undefined
-  let rawEnd: string | undefined
-  let comment = false
-  let depth = 0
-  const push = (): void => {
-    if (current.trim().length > 0) statements.push(current.trim())
-    current = ''
-  }
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index]!
-    if (comment) {
-      if (char === '\n') {
-        comment = false
-        if (depth === 0) push()
-        else current += '\n'
-      }
-      continue
-    }
-    if (rawEnd !== undefined) {
-      current += char
-      if (source.startsWith(rawEnd, index)) {
-        current += rawEnd.slice(1)
-        index += rawEnd.length - 1
-        rawEnd = undefined
-      }
-      continue
-    }
-    if (quote !== undefined) {
-      current += char
-      if (quote === '"' && char === '\\') {
-        index += 1
-        current += source[index] ?? ''
-      } else if (char === quote) {
-        quote = undefined
-      }
-      continue
-    }
-    if (char === 'r' && (source[index + 1] === '#' || source[index + 1] === '"')) {
-      const match = /^r(#+)(['"])/.exec(source.slice(index))
-      if (match !== null) {
-        current += match[0]
-        index += match[0].length - 1
-        rawEnd = match[2]! + match[1]!
-        continue
-      }
-    }
-    if (char === "'" || char === '"' || char === String.fromCharCode(96)) {
-      quote = char
-      current += char
-      continue
-    }
-    if (char === '#' && commentStart(source, index)) {
-      comment = true
-      continue
-    }
-    if (char === '(' || char === '[' || char === '{') depth += 1
-    else if (char === ')' || char === ']' || char === '}') depth = Math.max(0, depth - 1)
-    if ((char === ';' || char === '\n') && depth === 0) {
-      push()
-      continue
-    }
-    current += char
-  }
-  push()
-  return statements
-}
-
-/** Tokenize one statement, dropping quotes. A pipe is its own token. */
-export function tokenize(statement: string): string[] {
-  const tokens: string[] = []
-  let current = ''
-  let quote: string | undefined
-  let rawEnd: string | undefined
-  const flush = (): void => {
-    if (current.length > 0) {
-      tokens.push(current)
-      current = ''
-    }
-  }
-  for (let index = 0; index < statement.length; index += 1) {
-    const char = statement[index]!
-    if (rawEnd !== undefined) {
-      if (statement.startsWith(rawEnd, index)) {
-        index += rawEnd.length - 1
-        rawEnd = undefined
-      } else {
-        current += char
-      }
-      continue
-    }
-    if (quote !== undefined) {
-      if (quote === '"' && char === '\\') {
-        index += 1
-        current += statement[index] ?? ''
-      } else if (char === quote) {
-        quote = undefined
-      } else {
-        current += char
-      }
-      continue
-    }
-    if (char === 'r' && (statement[index + 1] === '#' || statement[index + 1] === '"')) {
-      const match = /^r(#+)(['"])/.exec(statement.slice(index))
-      if (match !== null) {
-        index += match[0].length - 1
-        rawEnd = match[2]! + match[1]!
-        continue
-      }
-    }
-    if (char === "'" || char === '"' || char === String.fromCharCode(96)) {
-      quote = char
-      continue
-    }
-    if (/\s/.test(char)) {
-      flush()
-      continue
-    }
-    if (char === '|') {
-      flush()
-      tokens.push('|')
-      continue
-    }
-    current += char
-  }
-  flush()
-  return tokens
-}
-
-/**
- * Split one statement's tokens into pipeline stages, keeping a closure
- * parameter list (`{ |sh| … }`) out of the stages: those bars declare names,
- * they do not separate commands.
- */
-function stages(statement: string): string[][] {
-  const result: string[][] = []
-  let stage: string[] = []
-  let params = false
-  let previous: string | undefined
-  for (const token of tokenize(statement)) {
-    if (params) {
-      if (token === '|') params = false
-      previous = token
-      continue
-    }
-    if (token === '|' && previous === '{') {
-      params = true
-      previous = token
-      continue
-    }
-    if (token === '|') {
-      if (stage.length > 0) result.push(stage)
-      stage = []
-    } else {
-      stage.push(token)
-    }
-    previous = token
-  }
-  if (stage.length > 0) result.push(stage)
-  return result
-}
-
-/** Interpolation nesting this scan follows before giving up. */
-const MAX_INTERPOLATION_DEPTH = 8
 
 /** Find the first foreign-shell handoff in a command. */
-function findHandoffIn(command: string, depth: number): ShellHandoff | undefined {
-  const view = codeView(command)
-  const statements = splitStatements(command)
-  const defined = definedNames(statements)
-  for (const statement of statements) {
-    for (const stage of stages(statement)) {
-      let index = 0
-      while (index < stage.length && ENV_ASSIGNMENT.test(stage[index]!)) index += 1
-      const program = stage[index]
-      if (program === undefined) continue
-      const direct = shellIn(program)
-      // `^name` forces the external program even when the shell defines a name.
-      if (direct !== undefined && (program.startsWith('^') || !defined.has(direct))) {
-        return { shell: direct, statement }
-      }
-      if (LAUNCHERS.has(programName(program))) {
-        for (let scan = index + 1; scan < stage.length; scan += 1) {
-          const token = stage[scan]!
-          if (token.startsWith('-')) continue
-          const launched = shellIn(token)
-          if (launched !== undefined) return { shell: launched, statement }
+async function findHandoffIn(command: string, depth: number, options: HandoffOptions): Promise<ShellHandoff | undefined> {
+  if (depth > MAX_DEPTH) return undefined
+  const analysis = await analyze(command, options)
+  const { tokens } = analysis
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index]!
+    const atom = readAtom(tokens, command, index)
+    if (isExternalHead(token)) {
+      const shell = shellIn(atom.value ?? token.content)
+      if (shell !== undefined) return { shell, statement: command.trim().slice(0, 400) }
+      const direct = programName(token.content)
+      const atoms = commandAtoms(tokens, command, index)
+      const handled = await handoffFromLauncher(direct, atoms, depth, command, options)
+      if (handled !== undefined) return handled
+      if (direct === 'nu' || direct === 'nu.exe') {
+        const script = flagValue(atoms, 0, ['-c', '--commands'])
+        if (script !== undefined) {
+          const nested = await findHandoffIn(script, depth + 1, options)
+          if (nested !== undefined) return { shell: nested.shell, statement: script.trim().slice(0, 400) }
         }
+      }
+    } else if (token.shape === 'shape_internalcall') {
+      const name = token.content.toLowerCase()
+      if (name === 'run-external') {
+        const atoms = commandAtoms(tokens, command, index)
+        let program: { value: string; index: number } | undefined
+        for (let cursor = 0; cursor < atoms.length; cursor += 1) {
+          const candidate = atoms[cursor]!
+          if (candidate.flag || candidate.content === '--') continue
+          if (candidate.value === undefined) break
+          program = { value: candidate.value, index: cursor }
+          break
+        }
+        if (program !== undefined) {
+          const shell = shellIn(program.value)
+          if (shell !== undefined) return { shell, statement: command.trim().slice(0, 400) }
+          const programNameValue = programName(program.value)
+          if (LAUNCHERS.has(programNameValue)) {
+            const handled = await handoffFromLauncher(programNameValue, atoms.slice(program.index + 1), depth, command, options)
+            if (handled !== undefined) return handled
+          }
+          if (programNameValue === 'nu') {
+            const script = flagValue(atoms, program.index + 1, ['-c', '--commands'])
+            if (script !== undefined) {
+              const nested = await findHandoffIn(script, depth + 1, options)
+              if (nested !== undefined) return { shell: nested.shell, statement: script.trim().slice(0, 400) }
+            }
+          }
+        }
+      } else if (name === 'exec') {
+        // Nu's `exec` replaces the process with another program; it is a
+        // launcher even though the parser classifies it as an internal call.
+        const atoms = commandAtoms(tokens, command, index)
+        const handled = await handoffFromLauncher('exec', atoms, depth, command, options)
+        if (handled !== undefined) return handled
       }
     }
   }
-  const nested = findNestedHandoff(command, view, defined)
-  if (nested !== undefined) return nested
-  if (depth >= MAX_INTERPOLATION_DEPTH) return undefined
-  for (const expression of interpolationExpressions(command)) {
-    const handoff = findHandoffIn(expression, depth + 1)
-    if (handoff !== undefined) return { shell: handoff.shell, statement: command.trim().slice(0, 400) }
+  return undefined
+}
+
+/** Follow a launcher chain (`env timeout 5 bash`) to its program. */
+async function handoffFromLauncher(
+  name: string,
+  atoms: readonly Atom[],
+  depth: number,
+  command: string,
+  options: HandoffOptions,
+): Promise<ShellHandoff | undefined> {
+  let current = name
+  let remaining = atoms
+  for (let hop = 0; hop < 4; hop += 1) {
+    if (!LAUNCHERS.has(current)) return undefined
+    if (current === 'env') {
+      const words = envSplitWords(remaining)
+      if (words !== undefined) return handoffFromWords(words, depth, command, options)
+    }
+    if (current === 'script' && flagValue(remaining, 0, ['-c', '--command']) !== undefined) {
+      // `script -c` runs the command through a POSIX shell.
+      return { shell: 'sh', statement: command.trim().slice(0, 400) }
+    }
+    if (current === 'flock') {
+      // Only flock's own options precede the lockfile; a later `-c` belongs to
+      // the launched program. `flock -c` hands the command string to a shell.
+      const firstPositional = remaining.findIndex((atom) => !atom.flag)
+      const options = firstPositional < 0 ? remaining : remaining.slice(0, firstPositional)
+      const hasCommand = options.some((atom) => atom.content === '-c' || atom.content === '--command'
+        || (atom.content.startsWith('-c') && atom.content.length > 2) || atom.content.startsWith('--command='))
+      if (hasCommand) return { shell: 'sh', statement: command.trim().slice(0, 400) }
+    }
+    const program = launcherProgram(current, remaining)
+    if (program === undefined) return undefined
+    const shell = shellIn(program.value)
+    if (shell !== undefined) return { shell, statement: command.trim().slice(0, 400) }
+    if (programName(program.value) === 'nu') {
+      const script = flagValue(remaining, program.index + 1, ['-c', '--commands'])
+      if (script !== undefined) {
+        const nested = await findHandoffIn(script, depth + 1, options)
+        if (nested !== undefined) return { shell: nested.shell, statement: script.trim().slice(0, 400) }
+      }
+      return undefined
+    }
+    const next = programName(program.value)
+    if (!LAUNCHERS.has(next)) return undefined
+    current = next
+    remaining = remaining.slice(program.index + 1)
   }
   return undefined
 }
 
 /** Find the first foreign-shell handoff in a command. */
-export function findHandoff(command: string): ShellHandoff | undefined {
-  return findHandoffIn(command, 0)
+export function findHandoff(command: string, options: HandoffOptions = {}): Promise<ShellHandoff | undefined> {
+  return findHandoffIn(command, 0, options)
 }
 
 /** Compile the allowlist: whole-command regular expressions, validated. */
@@ -571,15 +542,10 @@ export function compileAllowlist(raw: unknown): RegExp[] {
   })
 }
 
-/** Options for {@link assertNuOnly}. */
-export interface NuOnlyOptions {
-  allow?: readonly RegExp[]
-}
-
 /** Throw when a command would hand execution to another shell. */
-export function assertNuOnly(command: string, options: NuOnlyOptions = {}): void {
+export async function assertNuOnly(command: string, options: NuOnlyOptions = {}): Promise<void> {
   if ((options.allow ?? []).some((pattern) => pattern.test(command))) return
-  const handoff = findHandoff(command)
+  const handoff = await findHandoff(command, options)
   if (handoff === undefined) return
   throw new Error(
     'dsh-nu: refusing to hand this command to ' + handoff.shell + '. This deployment runs every shell command through Nushell only '

@@ -8,7 +8,7 @@ dsh-nu forces DeepSeek Harness to run every shell command in Nushell, with the `
 
 - **Swap the executor**: Through the low-level extension point DeepSeek Harness exposes, it replaces the `bash` / `pwsh` executor with a Nushell executor at runtime (commands run as `nu --no-config-file -c "<command>"`). dsh still sees the same `bash` / `pwsh` tool with the same calling convention, so the Nushell executor plugs into dsh and stays compatible with every other plugin and feature. The oddity is cosmetic: the model calls a tool named `bash` / `pwsh` and passes it Nushell script.
 - **Teach the model**: It adds a short Nushell rules section and syntax guide to the system prompt. That teaching text costs some context but matters: with it turned off, the model hits frequent errors when calling the shell tool.
-- **Refuse handoffs**: When a Nushell command hands work to another shell, the guard refuses it before a process starts; bash and PowerShell syntax is refused the same way by the syntax preflight, with the Nushell spelling in the error.
+- **Refuse handoffs**: When a Nushell command hands work to another shell, the guard refuses it before a process starts. Bash and PowerShell syntax that Nushell rejects or silently misreads is refused by the syntax rules, with the Nushell spelling in the error.
 
 ## Status
 
@@ -131,7 +131,7 @@ The bundle's patch mounts one executor row and one teaching row; a profile patch
 | `nuPath` | `$DSH_NU_PATH`, then `nu` | Nushell executable: field, then environment, then PATH |
 | `nuArgs` | `["--no-config-file","-c"]` | Argv prefix; the command is appended last |
 | `enforceNushellOnly` | `true` | Refuse handing the command to another shell |
-| `foreignShellAllowlist` | `[]` | Whole-command regexes exempt from the guard and the syntax preflight |
+| `foreignShellAllowlist` | `[]` | Whole-command regexes exempt from both preflight checks |
 | `syntaxLint` | `true` | Refuse bash/PowerShell syntax before spawning |
 | `syntaxHints` | `true` | Append one `Nushell hint (…)` line to a failed call |
 | `guide` | `full` | Prompt guide: `full`, `compact`, or `off` |
@@ -139,8 +139,10 @@ The bundle's patch mounts one executor row and one teaching row; a profile patch
 | `rewriteToolDescriptions` | `true` | Rewrite the `bash` / `pwsh` tool descriptions |
 | `toolNames` | `["bash","pwsh"]` | Tool schemas whose shell text is rewritten |
 | `timeoutMs` | `60000` | Default per-call timeout; `maxTimeoutMs` caps overrides |
-| `requireNu` / `verifyNu` | `true` / `true` | Fail boot when `nu` cannot be resolved or fails its `--version` probe |
+| `requireNu` / `verifyNu` | `true` / `true` | Fail boot when `nu` cannot be resolved, reports no version, or cannot run the preflight |
 | `verifyTimeoutMs` | `10000` | Bound for that probe |
+
+Both checks read Nushell's parser through two read-only probes on a private temporary script. Boot runs a token and diagnostic canary once when `verifyNu` is on and either check is enabled: with `requireNu` (the default) a failure fails boot, and with `requireNu: false` each call is refused instead of running without the check (fail closed). The error names `enforceNushellOnly: false` and `syntaxLint: false` as the escape hatches and points at the tested Nushell version.
 
 Choose the guide by goal:
 
@@ -152,8 +154,12 @@ Sandbox budgets (`cwd`, `timeoutMs`, …) stay on the `nu-executor` row, not in 
 
 ## What "only Nushell" does not cover
 
+The guard is not a sandbox: it checks command positions it can read, and everything else is out of reach.
+
+- A shell name inside a plain quoted string is data, not a command position: `'bash -c "echo hi"'` evaluates to a string, it does not run bash. `$"…"` and `$'…'` interpolate, so each parenthesized expression inside one is inspected as code; quoted text inside it stays data.
+- A literal `nu -c '<script>'` is inspected recursively, up to four levels. A script value built at run time is not inspected.
+- A shell name computed at run time, or a program that starts a shell itself (a language runtime, an editor), is out of reach. The guard follows literal shell names, a fixed launcher table, `run-external`, and literal `nu -c` scripts.
 - A preset row that spawns its own shell, such as a custom plugin calling `ctx.subprocess.spawn` directly or a PTY persistent-shell group. Disable it for a Nu-only deployment; see `examples/preset-nu-shell.md`.
-- A shell named inside a plain quoted string. That is data, not a command position. `$"…"` and `$'…'` interpolate, so the guard and the preflight scan each parenthesized part as code. The guard rejects handoffs in command position and in wrapper chains; it is not a sandbox.
 - Other shell seams. Hook bridges, persistent terminals, and tmux context use their own services or scripts and are outside this bundle. Keep them off for a strict deployment.
 - dsh-nu does not change sandbox behaviour: `danger-full-access` runs directly, and confined modes wrap the Nushell argv through `ctx.sandbox.confine()` with the same `mode` / `denied` / `enforcement` reporting.
 
@@ -164,6 +170,8 @@ Sandbox budgets (`cwd`, `timeoutMs`, …) stay on the `nu-executor` row, not in 
 - [Verification](docs/verification.md)
 - [Nushell friction review](docs/nushell-friction-review.md)
 - [Distribution and support (ADR)](docs/adr/0001-distribution-and-support.md)
+- [Parser-based preflight (ADR)](docs/adr/0004-ast-based-preflight.md)
+- [Glossary](GLOSSARY.md)
 
 ## License
 

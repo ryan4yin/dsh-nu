@@ -19,8 +19,10 @@ import { SandboxPwshExecutor } from '@deepseek-ai/dsh-pwsh-sandbox'
 import type { ConfinedArgv, SandboxExecutionPolicy, SandboxPolicy } from '@deepseek-ai/dsh-sandbox'
 import type { ShellExecSpec, ShellExecution, ShellRunResult, ShellSandboxInfo } from '@deepseek-ai/dsh-shell'
 import z from '@deepseek-ai/schemastery'
+import { existsSync } from 'node:fs'
+import { PreflightError, analyze } from './ast.js'
 import { assertNuOnly, compileAllowlist } from './guard.js'
-import { assertNushellSyntax, hintFor } from './syntax.js'
+import { assertNushellSyntax, findSyntaxIssue, hintFor } from './syntax.js'
 import {
   chooseBinary,
   commandArgv,
@@ -159,6 +161,7 @@ export class NushellExecutor extends BaseExecutor {
         this.note('info', version === undefined
           ? 'shell executor bound to Nushell at ' + settings.resolvedPath
           : 'shell executor bound to Nushell ' + version + ' (' + settings.resolvedPath + ')')
+        if (settings.enforce || settings.lint) await this.probeAst()
         const warning = dshVersionWarning(resolveDshVersion())
         if (warning !== undefined) this.note('warn', warning)
         return
@@ -176,6 +179,35 @@ export class NushellExecutor extends BaseExecutor {
         )
       }
       this.note('warn', 'Nushell is unavailable (' + detail + '); shell calls will fail until it is installed')
+    }
+  }
+
+  /**
+   * Prove the two parser probes work before the first shell call, and that the
+   * token and diagnostic contract the guard reads has not drifted. A resolved
+   * path that does not exist is left to the version probe: tests inject a fake
+   * resolution and must not shell out to it.
+   */
+  private async probeAst(): Promise<void> {
+    if (!existsSync(this.nuBinary)) return
+    try {
+      const tokens = await analyze('^true', { binary: this.nuBinary, cwd: this.probeCwd() })
+      if (!tokens.tokens.some((token) => token.shape === 'shape_external' && token.content === 'true')) {
+        throw new Error('the IDE token stream no longer reports a forced external command as shape_external')
+      }
+      const diagnostic = await findSyntaxIssue('echo hi 2>&1', { binary: this.nuBinary, cwd: this.probeCwd() })
+      if (diagnostic?.id !== 'stderr-redirect') {
+        throw new Error('the IDE diagnostics no longer map a 2>&1 shell operation to stderr-redirect')
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      if (this.settings.require) {
+        throw new Error(
+          'dsh-nu: Nushell at ' + this.nuBinary + ' cannot run the AST preflight (' + detail + '). '
+          + 'Install the tested Nushell version, or set enforceNushellOnly: false / syntaxLint: false to run without the only-Nushell check.',
+        )
+      }
+      this.note('warn', 'the AST preflight is unavailable (' + detail + '); shell calls will fail until it is installed')
     }
   }
 
@@ -226,12 +258,33 @@ export class NushellExecutor extends BaseExecutor {
     return version
   }
 
-  /** The exact argv for one command, after both preflight checks. */
-  nuArgv(command: string): string[] {
+  /**
+   * Run both preflight checks against one command. The AST probes are I/O, so
+   * this is the one asynchronous step before the base executor sees a spec; the
+   * argv builders below are pure.
+   */
+  async preflight(command: string): Promise<void> {
     const settings = this.settings
-    if (settings.enforce) assertNuOnly(command, { allow: settings.allow })
-    if (settings.lint) assertNushellSyntax(command, { allow: settings.allow })
-    return commandArgv(command, { binary: this.nuBinary, origin: settings.choice.origin }, settings.prefix)
+    if (!settings.enforce && !settings.lint) return
+    const shared = { allow: settings.allow, binary: this.nuBinary, cwd: this.probeCwd() }
+    try {
+      if (settings.enforce) await assertNuOnly(command, shared)
+      if (settings.lint) await assertNushellSyntax(command, shared)
+    } catch (error) {
+      if (error instanceof PreflightError) {
+        throw new Error(
+          'dsh-nu: the Nushell AST preflight could not run (' + error.message + '). '
+          + 'Refusing the command instead of skipping the only-Nushell check: update Nushell to the tested version, '
+          + 'or set enforceNushellOnly: false / syntaxLint: false to run without that check.',
+        )
+      }
+      throw error
+    }
+  }
+
+  /** The exact argv for one command; preflight runs before this is reached. */
+  nuArgv(command: string): string[] {
+    return commandArgv(command, { binary: this.nuBinary, origin: this.settings.choice.origin }, this.settings.prefix)
   }
 
   /** The argv seam the base class calls from both execute branches. */
@@ -282,6 +335,7 @@ export class NushellExecutor extends BaseExecutor {
 
   /** The one execution entry point of the shell seam. */
   override async execute(spec: ShellExecSpec): Promise<ShellExecution> {
+    await this.preflight(spec.command)
     const policyService = (this.ctx as unknown as { sandboxPolicy: { resolve: () => SandboxExecutionPolicy } }).sandboxPolicy
     const policy: SandboxExecutionPolicy = spec.sandboxPolicy ?? policyService.resolve()
     if (policy.mode === 'danger-full-access') {

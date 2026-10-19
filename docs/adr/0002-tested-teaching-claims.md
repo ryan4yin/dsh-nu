@@ -6,7 +6,7 @@ Accepted.
 
 ## Context
 
-The guard, the syntax-preflight rules, and the hints were checked against the pinned Nushell binary from the start. The prose that teaches the model was not checked. The guide's statements about quotes, `to json`, and `and`/`or` were written from memory, and an audit found several of them wrong. A docs test that only checks headings and links cannot catch a false statement about Nushell.
+The guard, the syntax rules, and the hints were checked against the pinned Nushell binary from the start. The prose that teaches the model was not checked. The guide's statements about quotes, `to json`, and `and`/`or` were written from memory, and an audit found several of them wrong. A docs test that only checks headings and links cannot catch a false statement about Nushell.
 
 ## Decision
 

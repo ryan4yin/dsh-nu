@@ -8,7 +8,7 @@ The executor fails closed when `requireNu` is true and it cannot find the execut
 
 ## Boot warns: Nushell version differs
 
-The bundle warns when `nu --version` does not match the pinned Nushell version. The syntax-preflight rules, hints, and guide are tuned to that version, so commands the model is told to write may not behave the same. Install the pinned version, or accept the warning and check the failing behaviour yourself.
+The bundle warns when `nu --version` does not match the pinned Nushell version. The preflight, the hints, and the guide are tuned to that version, so commands the model is told to write may not behave the same. Install the pinned version, or accept the warning and check the failing behaviour yourself.
 
 ## Refused: foreign shell
 
@@ -16,7 +16,7 @@ The error names the shell and quotes the statement, for example `bash -c` or `pw
 
 ## Refused: non-Nushell syntax
 
-The syntax preflight names the fragment and the Nushell spelling to use: numbered redirection, shell input redirects, `$env:NAME`, bare assignment, `foreach`, PowerShell cmdlets, `&&` / `||`, `$?`, or an unknown flag on a Nushell builtin. Fix the fragment; plain quoting turns it into data, but a `$"…"` / `$'…'` interpolation is code, so its `(…)` parts are preflighted too. If the preflight is wrong for one call site, allowlist that command or set `syntaxLint: false`.
+The syntax rules name the fragment and the Nushell spelling to use: numbered redirection, shell input redirects, `$env:NAME`, bare assignment, `foreach`, PowerShell cmdlets, `&&` / `||`, `$?`, or an unknown flag on a Nushell builtin. Fix the fragment; plain quoting turns it into data, but a `$"…"` / `$'…'` interpolation is code, so its `(…)` parts are inspected too. If a check is wrong for one call site, allowlist that command or set `syntaxLint: false`.
 
 ## A failure carries a Nushell hint
 

@@ -49,7 +49,7 @@ function runNu(command: string, cwd: string): { status: number | null; stderr: s
   return { status: result.status, stderr: result.stderr, error: result.error === undefined ? undefined : String(result.error) }
 }
 
-test('the friction corpus passes the preflight and runs in the real Nushell', (t) => {
+test('the friction corpus passes the preflight and runs in the real Nushell', async (t) => {
   const probe = runNu('print ok', process.cwd())
   if (probe.error !== undefined) {
     t.skip('nu is not installed: ' + probe.error)
@@ -59,8 +59,8 @@ test('the friction corpus passes the preflight and runs in the real Nushell', (t
   try {
     for (const entry of COMMANDS) {
       const cwd = entry.cwd === 'repo' ? ROOT : work
-      assert.doesNotThrow(() => assertNuOnly(entry.command), 'guard refused: ' + entry.command)
-      assert.doesNotThrow(() => assertNushellSyntax(entry.command), 'preflight refused: ' + entry.command)
+      await assert.doesNotReject(assertNuOnly(entry.command), 'guard refused: ' + entry.command)
+      await assert.doesNotReject(assertNushellSyntax(entry.command), 'preflight refused: ' + entry.command)
       const result = runNu(entry.command, cwd)
       assert.equal(result.status, 0, entry.command + ' failed: ' + result.stderr.slice(0, 300))
     }
@@ -69,16 +69,16 @@ test('the friction corpus passes the preflight and runs in the real Nushell', (t
   }
 })
 
-test('quoted shell syntax is data and is not refused', () => {
+test('quoted shell syntax is data and is not refused', async () => {
   for (const command of ['print "bash -c echo hi"', "print 'echo $env:HOME > out 2>&1'", 'print "a && b"', '# bash -c echo hi']) {
-    assert.doesNotThrow(() => assertNuOnly(command), command)
-    assert.doesNotThrow(() => assertNushellSyntax(command), command)
+    await assert.doesNotReject(assertNuOnly(command), command)
+    await assert.doesNotReject(assertNushellSyntax(command), command)
   }
 })
 
-test('an allowlist entry exempts the exact command from both checks', () => {
-  assert.throws(() => assertNuOnly('bash -c "echo hi"'), /refusing to hand this command to bash/)
-  assert.doesNotThrow(() => assertNuOnly('bash -c "echo hi"', { allow: [/^bash -c/] }))
-  assert.throws(() => assertNushellSyntax('print hi 2>&1'), /stderr-redirect/)
-  assert.doesNotThrow(() => assertNushellSyntax('print hi 2>&1', { allow: [/2>&1/] }))
+test('an allowlist entry exempts the exact command from both checks', async () => {
+  await assert.rejects(assertNuOnly('bash -c "echo hi"'), /refusing to hand this command to bash/)
+  await assert.doesNotReject(assertNuOnly('bash -c "echo hi"', { allow: [/^bash -c/] }))
+  await assert.rejects(assertNushellSyntax('print hi 2>&1'), /stderr-redirect/)
+  await assert.doesNotReject(assertNushellSyntax('print hi 2>&1', { allow: [/2>&1/] }))
 })

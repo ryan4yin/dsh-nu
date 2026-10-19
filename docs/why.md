@@ -24,8 +24,8 @@ Nushell is a better shell. It is still a shell, and it does not schedule work.
 ## What dsh-nu adds
 
 - Every shell call becomes `nu --no-config-file -c "<command>"`. The harness never spawns bash or PowerShell for the model.
-- A command that would hand work to another shell is refused before a process exists, with the offending statement quoted.
-- Bash and PowerShell syntax that fails in Nushell is refused with the Nushell spelling to use instead.
+- A command that would hand work to another shell is refused before a process exists, with the offending statement quoted. The check reads the parse Nushell will execute, so a handoff inside a block, closure, or interpolation is seen instead of missed by a text scan.
+- Bash and PowerShell syntax that Nushell rejects or silently misreads is refused with the Nushell spelling to use instead.
 - A failure Nushell actually reported gets one line naming the fix.
 - The shell tool descriptions, the PTC SDK text, and a short prompt section all describe Nushell, so the tool schema does not keep teaching the old shell syntax.
 
@@ -46,5 +46,5 @@ These are process-management and model-behaviour rules, not syntax. dsh-nu enfor
 ## When not to use dsh-nu
 
 - You need a shell this project does not implement, such as a language runtime that only ships a bash entrypoint. The allowlist and `enforceNushellOnly: false` cover that case, at the cost of the guarantee dsh-nu exists to provide.
-- You run a dsh or Nushell version other than the tested pair. The bundle boots with a warning, but the syntax-preflight rules and hints are tuned to the pair.
+- You run a dsh or Nushell version other than the tested pair. The bundle boots with a warning, but the preflight and hints are tuned to the pair.
 - You need Windows PowerShell semantics from the model-facing shell tool. The tool name stays `pwsh` on Windows, but the program behind it is Nushell.

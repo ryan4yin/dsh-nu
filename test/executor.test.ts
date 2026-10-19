@@ -44,23 +44,31 @@ test('nuArgv places the command last behind the configured prefix', () => {
   )
 })
 
-test('the guard and the syntax preflight run before a command becomes argv', () => {
+test('the guard and the syntax preflight run before a command becomes argv', async () => {
   const executor = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu' }) as never)
-  assert.throws(() => executor.nuArgv('bash -c "echo hi"'), /refusing to hand this command to bash/)
-  assert.throws(() => executor.nuArgv('print hi 2>&1'), /stderr-redirect/)
-  assert.deepEqual(
-    new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu', enforceNushellOnly: false, syntaxLint: false }) as never).nuArgv('bash -c "echo hi"'),
-    ['nu', '--no-config-file', '-c', 'bash -c "echo hi"'],
+  await assert.rejects(executor.preflight('bash -c "echo hi"'), /refusing to hand this command to bash/)
+  await assert.rejects(executor.preflight('print hi 2>&1'), /stderr-redirect/)
+  const disabled = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu', enforceNushellOnly: false, syntaxLint: false }) as never)
+  await assert.doesNotReject(disabled.preflight('bash -c "echo hi"'))
+  assert.deepEqual(disabled.nuArgv('bash -c "echo hi"'), ['nu', '--no-config-file', '-c', 'bash -c "echo hi"'])
+})
+
+test('syntaxLint: false disables the syntax preflight', async () => {
+  const executor = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu', syntaxLint: false }) as never)
+  await assert.doesNotReject(executor.preflight('print hi 2>&1'))
+})
+
+test('a probe failure is wrapped in fail-closed guidance', async () => {
+  const executor = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: '/definitely/missing/dsh-nu/nu', verifyNu: false }) as never)
+  await assert.rejects(
+    executor.preflight('print hi'),
+    (error: Error) => error.message.includes('AST preflight could not run') && error.message.includes('enforceNushellOnly: false'),
   )
 })
 
-test('syntaxLint: false disables the syntax preflight', () => {
-  const executor = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu', syntaxLint: false }) as never)
-  assert.doesNotThrow(() => executor.nuArgv('print hi 2>&1'))
-})
-
-test('the allowlist exempts an exact command from both checks', () => {
+test('the allowlist exempts an exact command from both checks', async () => {
   const executor = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu', foreignShellAllowlist: ['^bash -c'] }) as never)
+  await assert.doesNotReject(executor.preflight('bash -c "echo hi"'))
   assert.deepEqual(executor.nuArgv('bash -c "echo hi"'), ['nu', '--no-config-file', '-c', 'bash -c "echo hi"'])
 })
 function probeHandle(text: string) {

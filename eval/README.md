@@ -11,12 +11,12 @@ Three arms run the same task with the same executor and guard:
 - `compact`: the compact guide, rules, and rewritten tool descriptions.
 - `off`: `guide: off`, `rules: false`, `rewriteToolDescriptions: false`.
 
-The `off` arm keeps the guard and the syntax preflight. A refusal there is a
+The `off` arm keeps the guard and the syntax rules. A refusal there is a
 teaching failure, not a safety success, so the grader counts it separately.
 
 Each sample records the tool calls, tool results, final answer, token usage, and
 whether the task result matched the case expectation. `first clean` means the
-first shell command passed the guard and syntax preflight; `violations` counts
+first shell command passed the guard and the syntax rules; `violations` counts
 all commands that would have been refused. The evaluator imports the same
 `findHandoff` and `findSyntaxIssue` functions the executor uses, so a command that is
 flagged here is exactly a command the deployment would refuse.

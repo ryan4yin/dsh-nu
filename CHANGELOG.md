@@ -4,6 +4,53 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.0 (2026-10-19)
+
+### Added
+
+- The preflight reads Nushell's own parser instead of a second lexer:
+  `nu --ide-ast` supplies the flat token stream and `nu --ide-check` the parser
+  diagnostics, both over a private temporary script. The two probes run
+  concurrently and a small LRU cache absorbs repeated commands.
+- The guard now follows handoffs through blocks, subexpressions, interpolated
+  strings, `env -S` / `--split-string`, launcher chains (`exec`, `taskset`,
+  `flock`), `run-external`, raw-string arguments, attached `nu -c` /
+  `--commands=` scripts, and literal `nu -c` scripts to depth 4. Quoted strings
+  in command position and launcher arguments are data and are no longer
+  refused.
+- Parser contract tests (`test/ast.test.ts`) and a Linux-only PATH-shim fuzz
+  test (`test/fuzz.test.ts`) that fails if the preflight lets a foreign shell
+  run.
+- `GLOSSARY.md` and ADR 0004 record the vocabulary and the parser decision.
+
+### Changed
+
+- The guard and syntax rules are async; a cold preflight costs about 14–16 ms
+  per shell call, and a cache hit costs about 0 ms.
+- The preflight fails closed when the probes cannot run. Boot runs a token and
+  diagnostic canary when `verifyNu` is on and a check is enabled; the error
+  names `enforceNushellOnly: false` and `syntaxLint: false` as the escape
+  hatches.
+- Syntax rules map stable parser diagnostics to the existing rule ids; forms
+  Nushell accepts but silently misreads are still caught from the token stream.
+  A bare `>`/`<` in argument position is refused regardless of the target; AST
+  operators keep comparisons such as `where size > 1kb` allowed.
+
+### Removed
+
+- The hand-written quote/comment blanking pass, statement splitting, and the
+  regex lexers that approximated Nushell's grammar.
+
+### Fixed
+
+- A `$'…'` escape could hide a handoff, `print hi > 1.txt` was accepted even
+  though Nushell writes nothing, and a quoted string in command position was
+  refused.
+- A user-defined name masked a path-qualified shell: `def sh …; /bin/sh` is
+  refused again.
+- Commands containing non-ASCII text no longer lose tokens or report wrong
+  fragments because the parser reports UTF-8 byte offsets.
+
 ## 0.3.3 (2026-10-19)
 
 ### Added

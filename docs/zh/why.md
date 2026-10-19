@@ -24,8 +24,8 @@ Nushell 是更好的 shell，但它仍然只是 shell，不负责调度。
 ## dsh-nu 做了什么
 
 - 每次 shell 调用都变成 `nu --no-config-file -c "<command>"`，harness 不会为模型启动 bash 或 PowerShell。
-- 命令如果把工作交给其他 shell，预检会在进程启动前拒绝它，并引用出问题的语句。
-- 非 Nushell 语法拦截也会拦下在 Nushell 里跑不通的 bash、PowerShell 语法，并给出对应的 Nushell 写法。
+- 命令如果把工作交给其他 shell，guard 会在进程启动前拒绝它，并引用出问题的语句。检查读取的是 Nushell 将要执行的解析结果，因此 block、closure 或插值里的交接能被看到，而不是被文本扫描漏掉。
+- 语法规则会拦下 Nushell 拒绝或静默误读的 bash、PowerShell 语法，并给出对应的 Nushell 写法。
 - Nushell 真实报错后，会追加一行说明怎么改。
 - shell 工具描述、PTC SDK 文本和 prompt 里的一小段规则都按 Nushell 写，工具 schema 也就不会继续把旧 shell 语法教给模型。
 
@@ -46,5 +46,5 @@ Nushell 是更好的 shell，但它仍然只是 shell，不负责调度。
 ## 什么情况下不要用 dsh-nu
 
 - 你需要 dsh-nu 没实现的 shell，例如某个运行时只提供 bash 入口。可以用 allowlist 和 `enforceNushellOnly: false`，但这样就失去了 dsh-nu 原本要提供的保证。
-- 你用的 dsh 或 Nushell 不是测试组合。bundle 仍会启动，但会给出警告；非 Nushell 语法拦截规则和 hint 只针对那一组版本调过。
+- 你用的 dsh 或 Nushell 不是测试组合。bundle 仍会启动，但会给出警告；预检和 hint 只针对那一组版本调过。
 - 你需要模型侧的 shell 工具提供 Windows PowerShell 语义。Windows 上工具名仍然是 `pwsh`，但实际执行的是 Nushell。

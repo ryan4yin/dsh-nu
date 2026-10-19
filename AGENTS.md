@@ -21,8 +21,9 @@ npm pack --dry-run
 ## Architecture map
 
 - `src/executor.ts`: the single `ctx.shell` provider. It extends the first-party sandbox executor and replaces only the argv with `nu --no-config-file -c`.
-- `src/guard.ts`: foreign-shell detection over a quoted/comment-blanked view.
-- `src/syntax.ts`: syntax-preflight rules, failure hints, and their ids.
+- `src/ast.ts`: the parser probe. Runs `nu --ide-ast` and `nu --ide-check` over a private temp script, converts byte offsets, and caches analyses; a probe failure is fatal to the command.
+- `src/guard.ts`: foreign-shell detection over Nushell's flat token stream, with the launcher table, `run-external`, and literal `nu -c` recursion.
+- `src/syntax.ts`: syntax-preflight rules over parser diagnostics and token shapes, failure hints, and their ids.
 - `src/guide.ts`: reads the model-facing rules, syntax guides, and tool descriptions from `src/guides/*.md`; the build copies the four model-facing files to `dist/guides`. `src/guides/README.md` records sources and maintenance steps.
 - `src/teaching.ts`: system-prompt sections and the PTC `tools:sdk` rewrite.
 - `src/nu.ts`: executable choice, argv prefix, tested pins, and version helpers.
