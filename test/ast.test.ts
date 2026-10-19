@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { analyze, clearAnalysisCache, isQuoted, literalValue, PreflightError } from '../src/ast.ts'
 
 test('the token stream names command heads, arguments, and nested blocks', async () => {
@@ -37,6 +40,21 @@ test('the diagnostics stream carries real parser errors', async () => {
   assert.ok(analysis.diagnostics.some((item) => item.severity === 'Error' && item.message.includes("doesn't have flag `-R`")))
   const clean = await analyze('ls -a')
   assert.equal(clean.diagnostics.length, 0)
+})
+
+test('diagnostics from a sourced file are not mapped onto the command', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'dsh-nu-ast-'))
+  try {
+    const module = join(dir, 'm.nu')
+    writeFileSync(module, 'export def hi [] { ls -R }\n')
+    assert.deepEqual((await analyze('source ' + module)).diagnostics, [])
+    const command = 'source ' + module + '; ls -R'
+    const own = (await analyze(command)).diagnostics
+    assert.equal(own.length, 1)
+    assert.ok(own[0]!.start > command.indexOf('; ls -R'), 'the remaining diagnostic is the command\'s own ls -R')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 })
 
 test('repeated analyses share one cache entry', async () => {

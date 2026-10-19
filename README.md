@@ -163,6 +163,7 @@ The guard is not a sandbox: it checks command positions it can read, and everyth
 - A preset row that spawns its own shell, such as a custom plugin calling `ctx.subprocess.spawn` directly or a PTY persistent-shell group. Disable it for a Nu-only deployment; see `examples/preset-nu-shell.md`.
 - Other shell seams. Hook bridges, persistent terminals, and tmux context use their own services or scripts and are outside this bundle. Keep them off for a strict deployment.
 - dsh-nu does not change sandbox behaviour: `danger-full-access` runs directly, and confined modes wrap the Nushell argv through `ctx.sandbox.confine()` with the same `mode` / `denied` / `enforcement` reporting.
+- The preflight's parser probes (`nu --ide-ast` and `nu --ide-check`) run outside the sandbox, before the command. They parse the command without running it, but a file named by `source` or `use` is read from disk to be parsed; its contents are not returned to the model.
 
 ## Documentation
 

@@ -23,6 +23,11 @@ All notable changes to this project are recorded here. The format follows
   `^bash -c` must now spell the whole command, for example `bash -c .*`.
 - A dynamic launcher argument such as `timeout $env.LIMIT bash` no longer
   hides the program after it.
+- Parser diagnostics from a file that `source` or `use` loads are no longer
+  mapped onto the whole command.
+- A whole `<tag>` word, as in `^echo <html>`, is no longer refused as an input
+  redirect.
+- Cancelling a shell call stops waiting for its preflight.
 
 ## 0.4.0 (2026-10-19)
 

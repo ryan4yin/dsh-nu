@@ -195,7 +195,8 @@ function redirectFinding(command: string, tokens: readonly AstToken[], index: nu
   // Any remaining word that starts with > / < is a shell redirect in argument
   // position. Quoted strings and operators are data and were skipped above.
   if (content.startsWith('>')) return candidateFromSpan('stdout-redirect', command, token.start, token.end)
-  if (content.startsWith('<')) return candidateFromSpan('stdin-redirect', command, token.start, token.end)
+  // A whole `<tag>` word is not a redirect in bash either, so it is data.
+  if (content.startsWith('<') && !/^<[^<>]+>$/.test(content)) return candidateFromSpan('stdin-redirect', command, token.start, token.end)
   return undefined
 }
 
