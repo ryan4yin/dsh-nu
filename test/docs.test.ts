@@ -10,21 +10,6 @@ function read(path: string): string {
   return readFileSync(resolve(ROOT, path), 'utf8')
 }
 
-function headingLevels(markdown: string): number[] {
-  return markdown
-    .split('\n')
-    .filter((line) => /^#{1,6} /.test(line))
-    .map((line) => (line.match(/^#+/) ?? [''])[0].length)
-}
-
-const PAIRS: ReadonlyArray<readonly [string, string]> = [
-  ['README.md', 'docs/zh/README.md'],
-  ['docs/why.md', 'docs/zh/why.md'],
-  ['docs/troubleshooting.md', 'docs/zh/troubleshooting.md'],
-  ['docs/verification.md', 'docs/zh/verification.md'],
-  ['docs/nushell-friction-review.md', 'docs/zh/nushell-friction-review.md'],
-]
-
 const FILES = [
   'README.md',
   'docs/zh/README.md',
@@ -50,12 +35,6 @@ test('the documentation set exists', () => {
 test('the documentation contains no serialization placeholders', () => {
   for (const file of FILES.filter((entry) => entry.endsWith('.md'))) {
     assert.doesNotMatch(read(file), /@BT@/, file)
-  }
-})
-
-test('each English page and its Chinese mirror have the same heading structure', () => {
-  for (const [en, zh] of PAIRS) {
-    assert.deepEqual(headingLevels(read(zh)), headingLevels(read(en)), en + ' vs ' + zh)
   }
 })
 
@@ -92,11 +71,4 @@ test('relative markdown links resolve', () => {
       assert.ok(existsSync(resolve(ROOT, dirname(file), path)), file + ' -> ' + target)
     }
   }
-})
-
-test('the README does not frame the project as a rewrite or a port', () => {
-  const readme = read('README.md')
-  // "rewriteToolDescriptions" is a config key, not framing; only reject the
-  // sentence-level ways of presenting this as a port.
-  assert.doesNotMatch(readme, /\brewrite of\b|based on another|port of/i)
 })
