@@ -28,6 +28,9 @@ All notable changes to this project are recorded here. The format follows
 - A whole `<tag>` word, as in `^echo <html>`, is no longer refused as an input
   redirect.
 - Cancelling a shell call stops waiting for its preflight.
+- The Nix package defaults to the tested Nushell from this flake's own
+  nixpkgs pin instead of the caller's, and warns at evaluation time when the
+  Nushell it is given differs from `testedWith`.
 
 ## 0.4.0 (2026-10-19)
 

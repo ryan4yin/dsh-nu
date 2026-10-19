@@ -29,10 +29,11 @@
       # plugs into. The caller supplies both, so this flake does not depend on
       # how dsh itself is packaged. Use the result with
       # `dsh.withPlugins [ (dsh-nu.lib.mkDshNuPackage { inherit pkgs dsh; }) ]`.
+      # Nushell defaults to this flake's pin, the tested version, not `pkgs`'s.
       mkDshNuPackage = {
         pkgs,
         dsh,
-        nushell ? pkgs.nushell,
+        nushell ? nixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system}.nushell,
       }:
         pkgs.callPackage ./nix/dsh-nu.nix {
           inherit dsh nushell;

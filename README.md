@@ -69,11 +69,9 @@ dsh-nu does not package dsh itself. This flake builds the plugin from the checko
       url = "github:ryan4yin/nur-packages";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # The bundle, built from this repository's flake.
-    dsh-nu = {
-      url = "github:ryan4yin/dsh-nu";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # The bundle, built from this repository's flake. Its nixpkgs is not
+    # followed: that pin supplies the tested Nushell.
+    dsh-nu.url = "github:ryan4yin/dsh-nu";
   };
 
   outputs = { self, nixpkgs, nur-ryan4yin, dsh-nu }:
