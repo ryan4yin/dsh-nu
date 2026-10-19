@@ -34,6 +34,31 @@ const LAUNCHERS = new Set([
   'ionice', 'chroot', 'unbuffer', 'strace', 'systemd-run', 'su', 'runuser', 'nix', 'nix-shell',
 ])
 
+/** The shell flags whose next argument is command text rather than a file. */
+const SCRIPT_TEXT_FLAGS: ReadonlySet<string> = new Set(['-c', '-command', '/c', '/k', '-e', '--execute', '--commands'])
+
+/** Whether a shell argument names a script file rather than a program or a value. */
+function scriptName(word: string): boolean {
+  return /\.(?:sh|bash|zsh|ksh|fish|ps1|cmd|bat|nu)$/i.test(word) || word.includes('/')
+}
+
+/**
+ * The script file a shell was told to run, when its arguments name a file. A
+ * project script that ships its own shell entrypoint can run directly, which is
+ * what the refusal suggests instead.
+ */
+export function scriptFileArg(atoms: readonly Atom[]): string | undefined {
+  for (const atom of atoms) {
+    if (atom.flag) {
+      if (SCRIPT_TEXT_FLAGS.has(atom.content.toLowerCase())) return undefined
+      continue
+    }
+    if (atom.dynamic || atom.value === undefined) return undefined
+    return scriptName(atom.value) ? atom.value : undefined
+  }
+  return undefined
+}
+
 /** The flags that hand `nu` a script string to run. */
 const NU_SCRIPT_FLAGS = ['-c', '--commands', '-e', '--execute'] as const
 
@@ -64,6 +89,11 @@ export interface ShellHandoff {
   shell: string
   /** The statement (or source slice) that contains it. */
   statement: string
+  /**
+   * The script file the shell was told to run, when its arguments name a file
+   * instead of carrying inline text.
+   */
+  script?: string | undefined
 }
 
 /** Options for {@link findHandoff}. */
@@ -480,7 +510,7 @@ async function handoffFromWords(
       continue
     }
     const shell = shellIn(word)
-    if (shell !== undefined) return { shell, statement: command.trim().slice(0, 400) }
+    if (shell !== undefined) return { shell, statement: command.trim().slice(0, 400), script: scriptFileArg(wordsToAtoms(words.slice(index + 1))) }
     const name = programName(word)
     const rest = wordsToAtoms(words.slice(index + 1))
     if (LAUNCHERS.has(name)) return handoffFromLauncher(name, rest, depth, command, options)
@@ -510,10 +540,10 @@ async function findHandoffIn(command: string, depth: number, options: HandoffOpt
     const token = tokens[index]!
     const atom = readAtom(tokens, command, index)
     if (isExternalHead(token)) {
-      const shell = shellIn(atom.value ?? token.content)
-      if (shell !== undefined) return { shell, statement: command.trim().slice(0, 400) }
-      const direct = programName(token.content)
       const atoms = commandAtoms(tokens, command, index)
+      const shell = shellIn(atom.value ?? token.content)
+      if (shell !== undefined) return { shell, statement: command.trim().slice(0, 400), script: scriptFileArg(atoms) }
+      const direct = programName(token.content)
       const handled = await handoffFromLauncher(direct, atoms, depth, command, options)
       if (handled !== undefined) return handled
       if (direct === 'nu' || direct === 'nu.exe') {
@@ -537,7 +567,7 @@ async function findHandoffIn(command: string, depth: number, options: HandoffOpt
         }
         if (program !== undefined) {
           const shell = shellIn(program.value)
-          if (shell !== undefined) return { shell, statement: command.trim().slice(0, 400) }
+          if (shell !== undefined) return { shell, statement: command.trim().slice(0, 400), script: scriptFileArg(atoms.slice(program.index + 1)) }
           const programNameValue = programName(program.value)
           if (LAUNCHERS.has(programNameValue)) {
             const handled = await handoffFromLauncher(programNameValue, atoms.slice(program.index + 1), depth, command, options)
@@ -602,7 +632,7 @@ async function handoffFromLauncher(
     const program = launcherProgram(current, remaining)
     if (program === undefined) return undefined
     const shell = shellIn(program.value)
-    if (shell !== undefined) return { shell, statement: command.trim().slice(0, 400) }
+    if (shell !== undefined) return { shell, statement: command.trim().slice(0, 400), script: scriptFileArg(remaining.slice(program.index + 1)) }
     if (programName(program.value) === 'nu') {
       const script = flagValue(remaining, program.index + 1, NU_SCRIPT_FLAGS)
       if (script !== undefined) {
@@ -647,6 +677,19 @@ export function compileAllowlist(raw: unknown): RegExp[] {
   })
 }
 
+/**
+ * The alternative for a refused command that runs a script file: the file
+ * itself, which keeps the guard's policy and runs the project's own script.
+ */
+function scriptAdvice(handoff: ShellHandoff): string {
+  const script = handoff.script
+  if (script === undefined) return ''
+  const direct = script.startsWith('/') || script.startsWith('./') || script.startsWith('../') ? script : './' + script
+  return 'If ' + JSON.stringify(script) + ' is an existing project script with its own ' + handoff.shell + ' entrypoint, run the file directly: '
+    + direct + '. Add execute permission first when it has none; inside a development shell use nix develop -c ' + direct + '. '
+    + 'This runs that script, not shell commands built at run time.\n'
+}
+
 /** Throw when a command would hand execution to another shell. */
 export async function assertNuOnly(command: string, options: NuOnlyOptions = {}): Promise<void> {
   if (isAllowlisted(command, options.allow)) return
@@ -656,6 +699,7 @@ export async function assertNuOnly(command: string, options: NuOnlyOptions = {})
     'dsh-nu: refusing to hand this command to ' + handoff.shell + '. This deployment runs every shell command through Nushell only '
     + '(nu --no-config-file -c), so there is no fallback shell. Rewrite the call in Nushell; if that call site is genuinely required, '
     + 'exempt the whole command with foreignShellAllowlist or set enforceNushellOnly: false.\n'
+    + scriptAdvice(handoff)
     + 'Offending statement: ' + JSON.stringify(handoff.statement),
   )
 }

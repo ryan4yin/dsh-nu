@@ -12,7 +12,7 @@ The bundle warns when `nu --version` does not match the pinned Nushell version. 
 
 ## Refused: foreign shell
 
-The error names the shell and quotes the statement, for example `bash -c` or `pwsh -Command`. Launchers such as `env`, `xargs`, `sudo`, and `nix shell` / `nix develop --command` are followed to the program they run, and `su -c`, `sudo -s`, `nix-shell --run`, and `script -c` are refused because they pass their text to a shell. Rewrite the call in Nushell; `nix shell nixpkgs#pkg --command prog` replaces `nix-shell -p pkg --run`. If the call site really needs an exception, add a whole-command regular expression to `foreignShellAllowlist` instead of turning the guard off for the deployment.
+The error names the shell and quotes the statement, for example `bash -c` or `pwsh -Command`. Launchers such as `env`, `xargs`, `sudo`, and `nix shell` / `nix develop --command` are followed to the program they run, and `su -c`, `sudo -s`, `nix-shell --run`, and `script -c` are refused because they pass their text to a shell. Rewrite the call in Nushell; `nix shell nixpkgs#pkg --command prog` replaces `nix-shell -p pkg --run`. When the command hands a script file to a shell (`bash scripts/build.sh`), run the file directly instead: `./scripts/build.sh`, after adding execute permission if it has none, or `nix develop -c ./scripts/build.sh` when it needs its development environment. If the call site really needs an exception, add a whole-command regular expression to `foreignShellAllowlist` instead of turning the guard off for the deployment.
 
 ## Refused: non-Nushell syntax
 

@@ -12,7 +12,7 @@
 
 ## 被拒绝：外部 shell
 
-错误信息会给出 shell 名称并引用出问题的语句，例如 `bash -c` 或 `pwsh -Command`，`env`、`xargs`、`sudo`、`nix shell` / `nix develop --command` 这类启动器会被跟踪到它们实际运行的程序；`su -c`、`sudo -s`、`nix-shell --run`、`script -c` 会把文本交给 shell，因此直接拒绝。请改写成 Nushell；`nix-shell -p pkg --run` 可以换成 `nix shell nixpkgs#pkg --command prog`。如果这个调用点确实需要例外，把整条命令的正则加进 `foreignShellAllowlist`，不要为整个部署关掉 guard。
+错误信息会给出 shell 名称并引用出问题的语句，例如 `bash -c` 或 `pwsh -Command`，`env`、`xargs`、`sudo`、`nix shell` / `nix develop --command` 这类启动器会被跟踪到它们实际运行的程序；`su -c`、`sudo -s`、`nix-shell --run`、`script -c` 会把文本交给 shell，因此直接拒绝。请改写成 Nushell；`nix-shell -p pkg --run` 可以换成 `nix shell nixpkgs#pkg --command prog`。命令把脚本文件交给 shell 时（`bash scripts/build.sh`），直接执行该文件：`./scripts/build.sh`（没有执行权限先加上），需要开发环境时用 `nix develop -c ./scripts/build.sh`。如果这个调用点确实需要例外，把整条命令的正则加进 `foreignShellAllowlist`，不要为整个部署关掉 guard。
 
 ## 被拒绝：非 Nushell 语法
 

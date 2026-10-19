@@ -9,5 +9,6 @@ Bash and PowerShell spellings are refused before running. Rewrite the habits tha
 - Before sending, scan for `2>`, `&>`, `&&`, `mkdir -p`, `ls -R`, a bare `$name =`, and `sh -c`; the preflight refuses each.
 Serialize output: `to text` for lines, `to json` for structure.
 Files: `open --raw notes.txt | lines`, `save -f out.txt`, `glob **/*.md`, `mkdir a/b`.
+Project scripts run directly: `./scripts/build.sh` (chmod +x first), never `bash scripts/build.sh`.
 Text: `"a,b" | split row ","`, `$"hi ($name)"` or `$'hi ($name)'`, `str trim`, `str replace -r '\d+' "#" --all`.
 Variables: `let x = 1`, `mut x = 2`, `$env.NAME`, `$env.NAME?`, `$rec.field?`; filter with `where $it =~ "x"`; combine conditions with `and` / `or`.

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -121,6 +121,13 @@ test('every teaching claim holds in the real Nushell', { skip: !nuAvailable }, (
     assert.equal(ok(run('^nu --no-config-file -c "print -e err" e> err.txt; open --raw err.txt | str contains "err"', cwd), 'e> redirect'), 'true')
     assert.equal(ok(run('^nu --no-config-file -c "print -e err" e>| ignore; print "after"', cwd), 'discard stderr'), 'after')
     assert.equal(ok(run('(do { ^nu --no-config-file -c "print out; print -e err" } | complete).stderr | str contains "err"', cwd), 'complete stderr'), 'true')
+
+    // A project script that ships a bash entrypoint runs directly.
+    if (process.platform !== 'win32') {
+      writeFileSync(join(cwd, 'build.sh'), '#!/usr/bin/env bash\nset -eu\necho built\n')
+      chmodSync(join(cwd, 'build.sh'), 0o755)
+      assert.equal(ok(run('^./build.sh', cwd), 'direct script run'), 'built')
+    }
 
     // reduce folds a list.
     assert.equal(ok(run('[1 2 3] | reduce { |it, acc| $it + $acc }', cwd), 'reduce'), '6')
