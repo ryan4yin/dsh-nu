@@ -158,6 +158,31 @@ test('refuses nix, su, sudo shell flags, and process launchers that start a fore
   }
 })
 
+test('a refusal for a script file names direct execution', async () => {
+  for (const [command, direct] of [
+    ['bash scripts/build.sh', './scripts/build.sh'],
+    ['bash build.sh --release', './build.sh'],
+    ['/bin/sh tools/x.sh', './tools/x.sh'],
+    ['nix develop -c bash tools/x.sh', './tools/x.sh'],
+    ['pwsh -File build.ps1', './build.ps1'],
+  ] as const) {
+    await assert.rejects(assertNuOnly(command), (error: Error) => {
+      assert.match(error.message, /run the file directly: /, command)
+      assert.ok(error.message.includes(direct), command + ' names ' + direct)
+      return true
+    })
+  }
+})
+
+test('a refusal for a shell running inline text carries no script advice', async () => {
+  for (const command of ['bash -c "echo hi"', 'zsh -i', 'sudo -s ls', 'bash --version']) {
+    await assert.rejects(assertNuOnly(command), (error: Error) => {
+      assert.doesNotMatch(error.message, /run the file directly/, command)
+      return true
+    })
+  }
+})
+
 test('nix, sudo, and process launchers running a non-shell program are not handoffs', async () => {
   for (const command of [
     'nix shell nixpkgs#hello -c hello',

@@ -216,5 +216,17 @@
     },
     "minShellCalls": 1,
     "maxShellCalls": 2
+  },
+  {
+    "id": "project-script",
+    "prompt": "The repository ships scripts/build.sh, which prints one line when it runs. Run that script and report the line it printed. End your answer with RESULT: <the line>.",
+    "fixtures": {
+      "scripts/build.sh": "#!/usr/bin/env bash\nset -eu\necho built-ok\n"
+    },
+    "expect": {
+      "finalMatches": "RESULT:\\s*built-ok"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 4
   }
 ]

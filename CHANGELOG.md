@@ -4,12 +4,7 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
-
-### Removed
-
-- The ignored `hintFor` options and `buildToolDescription` argument, with
-  their `HintOptions` and `ToolDescriptionOptions` types.
+## 0.5.0 (2026-10-19)
 
 ### Added
 
@@ -19,6 +14,15 @@ All notable changes to this project are recorded here. The format follows
   `doas -s`, and `nix-shell`, which run their text through a shell, plus
   `nu -e` scripts and the `xonsh`, `elvish`, `yash`, `osh`, `ysh`, and
   `oksh` shells.
+- A refusal for `<shell> <script file>` now names the replacement: run the
+  file directly, `./scripts/build.sh` (with execute permission, or
+  `nix develop -c ./scripts/build.sh` for its dev environment). The guard's
+  policy is unchanged; the rules and the compact guide say the same.
+
+### Removed
+
+- The ignored `hintFor` options and `buildToolDescription` argument, with
+  their `HintOptions` and `ToolDescriptionOptions` types.
 
 ### Fixed
 
