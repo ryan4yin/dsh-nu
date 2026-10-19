@@ -1,6 +1,6 @@
 # dsh-nu
 
-[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
+[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness) [![](https://img.shields.io/npm/v/dsh-nu.svg?style=flat-square)](https://www.npmjs.com/package/dsh-nu)
 
 [English](../../README.md) | 中文
 
