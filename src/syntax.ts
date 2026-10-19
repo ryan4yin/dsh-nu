@@ -511,7 +511,7 @@ export interface HintOptions {
 }
 
 /** Pick one actionable hint for a failure, or nothing when no rule matches. */
-export function hintFor(stderr: string, options: HintOptions = {}): string | undefined {
+export function hintFor(stderr: string, _options: HintOptions = {}): string | undefined {
   if (typeof stderr !== 'string' || stderr.length === 0) return undefined
   for (const rule of HINTS) {
     if (rule.match.test(stderr)) return 'Nushell hint (' + rule.id + '): ' + rule.hint
