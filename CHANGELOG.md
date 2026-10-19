@@ -6,6 +6,11 @@ All notable changes to this project are recorded here. The format follows
 
 ## Unreleased
 
+### Removed
+
+- The ignored `hintFor` options and `buildToolDescription` argument, with
+  their `HintOptions` and `ToolDescriptionOptions` types.
+
 ### Added
 
 - The guard follows more launchers: `nix shell` / `nix develop --command`,

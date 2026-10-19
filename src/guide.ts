@@ -38,14 +38,8 @@ export function buildGuide(options: GuideOptions = {}): string {
   return text.replace(/^Nushell syntax guide/, 'Nushell syntax guide (Nushell ' + options.version + ')')
 }
 
-/** Options for {@link buildToolDescription}. */
-export interface ToolDescriptionOptions {
-  /** @deprecated Ignored: both shell tools share one description. */
-  tool?: string
-}
-
 /** The model-facing description of a shell tool, in Nushell terms. */
-export function buildToolDescription(_options: ToolDescriptionOptions = {}): string {
+export function buildToolDescription(): string {
   return TOOL_DESCRIPTION
 }
 
