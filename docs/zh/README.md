@@ -67,11 +67,9 @@ dsh-nu 不打包 dsh 本身。这个 flake 从当前 checkout 构建插件，dsh
       url = "github:ryan4yin/nur-packages";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # bundle 本身，从本仓库的 flake 构建。
-    dsh-nu = {
-      url = "github:ryan4yin/dsh-nu";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # bundle 本身，从本仓库的 flake 构建。不要 follow 它的 nixpkgs：
+    # 那个固定版本提供经过测试的 Nushell。
+    dsh-nu.url = "github:ryan4yin/dsh-nu";
   };
 
   outputs = { self, nixpkgs, nur-ryan4yin, dsh-nu }:

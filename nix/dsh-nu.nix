@@ -6,10 +6,15 @@
   src,
 }:
 let
-  version = (lib.importJSON (src + "/package.json")).version;
+  manifest = lib.importJSON (src + "/package.json");
+  inherit (manifest) version;
+  testedNushell = manifest.testedWith.nushell;
 in
 # The plugin is installed as a directory holding package.json, cordis.patch.yml,
 # and dist/, which is what dsh.withPlugins consumes through passthru.pluginPatch.
+# The preflight reads Nushell's IDE output and fails closed when it drifts.
+lib.warnIf (lib.getVersion nushell != testedNushell)
+  "dsh-nu: building with Nushell ${lib.getVersion nushell}, but this release is tested with ${testedNushell}; shell calls may be refused until the versions match"
 buildNpmPackage (finalAttrs: {
   pname = "dsh-nu";
   inherit version;
