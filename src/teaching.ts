@@ -112,7 +112,7 @@ function rewriteTool(raw: unknown, options: Options): unknown {
   const tool = raw as ToolSchema
   if (typeof tool.name !== 'string' || !options.toolNames.includes(tool.name)) return raw
   if (!claimsForeignShell(tool)) return raw
-  const rewritten: ToolSchema = { ...tool, description: buildToolDescription({ tool: tool.name }) }
+  const rewritten: ToolSchema = { ...tool, description: buildToolDescription() }
   const command = tool.parameters?.properties?.command
   if (command !== undefined && tool.parameters?.properties !== undefined) {
     rewritten.parameters = {
