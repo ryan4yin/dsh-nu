@@ -173,21 +173,21 @@ function blockingKinds(command) {
   return kinds
 }
 
-function grade(item, events) {
+async function grade(item, events) {
   const calls = events.filter((event) => event.type === 'tool_call' && (event.tool === 'bash' || event.tool === 'pwsh'))
   const commands = calls.map((event) => String(event.input?.command ?? ''))
   const results = events.filter((event) => event.type === 'tool_result')
   const finalText = [...events].reverse().find((event) => event.type === 'final')?.text ?? ''
-  const findings = commands.map((command) => {
-    const handoff = findHandoff(command)
-    const syntaxIssue = findSyntaxIssue(command)
+  const findings = await Promise.all(commands.map(async (command) => {
+    const handoff = await findHandoff(command)
+    const syntaxIssue = await findSyntaxIssue(command)
     return {
       command,
       handoff: handoff ? handoff.shell : undefined,
       syntax: syntaxIssue ? syntaxIssue.id : undefined,
       clean: !handoff && !syntaxIssue,
     }
-  })
+  }))
   const refused = results.filter((event) => /dsh-nu: refusing/.test(String(event.result ?? ''))).length
   const hints = results.filter((event) => /Nushell hint \(/.test(String(event.result ?? ''))).length
   const answerMatched = new RegExp(item.expect.finalMatches, 'i').test(finalText)
@@ -288,7 +288,7 @@ async function worker() {
     args.push('--json', item.prompt)
     const result = await runAsync(dsh, args, { cwd: workspace })
     const parsed = eventsFrom(result.stdout)
-    const graded = grade(item, parsed.events)
+    const graded = await grade(item, parsed.events)
     rows[index] = {
       case: item.id,
       arm,

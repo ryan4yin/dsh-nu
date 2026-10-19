@@ -40,7 +40,7 @@ test('the bundle patch mounts the exported plugins', () => {
 
 test('the published file list ships the runtime artifacts', () => {
   assert.equal(manifest.dsh.bundle.patch, './cordis.patch.yml')
-  for (const entry of ['dist', 'examples', 'cordis.patch.yml', 'README.md', 'LICENSE']) {
+  for (const entry of ['dist', 'examples', 'cordis.patch.yml', 'README.md', 'GLOSSARY.md', 'LICENSE']) {
     assert.ok(manifest.files.includes(entry), entry)
   }
 })

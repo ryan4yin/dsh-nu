@@ -7,7 +7,7 @@ Shell calls run through Nushell as `nu --no-config-file -c "<command>"`. Each ca
 The preflight refuses these spellings before a process starts. Rewrite them:
 
 - `cmd 2>/dev/null` → `cmd e>| ignore` (even when the task says to ignore errors); `cmd 2>&1` → `cmd o+e> f`, or `(do { cmd } | complete)` to capture both streams.
-- `cmd > out.txt` / `cmd 2> f` / `cmd &> f` → `cmd o> out.txt` / `cmd e> f` / `cmd o+e> f`; append with `o>>` and `e>>`. A bare `>` is comparison or an argument, so `cmd > f` with a bare word writes no file.
+- `cmd > out.txt` / `cmd 2> f` / `cmd &> f` → `cmd o> out.txt` / `cmd e> f` / `cmd o+e> f`; append with `o>>` and `e>>`. A bare `>` is comparison; in argument position it is not a redirect, and the preflight refuses it instead of letting `cmd > f` run as arguments.
 - `a && b` → `a; b`; a failing external aborts the rest, so use `do -i { a }` when it may fail. `a || b` → `try { a } catch { b }`.
 - `mkdir -p a/b` → `mkdir a/b`; `ls -la` → `ls --all --long`; `ls -R` → `ls **/*`.
 - `cd d; cmd` → pass the call's `workdir`; `cd` does not persist between calls.
@@ -47,7 +47,7 @@ Before sending a command, scan it for `2>`, `&>`, `&&`, `mkdir -p`, `ls -R`, a b
 - Read: `open --raw notes.txt` for text, `open data.json` for structure, `lines` to split.
 - Write: `save -f out.txt` overwrites; `save -a out.txt` appends; `mkdir a/b` creates parents.
 - Redirect: `cmd o> out.txt`, `cmd e> err.txt`, `cmd o+e> all.txt`; append with `cmd o>> out.txt` / `cmd e>> err.txt`. Discard with `cmd e>| ignore` or `cmd o+e>| ignore`.
-- A bare `>` is comparison or an argument, never redirection; write `o>`, `e>`, or `o+e>`. Shell spellings with a path-like target (`cmd > out.txt`, `cmd < in.txt`) become arguments and run silently; `2> f`, `2>&1`, and `<<<` fail to parse.
+- A bare `>` is comparison, not redirection; write `o>`, `e>`, or `o+e>`. Shell redirect spellings (`cmd > out.txt`, `cmd > out`, `cmd < in.txt`) are refused instead of running with an ignored argument; `2> f`, `2>&1`, and `<<<` fail to parse.
 - `print` writes a line to stdout but returns nothing, so do not pipe after it. `echo` returns a value instead; a non-final `echo` is discarded. Let the final value stand when you want structured output.
 
 ## External commands

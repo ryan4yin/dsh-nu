@@ -8,7 +8,7 @@ dsh-nu 强制 DeepSeek Harness 用 Nushell 执行所有 shell 命令，禁用 `b
 
 - **换执行器**：通过 DeepSeek Harness 提供的底层扩展接口，在运行时把 `bash` / `pwsh` 执行器换成 Nushell 执行器（命令通过 `nu --no-config-file -c "<command>"` 执行）。dsh 侧看到的仍然是同一个 `bash` / `pwsh` 工具，调用方式不用变；这让 Nushell 执行器能无缝接入 dsh，兼容其他插件与功能。代价是看起来会有点奇怪：调用 `bash`/`pwsh` 工具，传入的却是 Nushell 脚本。
 - **教模型**：在 system prompt 里加入一小节 Nushell 规则和语法指南；这部分教学内容会占用一定上下文，但很关键，关掉后模型调用 shell 工具时会频繁报错。
-- **拦 handoff**：Nushell 命令如果把工作交给其他 shell，guard 会在进程启动前拒绝它；bash 和 PowerShell 语法也会被非 Nushell 语法拦截拒绝，并在错误信息中给出对应的 Nushell 写法。
+- **拦 handoff**：Nushell 命令如果把工作交给其他 shell，guard 会在进程启动前拒绝它。Nushell 会拒绝或静默误读的 bash / PowerShell 语法由语法规则拦下，并在错误信息中给出对应的 Nushell 写法。
 
 ## 状态
 
@@ -129,7 +129,7 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
 | `nuPath` | `$DSH_NU_PATH`，否则 `nu` | Nushell 可执行文件：先看字段，再看环境变量，最后看 PATH |
 | `nuArgs` | `["--no-config-file","-c"]` | argv 前缀；命令追加在最后 |
 | `enforceNushellOnly` | `true` | 拒绝把命令交给其他 shell |
-| `foreignShellAllowlist` | `[]` | 整条命令正则，豁免 guard 与非 Nushell 语法拦截 |
+| `foreignShellAllowlist` | `[]` | 整条命令正则，豁免两项预检检查 |
 | `syntaxLint` | `true` | 启动进程前拦下 bash/PowerShell 语法 |
 | `syntaxHints` | `true` | 调用失败时追加一行 `Nushell hint (…)` |
 | `guide` | `full` | prompt 指南：`full`、`compact`、`off` |
@@ -137,8 +137,10 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
 | `rewriteToolDescriptions` | `true` | 改写 `bash` / `pwsh` 工具描述 |
 | `toolNames` | `["bash","pwsh"]` | 改写哪些工具 schema 的 shell 文本 |
 | `timeoutMs` | `60000` | 单次调用默认超时；`maxTimeoutMs` 限制覆盖值 |
-| `requireNu` / `verifyNu` | `true` / `true` | nu 无法解析或 `--version` 探测失败时，启动直接失败 |
+| `requireNu` / `verifyNu` | `true` / `true` | nu 无法解析、报不出版本或无法运行预检时，启动直接失败 |
 | `verifyTimeoutMs` | `10000` | 版本探测的超时时间 |
+
+两项检查都通过两个只读探针读取 Nushell 的解析结果，脚本写在私有临时目录里。`verifyNu` 开启且至少一项检查启用时，启动会跑一次 token/diagnostic 金丝雀：默认的 `requireNu` 下失败会直接启动失败；设成 `requireNu: false` 时，每次调用会被拒绝，而不是跳过检查继续执行（fail closed）。错误信息会给出 `enforceNushellOnly: false`、`syntaxLint: false` 这两个开关，并提示更新到测试版本。
 
 按目标选 guide：
 
@@ -150,8 +152,12 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
 
 ## “只要 Nushell”覆盖不到的地方
 
+guard 不是沙箱：它检查自己能读到的命令位置，其余情况不在覆盖范围内。
+
+- 普通引号字符串里的 shell 名称只是数据，不是命令位置：`'bash -c "echo hi"'` 求值成一个字符串，不会运行 bash。`$"…"` 和 `$'…'` 会插值，其中每个括号表达式都会作为代码检查；表达式里的引号文本仍是数据。
+- 字面量 `nu -c '<script>'` 会递归检查，最多四层；运行时拼出来的脚本不会。
+- 运行时才确定的 shell 名称，或者自己会启动 shell 的程序（语言运行时、编辑器），都不在覆盖范围内。guard 只跟踪字面量 shell 名称、固定的 launcher 表、`run-external` 和字面量 `nu -c` 脚本。
 - preset 自己启动 shell 的行，例如直接调用 `ctx.subprocess.spawn` 的插件，或 PTY 常驻 shell 组。严格部署时应关闭，见 `examples/preset-nu-shell.md`。
-- 普通引号参数里的 shell 名称只是数据，不是命令位置。`$"…"` 和 `$'…'` 会插值，因此 guard 和预检会把每个括号里的片段当作代码扫描。guard 会拦下命令位置和包装链里的交接，但它本身不是沙箱。
 - 其他 shell seam 不在 dsh-nu 的范围内：hook 桥、常驻终端和 tmux context 使用各自的服务或脚本。严格部署时应保持关闭。
 - dsh-nu 不改沙箱本身：`danger-full-access` 直接运行，受限模式通过 `ctx.sandbox.confine()` 包装 Nushell argv，`mode` / `denied` / `enforcement` 的报告方式保持不变。
 
@@ -162,6 +168,8 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
 - [验证](verification.md)
 - [Nushell 摩擦审查](nushell-friction-review.md)
 - [分发与支持（ADR）](../adr/0001-distribution-and-support.md)
+- [基于解析器的预检（ADR）](../adr/0004-ast-based-preflight.md)
+- [术语表](../../GLOSSARY.md)
 
 ## 许可证
 

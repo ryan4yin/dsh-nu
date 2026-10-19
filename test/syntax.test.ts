@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { assertNushellSyntax, findSyntaxIssue, hintFor, HINT_IDS, RULE_IDS } from '../src/syntax.ts'
+import { clearAnalysisCache } from '../src/ast.ts'
 
 const REFUSED: ReadonlyArray<readonly [string, string]> = [
   ['echo hi 2>&1', 'stderr-redirect'],
@@ -25,6 +26,18 @@ const REFUSED: ReadonlyArray<readonly [string, string]> = [
   ['echo hi <<< x', 'stdin-redirect'],
   ['echo hi << EOF', 'stdin-redirect'],
   ['echo hi > .gitignore', 'stdout-redirect'],
+  ['print hi > 1.txt', 'stdout-redirect'],
+  ['print "héllo" > out.txt', 'stdout-redirect'],
+  ['print hi > 2024-10-19.log', 'stdout-redirect'],
+  ['print hi > out', 'stdout-redirect'],
+  ['print hi >out', 'stdout-redirect'],
+  ['print hi >>out', 'stdout-redirect'],
+  ['print hi > "out.txt"', 'stdout-redirect'],
+  ['let f = "out.txt"; print hi > $f', 'stdout-redirect'],
+  ['print hi > 1', 'stdout-redirect'],
+  ['print hi > (1 + 1)', 'stdout-redirect'],
+  ['^echo hi > out', 'stdout-redirect'],
+  ['print hi < in', 'stdin-redirect'],
   ['print $"(print hi 2>/dev/null)"', 'stderr-as-word'],
   ['print $"a ($"x (print hi 2>/dev/null) y")"', 'stderr-as-word'],
   ['print $"a (echo hi > out.txt) b"', 'stdout-redirect'],
@@ -99,11 +112,21 @@ const ALLOWED = [
   "print '1 > out.txt'",
   'print "1 > out.txt"',
   'print "2>/dev/null"',
+  "print '>'",
+  "let b = 'b' > a.txt",
+  'if 3 > 2 { }',
+  'where size > 1kb',
   '(do { ^false } | complete).exit_code',
   'print "export FOO=1; TOKEN=abc cmd"',
   'print "ls | select -First 2"',
   'print "glob pattern=**/*.rs"',
   'print "print 1 | %{ $in }"',
+  // Interpolated string literal text is data; only the parenthesized
+  // expressions inside it are code.
+  "print $'> out.txt'",
+  "print $'2>/dev/null'",
+  "print $'a { b } c'",
+  "print $'x ($'inner (1) mid') y'",
   'print ($env.DSH_NU_MISSING? == null)',
   '[[size]; [2mb]] | where size > 1mb | length',
   '[[name]; [a]] | sort-by name | first 1',
@@ -116,7 +139,6 @@ const ALLOWED = [
   'print "foreach ($x in [1]) { $x }"',
   'print "Get-ChildItem -Force"',
   'print "if (-not (Test-Path x)) { 1 }"',
-  'print "glob pattern=**/*.rs"',
   'print "@(1, 2) %{ $in }"',
   '$env.DSH_DEMO = "1"; print $env.DSH_DEMO',
   'print ($env.DSH_MISSING? == null)',
@@ -130,7 +152,6 @@ const ALLOWED = [
   '"a1" | str replace -r \'\\d\' "#"',
   'glob "**/*.rs" | length',
   '^git --version | str contains "git"',
-  '[[size]; [2mb]] | where size > 1mb | length',
   '[[a]; [1] [2]] | get -o b | length',
   'mkdir a/b; "a/b" | path exists',
   'rm -r -f a',
@@ -141,18 +162,41 @@ const ALLOWED = [
   '^mkdir -p out/nested',
 ]
 
-test('every rule rejects its sample', () => {
-  for (const [command, id] of REFUSED) assert.equal(findSyntaxIssue(command)?.id, id, command)
+const nu = spawnSync('nu', ['--version'], { encoding: 'utf8' })
+const nuAvailable = nu.status === 0
+
+test('every rule rejects its sample', async () => {
+  for (const [command, id] of REFUSED) assert.equal((await findSyntaxIssue(command))?.id, id, command)
   assert.deepEqual([...new Set(REFUSED.map(([, id]) => id))].sort(), [...RULE_IDS].sort())
 })
 
-test('valid Nushell and quoted syntax are not refused', () => {
-  for (const command of ALLOWED) assert.equal(findSyntaxIssue(command), undefined, command)
+test('current-item is recognized when an inherited _ env var changes the diagnostic', async () => {
+  const previous = process.env._
+  process.env._ = '/usr/bin/env'
+  clearAnalysisCache()
+  try {
+    assert.equal((await findSyntaxIssue('ls | each { $_.name }'))?.id, 'current-item')
+  } finally {
+    if (previous === undefined) delete process.env._
+    else process.env._ = previous
+    clearAnalysisCache()
+  }
 })
 
-test('the allowlist exempts exact commands and refusal names the fix', () => {
-  assert.doesNotThrow(() => assertNushellSyntax('echo hi 2>&1', { allow: [/^echo hi 2>&1$/] }))
-  assert.throws(() => assertNushellSyntax('echo hi 2>&1'), (error: Error) => error.message.includes('stderr-redirect') && error.message.includes('o+e>'))
+test('valid Nushell and quoted syntax are not refused', async () => {
+  for (const command of ALLOWED) assert.equal(await findSyntaxIssue(command), undefined, command)
+})
+
+test('the allowlist exempts exact commands and refusal names the fix', async () => {
+  await assert.doesNotReject(() => assertNushellSyntax('echo hi 2>&1', { allow: [/^echo hi 2>&1$/] }))
+  await assert.rejects(
+    () => assertNushellSyntax('echo hi 2>&1'),
+    (error: Error) => error.message.includes('stderr-redirect') && error.message.includes('o+e>'),
+  )
+})
+
+test('the preflight fails closed when Nushell cannot be probed', async () => {
+  await assert.rejects(() => findSyntaxIssue('ls', { binary: '/definitely/missing/dsh-nu/nu' }), /PreflightError|failed/)
 })
 
 test('hints stay silent without a recognized Nushell error', () => {
@@ -160,9 +204,6 @@ test('hints stay silent without a recognized Nushell error', () => {
   assert.equal(hintFor('some unrelated failure'), undefined)
   assert.equal(new Set(HINT_IDS).size, HINT_IDS.length)
 })
-
-const nu = spawnSync('nu', ['--version'], { encoding: 'utf8' })
-const nuAvailable = nu.status === 0
 
 function runNu(command: string, cwd: string): { status: number | null; stdout: string; stderr: string } {
   const result = spawnSync('nu', ['--no-config-file', '-c', command], { encoding: 'utf8', cwd })
@@ -182,21 +223,34 @@ const SILENT_WRONG: ReadonlyArray<readonly [string, string]> = [
   ['print hi >>build.log', 'stdout-redirect'],
   ['print hi > /dev/null', 'stdout-redirect'],
   ['print hi > .gitignore', 'stdout-redirect'],
+  ['print hi > 1.txt', 'stdout-redirect'],
+  ['print "héllo" > out.txt', 'stdout-redirect'],
+  ['print hi > 2024-10-19.log', 'stdout-redirect'],
+  ['print hi > out', 'stdout-redirect'],
+  ['print hi >out', 'stdout-redirect'],
+  ['print hi >>out', 'stdout-redirect'],
+  ['print hi > "out.txt"', 'stdout-redirect'],
+  ['let f = "out.txt"; print hi > $f', 'stdout-redirect'],
+  ['print hi > 1', 'stdout-redirect'],
+  ['print hi > (1 + 1)', 'stdout-redirect'],
+  ['^echo hi > out', 'stdout-redirect'],
+  ['print hi < in', 'stdin-redirect'],
   ['print hi >& out.txt', 'stderr-as-word'],
   ['print hi < in.txt', 'stdin-redirect'],
   ['print hi <in.txt', 'stdin-redirect'],
   ['print hi <<< x', 'stdin-redirect'],
   ['print hi << EOF', 'stdin-redirect'],
+  ['print $"(print hi 2>/dev/null)"', 'stderr-as-word'],
 ]
 
-test('shell redirections Nushell accepts but silently ignores are refused', { skip: !nuAvailable }, () => {
+test('shell redirections Nushell accepts but silently ignores are refused', { skip: !nuAvailable }, async () => {
   const cwd = mkdtempSync(join(tmpdir(), 'dsh-nu-silent-'))
   try {
     for (const [command, id] of SILENT_WRONG) {
       const result = runNu(command, cwd)
       assert.equal(result.status, 0, command + ' should be accepted by Nushell')
       assert.equal(result.stderr, '', command + ' should look successful to Nushell')
-      assert.throws(() => assertNushellSyntax(command), new RegExp(id), command)
+      await assert.rejects(() => assertNushellSyntax(command), new RegExp(id), command)
     }
     // The shell spelling is not a redirect in Nushell, so it writes no file.
     assert.deepEqual(readdirSync(cwd), [], 'Nushell wrote a file for a shell redirect')
@@ -291,13 +345,13 @@ test('every hint is produced by a real failure of the tested Nushell', { skip: !
   }
 })
 
-test('per-command env assignment is valid Nushell and not refused', { skip: !nuAvailable }, () => {
+test('per-command env assignment is valid Nushell and not refused', { skip: !nuAvailable }, async () => {
   const cwd = mkdtempSync(join(tmpdir(), 'dsh-nu-prefix-'))
   try {
     const result = runNu('FOO=1 ^printenv FOO', cwd)
     assert.equal(result.status, 0)
     assert.equal(result.stdout.trim(), '1')
-    assert.doesNotThrow(() => assertNushellSyntax('FOO=1 print hi'))
+    await assert.doesNotReject(() => assertNushellSyntax('FOO=1 print hi'))
   } finally {
     rmSync(cwd, { recursive: true, force: true })
   }
@@ -353,11 +407,17 @@ test('the preflight does not refuse commands the tested Nushell accepts', { skip
       String.raw`print $"literal \(1 + 2\)"`,
       'touch Write-Host.md; ls Write-Host.md | length',
       "print '1 > out.txt'",
+      "print '>'",
+      "let b = 'b' > a.txt; print $b",
+      'if 3 > 2 { print yes }',
+      '[[size]; [2mb]] | where size > 1kb | length',
       '(do { ^false } | complete).exit_code',
       'print "a > b"',
       'print "2>$null &> out.txt"',
       'print "TOKEN=abc node build.cjs"',
       'print "export FOO=1"',
+      "print $'> out.txt'",
+      "print $'2>/dev/null'",
       '# echo hi 2>&1',
       '$env.DSH_DEMO = "1"; print $env.DSH_DEMO',
       'print ($env.DSH_MISSING? == null)',

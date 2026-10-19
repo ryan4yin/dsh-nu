@@ -22,10 +22,10 @@ Every release names exactly one tested pair in `package.json` under `testedWith`
 A release candidate must pass, locally and in CI:
 
 1. `npm run typecheck`, `npm run build`, `npm test`, and `npm pack --dry-run` from a clean checkout.
-2. The unit suite, including the differential corpus. Every preflight refusal must fail in the pinned real Nushell, every allowed command must run, and every hint must be produced by a real failing command.
+2. The unit suite, including the differential corpus. Every refused syntax form must fail in the pinned real Nushell, except the forms Nushell misreads silently, which are pinned by their real exit-0 behaviour; every handoff refusal must be a command that would start a foreign shell; every allowed command must run; and every hint must be produced by a real failing command.
 3. The integration probe against the pinned dsh. A composition with the plugin mounted must expose the Nushell executor, refuse a foreign-shell call, and show Nushell tool text.
 4. The CI matrix: Ubuntu, macOS, and Windows, with the pinned Nushell installed.
-5. The documentation tests: EN/ZH heading parity, pinned versions repeated, relative links resolved, and no upstream repository link outside the README acknowledgements.
+5. The documentation tests: the documentation set exists, the tested versions are repeated, the README names the bundle rows, and relative links resolve. EN/ZH heading parity and the acknowledgement boundary are review rules.
 
 CI runs on pull requests, not on every push. Local checks are the fast loop; CI is the milestone gate before a merge that matters and before a release.
 
@@ -38,7 +38,7 @@ The repository stays private until 0.1.0 is published and verified. After that i
 - A version bump needs a new tested pair, not a widened range.
 - The git channel can drift from the published tarball, which is why the README says npm is the supported install.
 - CI minutes are spent once per pull request instead of once per commit.
-- A test enforces the acknowledgement rule, not review alone.
+- The documentation tests check the tested versions and links; heading parity, the acknowledgement boundary, and prose accuracy are review rules.
 
 ## Alternatives considered
 
