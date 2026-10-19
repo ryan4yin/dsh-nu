@@ -92,7 +92,7 @@ interface NuSettings {
  * | nuPath | DSH_NU_PATH, then nu | executable |
  * | nuArgs | ['--no-config-file','-c'] | argv prefix; the command is appended |
  * | enforceNushellOnly | true | refuse commands that hand off to another shell |
- * | foreignShellAllowlist | [] | whole-command regexes exempt from both checks |
+ * | foreignShellAllowlist | [] | regexes exempt from both checks; each must match the whole command |
  * | syntaxLint | true | refuse bash/PowerShell syntax before spawning |
  * | syntaxHints | true | append one hint to a failed command's stderr |
  * | requireNu | true | fail boot when nu cannot be resolved |

@@ -129,7 +129,7 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
 | `nuPath` | `$DSH_NU_PATH`，否则 `nu` | Nushell 可执行文件：先看字段，再看环境变量，最后看 PATH |
 | `nuArgs` | `["--no-config-file","-c"]` | argv 前缀；命令追加在最后 |
 | `enforceNushellOnly` | `true` | 拒绝把命令交给其他 shell |
-| `foreignShellAllowlist` | `[]` | 整条命令正则，豁免两项预检检查 |
+| `foreignShellAllowlist` | `[]` | 豁免两项预检检查的正则；必须匹配整条命令 |
 | `syntaxLint` | `true` | 启动进程前拦下 bash/PowerShell 语法 |
 | `syntaxHints` | `true` | 调用失败时追加一行 `Nushell hint (…)` |
 | `guide` | `full` | prompt 指南：`full`、`compact`、`off` |

@@ -504,6 +504,15 @@ export function findHandoff(command: string, options: HandoffOptions = {}): Prom
   return findHandoffIn(command, 0, options)
 }
 
+/**
+ * Whether an allowlist pattern matches the entire command. Each pattern is
+ * anchored at both ends, so an exempt fragment cannot exempt a longer command
+ * that merely contains it.
+ */
+export function isAllowlisted(command: string, allow: readonly RegExp[] = []): boolean {
+  return allow.some((pattern) => new RegExp('^(?:' + pattern.source + ')$', pattern.flags.replace(/[gy]/g, '')).test(command))
+}
+
 /** Compile the allowlist: whole-command regular expressions, validated. */
 export function compileAllowlist(raw: unknown): RegExp[] {
   if (raw === undefined || raw === null) return []
@@ -520,7 +529,7 @@ export function compileAllowlist(raw: unknown): RegExp[] {
 
 /** Throw when a command would hand execution to another shell. */
 export async function assertNuOnly(command: string, options: NuOnlyOptions = {}): Promise<void> {
-  if ((options.allow ?? []).some((pattern) => pattern.test(command))) return
+  if (isAllowlisted(command, options.allow)) return
   const handoff = await findHandoff(command, options)
   if (handoff === undefined) return
   throw new Error(

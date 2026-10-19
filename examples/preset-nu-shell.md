@@ -53,7 +53,7 @@ providers register the same service, so a missing disable is visible at boot.
 | `nuPath` | `DSH_NU_PATH`, then `nu` on PATH | executable |
 | `nuArgs` | `['--no-config-file', '-c']` | argv prefix; the command is appended |
 | `enforceNushellOnly` | `true` | refuse commands that hand off to another shell |
-| `foreignShellAllowlist` | `[]` | whole-command regexes exempt from both checks |
+| `foreignShellAllowlist` | `[]` | regexes exempt from both checks; each must match the whole command |
 | `syntaxLint` | `true` | refuse bash/PowerShell syntax before spawning |
 | `syntaxHints` | `true` | append one hint to a failed command's stderr |
 | `requireNu` | `true` | fail boot when nu cannot be resolved |
