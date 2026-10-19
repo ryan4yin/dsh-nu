@@ -260,8 +260,8 @@ test('a sandbox denial keeps the host wording and adds no hint', () => {
     sandbox: { mode: 'workspace-write', denied: true },
   }
   const decorated = (executor as unknown as {
-    withHint: (result: unknown, spec: unknown) => { stderr: { text: string } }
-  }).withHint(result, {})
+    withHint: (result: unknown) => { stderr: { text: string } }
+  }).withHint(result)
   assert.doesNotMatch(decorated.stderr.text, /Nushell hint/)
 })
 

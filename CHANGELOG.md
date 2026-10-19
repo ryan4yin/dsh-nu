@@ -88,7 +88,7 @@ All notable changes to this project are recorded here. The format follows
 
 ### Added
 
-- CI builds `.#checks.x86_64-linux.package` on every push, the same call a
+- CI builds `.#checks.x86_64-linux.package` on every pull request, the same call a
   consumer makes, so a stale hash or a dsh layout change fails there instead of
   on a user's machine. The flake gains a `nur-ryan4yin` input for that check
   only; consumers still pass their own dsh.

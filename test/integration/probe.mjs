@@ -88,7 +88,7 @@ export async function apply(ctx) {
   if (tool !== undefined) {
     // The rewrite replaces the whole description with the guide's text, so pin
     // that contract instead of matching one sentence that may be trimmed.
-    record('the shell tool description is Nushell', tool.description === buildToolDescription({ tool: tool.name }), tool.description)
+    record('the shell tool description is Nushell', tool.description === buildToolDescription(), tool.description)
   }
 
   const sdk = assembly.sections.find((section) => section.name === 'tools:sdk')

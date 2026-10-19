@@ -40,6 +40,7 @@ export function buildGuide(options: GuideOptions = {}): string {
 
 /** Options for {@link buildToolDescription}. */
 export interface ToolDescriptionOptions {
+  /** @deprecated Ignored: both shell tools share one description. */
   tool?: string
 }
 

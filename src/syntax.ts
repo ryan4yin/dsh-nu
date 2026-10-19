@@ -506,7 +506,7 @@ const HINTS: readonly HintRule[] = [
 /** All hint ids, in rule order. */
 export const HINT_IDS: readonly string[] = HINTS.map((rule) => rule.id)
 
-/** Options for {@link hintFor}. */
+/** Options for {@link hintFor}. @deprecated Ignored: hints match stderr alone. */
 export interface HintOptions {
   exitCode?: number | null
   stdout?: string | null

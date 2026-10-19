@@ -323,18 +323,18 @@ export class NushellExecutor extends BaseExecutor {
   }
 
   /** Wrap a handle so its foreground projection carries one hint on failure. */
-  private attach(handle: ShellExecution, spec: ShellExecSpec, sandbox?: ShellSandboxInfo): ShellExecution {
+  private attach(handle: ShellExecution, sandbox?: ShellSandboxInfo): ShellExecution {
     const base = handle.result.bind(handle)
     let decorated: Promise<ShellRunResult> | undefined
     handle.result = () => {
-      decorated ??= base().then((result) => this.withHint(result, spec, sandbox))
+      decorated ??= base().then((result) => this.withHint(result, sandbox))
       return decorated
     }
     return handle
   }
 
   /** Append one hint to a failed result's stderr. */
-  private withHint(result: ShellRunResult, _spec: ShellExecSpec, sandbox?: ShellSandboxInfo): ShellRunResult {
+  private withHint(result: ShellRunResult, sandbox?: ShellSandboxInfo): ShellRunResult {
     const projected = sandbox === undefined ? result : { ...result, sandbox }
     if (!this.settings.hints) return projected
     // The docs promise a hint on a failing command; exit 0 (and a timeout with
@@ -345,7 +345,7 @@ export class NushellExecutor extends BaseExecutor {
     if (projected.sandbox?.denied === true) return projected
     const text = projected.stderr?.text
     if (typeof text !== 'string' || text.length === 0) return projected
-    const hint = hintFor(text, { exitCode: projected.exitCode, stdout: projected.stdout?.text })
+    const hint = hintFor(text)
     if (hint === undefined) return projected
     const separator = text.endsWith('\n') ? '' : '\n'
     return { ...projected, stderr: { ...projected.stderr, text: text + separator + hint + '\n' } }
@@ -358,11 +358,11 @@ export class NushellExecutor extends BaseExecutor {
     const policy: SandboxExecutionPolicy = spec.sandboxPolicy ?? policyService.resolve()
     if (policy.mode === 'danger-full-access') {
       const handle = await this.executeArgv(spec, this.nuArgv(spec.command))
-      return this.attach(handle, spec, { mode: policy.mode, denied: false })
+      return this.attach(handle, { mode: policy.mode, denied: false })
     }
     const delegated: ShellExecSpec = { ...spec, sandboxPolicy: policy }
     const handle = await super.execute(delegated)
-    return this.attach(handle, spec)
+    return this.attach(handle)
   }
 }
 
