@@ -208,11 +208,25 @@ test('a defined name parses as an internal call, not an external handoff', async
 })
 
 test('the allowlist exempts exact whole commands and is validated', async () => {
-  const allow = compileAllowlist(['^bash -c'])
+  const allow = compileAllowlist(['bash -c "echo hi"'])
   await assert.doesNotReject(assertNuOnly('bash -c "echo hi"', { allow }))
   await assert.rejects(assertNuOnly('sh -c "echo hi"', { allow }), /sh/)
   assert.throws(() => compileAllowlist('bash'), /array/)
   assert.throws(() => compileAllowlist(['(']), /regular expression/)
+})
+
+test('an allowlist entry does not exempt a longer command that contains it', async () => {
+  const allow = compileAllowlist(['bash scripts/ok.sh', '^bash -c'])
+  await assert.doesNotReject(assertNuOnly('bash scripts/ok.sh', { allow }))
+  for (const command of [
+    'bash -c "echo EVIL"; # bash scripts/ok.sh',
+    'bash scripts/ok.sh; bash -c "echo EVIL"',
+    'bash -c "echo EVIL"',
+  ]) {
+    await assert.rejects(assertNuOnly(command, { allow }), /refusing to hand this command to bash/, command)
+  }
+  // A RegExp passed straight to the API is anchored the same way.
+  await assert.rejects(assertNuOnly('bash -c "echo EVIL"', { allow: [/bash -c/] }), /bash/)
 })
 
 test('the refusal names the shell and the offending statement', async () => {

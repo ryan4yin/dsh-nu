@@ -67,8 +67,9 @@ test('a probe failure is wrapped in fail-closed guidance', async () => {
 })
 
 test('the allowlist exempts an exact command from both checks', async () => {
-  const executor = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu', foreignShellAllowlist: ['^bash -c'] }) as never)
+  const executor = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu', foreignShellAllowlist: ['bash -c "echo hi"'] }) as never)
   await assert.doesNotReject(executor.preflight('bash -c "echo hi"'))
+  await assert.rejects(executor.preflight('bash -c "echo hi"; bash -c "echo EVIL"'), /refusing to hand this command to bash/)
   assert.deepEqual(executor.nuArgv('bash -c "echo hi"'), ['nu', '--no-config-file', '-c', 'bash -c "echo hi"'])
 })
 function probeHandle(text: string) {

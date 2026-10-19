@@ -131,7 +131,7 @@ The bundle's patch mounts one executor row and one teaching row; a profile patch
 | `nuPath` | `$DSH_NU_PATH`, then `nu` | Nushell executable: field, then environment, then PATH |
 | `nuArgs` | `["--no-config-file","-c"]` | Argv prefix; the command is appended last |
 | `enforceNushellOnly` | `true` | Refuse handing the command to another shell |
-| `foreignShellAllowlist` | `[]` | Whole-command regexes exempt from both preflight checks |
+| `foreignShellAllowlist` | `[]` | Regexes exempt from both preflight checks; each must match the whole command |
 | `syntaxLint` | `true` | Refuse bash/PowerShell syntax before spawning |
 | `syntaxHints` | `true` | Append one `Nushell hint (…)` line to a failed call |
 | `guide` | `full` | Prompt guide: `full`, `compact`, or `off` |

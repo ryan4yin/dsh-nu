@@ -78,7 +78,7 @@ test('quoted shell syntax is data and is not refused', async () => {
 
 test('an allowlist entry exempts the exact command from both checks', async () => {
   await assert.rejects(assertNuOnly('bash -c "echo hi"'), /refusing to hand this command to bash/)
-  await assert.doesNotReject(assertNuOnly('bash -c "echo hi"', { allow: [/^bash -c/] }))
+  await assert.doesNotReject(assertNuOnly('bash -c "echo hi"', { allow: [/bash -c "echo hi"/] }))
   await assert.rejects(assertNushellSyntax('print hi 2>&1'), /stderr-redirect/)
-  await assert.doesNotReject(assertNushellSyntax('print hi 2>&1', { allow: [/2>&1/] }))
+  await assert.doesNotReject(assertNushellSyntax('print hi 2>&1', { allow: [/print hi 2>&1/] }))
 })

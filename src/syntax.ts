@@ -23,6 +23,7 @@ import {
   type AstDiagnostic,
   type AstToken,
 } from './ast.js'
+import { isAllowlisted } from './guard.js'
 
 /** A refused syntax form. */
 export type RuleId =
@@ -451,7 +452,7 @@ export function refusal(finding: Finding, command: string): string {
 
 /** Throw when a command contains a refused syntax form. */
 export async function assertNushellSyntax(command: string, options: SyntaxOptions = {}): Promise<void> {
-  if ((options.allow ?? []).some((pattern) => pattern.test(command))) return
+  if (isAllowlisted(command, options.allow)) return
   const finding = await findSyntaxIssue(command, options)
   if (finding !== undefined) throw new Error(refusal(finding, command))
 }

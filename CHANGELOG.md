@@ -4,6 +4,15 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+- `foreignShellAllowlist` entries now match the whole command, as documented:
+  each pattern is anchored at both ends, so an exempt fragment no longer
+  exempts a longer command that contains it. A prefix pattern such as
+  `^bash -c` must now spell the whole command, for example `bash -c .*`.
+
 ## 0.4.0 (2026-10-19)
 
 ### Added
