@@ -66,7 +66,7 @@ A code pull request runs Ubuntu, macOS, and Windows with the pinned Nushell inst
 ## Known limits
 
 - The supported pair is dsh `0.2.1-rc.2` and Nushell `0.115.1`.
-- The guard is not a sandbox. It follows literal shell names, a fixed launcher table, `run-external`, and literal `nu -c` scripts to depth 4. A dynamic shell name, a program that starts a shell itself, or a shell name hidden in data is out of reach. Plain quoted strings are data; `$"…"` / `$'…'` interpolation is inspected as code.
+- The guard is not a sandbox. It follows literal shell names, a fixed launcher table, `run-external`, and literal `nu -c` / `nu -e` scripts to depth 4. A dynamic shell name, a program that starts a shell itself, a shell name hidden in data, or a script file loaded by `nu <file>`, `source`, or `use` is out of reach. Plain quoted strings are data; `$"…"` / `$'…'` interpolation is inspected as code.
 - Hints only fire on a failing call after Nushell reports an error; exit 0 and a sandbox denial carry no hint. A command refused before spawning has no hint.
 - Because the preflight fails closed, a Nushell whose IDE output does not match the tested shape refuses calls until the pair is aligned.
 - Windows has no differential hint sample for file permissions in CI; the permission sample is skipped there.

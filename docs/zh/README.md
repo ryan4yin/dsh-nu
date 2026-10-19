@@ -155,8 +155,9 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
 guard 不是沙箱：它检查自己能读到的命令位置，其余情况不在覆盖范围内。
 
 - 普通引号字符串里的 shell 名称只是数据，不是命令位置：`'bash -c "echo hi"'` 求值成一个字符串，不会运行 bash。`$"…"` 和 `$'…'` 会插值，其中每个括号表达式都会作为代码检查；表达式里的引号文本仍是数据。
-- 字面量 `nu -c '<script>'` 会递归检查，最多四层；运行时拼出来的脚本不会。
-- 运行时才确定的 shell 名称，或者自己会启动 shell 的程序（语言运行时、编辑器），都不在覆盖范围内。guard 只跟踪字面量 shell 名称、固定的 launcher 表、`run-external` 和字面量 `nu -c` 脚本。
+- 字面量 `nu -c '<script>'` 或 `nu -e '<script>'` 会递归检查，最多四层；运行时拼出来的脚本不会。
+- Nushell 脚本文件不会被读取：`nu script.nu`、`source` 和 `use` 加载的代码 guard 看不到，所以先写进文件再这样运行的交接不在覆盖范围内。
+- 运行时才确定的 shell 名称，或者自己会启动 shell 的程序（语言运行时、编辑器），都不在覆盖范围内。guard 只跟踪字面量 shell 名称、固定的 launcher 表（包括 `nix shell` / `nix develop --command` 和 `nix run`）、`run-external` 和字面量 `nu -c` 脚本。
 - preset 自己启动 shell 的行，例如直接调用 `ctx.subprocess.spawn` 的插件，或 PTY 常驻 shell 组。严格部署时应关闭，见 `examples/preset-nu-shell.md`。
 - 其他 shell seam 不在 dsh-nu 的范围内：hook 桥、常驻终端和 tmux context 使用各自的服务或脚本。严格部署时应保持关闭。
 - dsh-nu 不改沙箱本身：`danger-full-access` 直接运行，受限模式通过 `ctx.sandbox.confine()` 包装 Nushell argv，`mode` / `denied` / `enforcement` 的报告方式保持不变。
