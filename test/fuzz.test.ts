@@ -74,6 +74,9 @@ function handoffCorpus(random: () => number): string[] {
     `env -S r#'${shell} -c "${script}"'#`,
     `nu -c r#'${shell} -c "${script}"'#`,
     `nu --commands='${shell} -c "${script}"'`,
+    `nu -e ${JSON.stringify(`${shell} -c ${script}`)}`,
+    `ionice -c 3 ${shell} -c ${quoted}`,
+    `timeout $env.PATH ${shell} -c ${quoted}`,
   ]
   return templates
 }

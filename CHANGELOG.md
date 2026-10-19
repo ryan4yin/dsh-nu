@@ -6,12 +6,23 @@ All notable changes to this project are recorded here. The format follows
 
 ## Unreleased
 
+### Added
+
+- The guard follows more launchers: `nix shell` / `nix develop --command`,
+  `nix run <installable>`, `ionice`, `chroot`, `unbuffer`, `strace`,
+  `systemd-run`, and `runuser -u`. It refuses `su`, `sudo -s` / `-i`,
+  `doas -s`, and `nix-shell`, which run their text through a shell, plus
+  `nu -e` scripts and the `xonsh`, `elvish`, `yash`, `osh`, `ysh`, and
+  `oksh` shells.
+
 ### Fixed
 
 - `foreignShellAllowlist` entries now match the whole command, as documented:
   each pattern is anchored at both ends, so an exempt fragment no longer
   exempts a longer command that contains it. A prefix pattern such as
   `^bash -c` must now spell the whole command, for example `bash -c .*`.
+- A dynamic launcher argument such as `timeout $env.LIMIT bash` no longer
+  hides the program after it.
 
 ## 0.4.0 (2026-10-19)
 

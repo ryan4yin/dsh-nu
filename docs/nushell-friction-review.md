@@ -44,7 +44,7 @@ A later review of the guard, preflight, and executor ran each finding against th
 
 ## Known gaps
 
-- The guard is not a sandbox. Syntax forms inside plain strings, comments, or raw strings are data and pass; `$"…"` / `$'…'` interpolation is code and is inspected. A shell name computed at run time, a program that starts a shell itself, and a shell name that exists only as data are out of reach. The allowlist remains for commands that genuinely need a foreign shell.
+- The guard is not a sandbox. Syntax forms inside plain strings, comments, or raw strings are data and pass; `$"…"` / `$'…'` interpolation is code and is inspected. A shell name computed at run time, a program that starts a shell itself, a shell name that exists only as data, and a script file loaded by `nu <file>`, `source`, or `use` are out of reach. The allowlist remains for commands that genuinely need a foreign shell.
 - Hints only fire on a failing call; exit 0 and a sandbox denial carry no hint, and a refused command has no hint.
 - Windows has no permission-denied hint sample in CI; the sample is skipped there.
 - The corpus covers common agent commands, not every Nushell feature. A command outside it that the guard refuses wrongly should become a corpus entry.

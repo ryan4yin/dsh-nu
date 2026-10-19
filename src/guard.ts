@@ -8,25 +8,55 @@
  * keeps one finite semantic layer:
  *
  * - foreign shell names (bare, path-qualified, or `^`-forced);
- * - a fixed table of programs that launch another program;
+ * - a fixed table of programs that launch another program, including the ones
+ *   that hand a string to a shell (`su -c`, `nix-shell --run`, `sudo -s`);
  * - `run-external`, because it takes the program as its first argument;
- * - literal `nu -c "..."` scripts, followed recursively (depth 4).
+ * - literal `nu -c "..."` / `nu -e "..."` scripts, followed recursively (depth 4).
  *
  * It is a guard, not a sandbox: a program that itself starts a shell, a dynamic
- * shell name, or a shell name hidden in data is out of reach.
+ * shell name, a shell name hidden in data, and a script file that `nu`,
+ * `source`, or `use` loads are out of reach.
  */
 
 import { analyze, literalValue } from './ast.js'
 import type { AnalyzeOptions, AstToken } from './ast.js'
 
 /** Programs that are a different shell. */
-const FOREIGN_SHELLS = new Set(['bash', 'sh', 'dash', 'zsh', 'ksh', 'mksh', 'ash', 'fish', 'csh', 'tcsh', 'pwsh', 'powershell', 'cmd', 'wsl'])
+const FOREIGN_SHELLS = new Set([
+  'bash', 'sh', 'dash', 'zsh', 'ksh', 'mksh', 'oksh', 'ash', 'yash', 'fish', 'csh', 'tcsh',
+  'osh', 'ysh', 'xonsh', 'elvish', 'pwsh', 'powershell', 'cmd', 'wsl',
+])
 
 /** Programs that run another program, so their arguments decide the shell. */
 const LAUNCHERS = new Set([
   'env', 'xargs', 'sudo', 'doas', 'nohup', 'timeout', 'nice', 'stdbuf', 'exec', 'busybox',
   'time', 'setsid', 'flock', 'taskset', 'chrt', 'script', 'watch', 'parallel', 'command',
+  'ionice', 'chroot', 'unbuffer', 'strace', 'systemd-run', 'su', 'runuser', 'nix', 'nix-shell',
 ])
+
+/** The flags that hand `nu` a script string to run. */
+const NU_SCRIPT_FLAGS = ['-c', '--commands', '-e', '--execute'] as const
+
+/** sudo / doas flags that run the command through the target user's shell. */
+const SHELL_FLAGS: Readonly<Record<string, ReadonlySet<string>>> = {
+  sudo: new Set(['-s', '--shell', '-i', '--login']),
+  doas: new Set(['-s']),
+}
+
+/** nix global options that take values before the subcommand. */
+const NIX_GLOBAL_VALUE_FLAGS: ReadonlyMap<string, number> = new Map([
+  ['--option', 2], ['--extra-experimental-features', 1], ['--experimental-features', 1],
+  ['--log-format', 1], ['--store', 1],
+])
+
+/** `nix run` options that take values before the installable. */
+const NIX_RUN_VALUE_FLAGS: ReadonlyMap<string, number> = new Map([
+  ['--arg', 2], ['--argstr', 2], ['--override-input', 2], ['-f', 1], ['--file', 1],
+  ['--expr', 1], ['-I', 1], ['--include', 1], ['--inputs-from', 1],
+])
+
+/** Package attribute names whose main program is a shell under another name. */
+const PACKAGE_PROGRAMS: ReadonlyMap<string, string> = new Map([['bashinteractive', 'bash'], ['nushell', 'nu']])
 
 /** One foreign-shell handoff found in a command. */
 export interface ShellHandoff {
@@ -133,7 +163,13 @@ function commandAtoms(tokens: readonly AstToken[], command: string, head: number
       || token.shape === 'shape_list' || token.shape === 'shape_table' || token.shape === 'shape_record'
       || token.shape === 'shape_signature'
     ) break
-    atoms.push(readAtom(tokens, command, index))
+    const previous = atoms[atoms.length - 1]
+    if (previous !== undefined && !/\s/.test(command.slice(tokens[index - 1]!.end, token.start))) {
+      // A token glued to the previous one (`$env.LIMIT`, `$x?`) continues that argument.
+      atoms[atoms.length - 1] = { ...previous, value: undefined, dynamic: true }
+    } else {
+      atoms.push(readAtom(tokens, command, index))
+    }
     index += 1
   }
   return atoms
@@ -169,12 +205,12 @@ function launcherProgram(name: string, atoms: readonly Atom[]): { value: string;
         index += valueFlags.has(atom.content) ? 2 : 1
         continue
       }
-      if (atom.dynamic || atom.value === undefined) return undefined
       if (skipped < skipPositional) {
         skipped += 1
         index += 1
         continue
       }
+      if (atom.dynamic || atom.value === undefined) return undefined
       return { value: atom.value, index }
     }
     return undefined
@@ -258,9 +294,86 @@ function launcherProgram(name: string, atoms: readonly Atom[]): { value: string;
       if (atoms.some((atom) => atom.flag && (atom.content === '-v' || atom.content === '-V'))) return undefined
       return generic(new Set())
     }
+    case 'ionice':
+      return generic(new Set(['-c', '--class', '-n', '--classdata', '-p', '--pid', '-P', '--pgid', '-u', '--uid']))
+    case 'unbuffer':
+      return generic(new Set())
+    case 'strace':
+      return generic(new Set([
+        '-o', '-e', '-p', '-s', '-u', '-E', '-a', '-b', '-I', '-P', '-X', '-O', '-S', '-U',
+        '--output', '--attach', '--string-limit', '--user', '--env',
+      ]))
+    case 'systemd-run':
+      return generic(new Set([
+        '-u', '--unit', '-p', '--property', '-E', '--setenv', '-M', '--machine', '-H', '--host', '-D',
+        '--working-directory', '--description', '--slice', '--uid', '--gid', '--nice', '--service-type',
+        '--on-active', '--on-boot', '--on-startup', '--on-unit-active', '--on-unit-inactive', '--on-calendar',
+      ]))
+    case 'chroot': {
+      // chroot [options] NEWROOT [command]; without a command it starts the user's shell.
+      const valueFlags = new Map([['--userspec', 1], ['--groups', 1]])
+      const program = generic(new Set(valueFlags.keys()), 1)
+      if (program !== undefined) return program
+      const root = positionalIndex(atoms, 0, valueFlags)
+      return root !== undefined && positionalIndex(atoms, root + 1, valueFlags) === undefined ? { value: 'sh', index: atoms.length } : undefined
+    }
+    case 'su':
+      // su runs its -c text, or an interactive session, through the target
+      // user's shell or the -s/--shell one; index -1 lets a nu shell's -c script be followed.
+      return { value: flagValue(atoms, 0, ['-s', '--shell']) ?? 'sh', index: -1 }
+    case 'runuser':
+      // -u runs the command directly; the su-style form runs it through a shell.
+      if (atoms.some((atom) => atom.content === '-u' || atom.content === '--user' || atom.content.startsWith('--user='))) {
+        return generic(new Set(['-u', '--user', '-g', '--group', '-G', '--supp-group', '-w', '--whitelist-environment']))
+      }
+      return launcherProgram('su', atoms)
+    case 'nix-shell':
+      // nix-shell runs --run / --command text, or an interactive session, in bash.
+      return atoms.some((atom) => atom.content === '--help' || atom.content === '--version') ? undefined : { value: 'bash', index: atoms.length }
+    case 'nix':
+      return nixProgram(atoms)
     default:
       return undefined
   }
+}
+
+/** The first positional atom at or after `from`, skipping options and the values they take. */
+function positionalIndex(atoms: readonly Atom[], from: number, valueFlags: ReadonlyMap<string, number>): number | undefined {
+  let index = from
+  while (index < atoms.length) {
+    const atom = atoms[index]!
+    if (!atom.flag) return index
+    index += 1 + (valueFlags.get(atom.content) ?? 0)
+  }
+  return undefined
+}
+
+/**
+ * The program a nix call runs. `shell` and `develop` run their `--command`,
+ * or an interactive shell (bash for `develop`) without one; `run` runs the
+ * installable's main program, named after its attribute.
+ */
+function nixProgram(atoms: readonly Atom[]): { value: string; index: number } | undefined {
+  const sub = positionalIndex(atoms, 0, NIX_GLOBAL_VALUE_FLAGS)
+  const subcommand = sub === undefined ? undefined : atoms[sub]!.value
+  if (sub === undefined || subcommand === undefined) return undefined
+  if (subcommand === 'shell' || subcommand === 'develop') {
+    const flag = atoms.findIndex((atom, index) => index > sub && (atom.content === '-c' || atom.content === '--command'))
+    if (flag < 0) {
+      if (atoms.some((atom) => atom.content === '--help')) return undefined
+      return { value: subcommand === 'develop' ? 'bash' : 'sh', index: atoms.length }
+    }
+    const program = atoms[flag + 1]
+    return program === undefined || program.dynamic || program.value === undefined ? undefined : { value: program.value, index: flag + 1 }
+  }
+  if (subcommand === 'run') {
+    const at = positionalIndex(atoms, sub + 1, NIX_RUN_VALUE_FLAGS)
+    const installable = at === undefined ? undefined : atoms[at]
+    if (at === undefined || installable === undefined || installable.dynamic || installable.value === undefined) return undefined
+    const attribute = installable.value.split('#').pop()!.split('.').pop()!
+    return { value: PACKAGE_PROGRAMS.get(attribute.toLowerCase()) ?? attribute, index: at }
+  }
+  return undefined
 }
 
 /** Split a shell-word string (quotes and backslashes honored) into words. */
@@ -372,7 +485,7 @@ async function handoffFromWords(
     const rest = wordsToAtoms(words.slice(index + 1))
     if (LAUNCHERS.has(name)) return handoffFromLauncher(name, rest, depth, command, options)
     if (name === 'nu') {
-      const script = flagValue(rest, 0, ['-c', '--commands'])
+      const script = flagValue(rest, 0, NU_SCRIPT_FLAGS)
       if (script !== undefined) {
         const nested = await findHandoffIn(script, depth + 1, options)
         if (nested !== undefined) return { shell: nested.shell, statement: script.trim().slice(0, 400) }
@@ -404,7 +517,7 @@ async function findHandoffIn(command: string, depth: number, options: HandoffOpt
       const handled = await handoffFromLauncher(direct, atoms, depth, command, options)
       if (handled !== undefined) return handled
       if (direct === 'nu' || direct === 'nu.exe') {
-        const script = flagValue(atoms, 0, ['-c', '--commands'])
+        const script = flagValue(atoms, 0, NU_SCRIPT_FLAGS)
         if (script !== undefined) {
           const nested = await findHandoffIn(script, depth + 1, options)
           if (nested !== undefined) return { shell: nested.shell, statement: script.trim().slice(0, 400) }
@@ -431,7 +544,7 @@ async function findHandoffIn(command: string, depth: number, options: HandoffOpt
             if (handled !== undefined) return handled
           }
           if (programNameValue === 'nu') {
-            const script = flagValue(atoms, program.index + 1, ['-c', '--commands'])
+            const script = flagValue(atoms, program.index + 1, NU_SCRIPT_FLAGS)
             if (script !== undefined) {
               const nested = await findHandoffIn(script, depth + 1, options)
               if (nested !== undefined) return { shell: nested.shell, statement: script.trim().slice(0, 400) }
@@ -470,6 +583,13 @@ async function handoffFromLauncher(
       // `script -c` runs the command through a POSIX shell.
       return { shell: 'sh', statement: command.trim().slice(0, 400) }
     }
+    const shellFlags = SHELL_FLAGS[current]
+    if (shellFlags !== undefined) {
+      // `sudo -s cmd` / `sudo -i cmd` run cmd through the target user's shell.
+      const program = launcherProgram(current, remaining)
+      const options = program === undefined ? remaining : remaining.slice(0, program.index)
+      if (options.some((atom) => atom.flag && shellFlags.has(atom.content))) return { shell: 'sh', statement: command.trim().slice(0, 400) }
+    }
     if (current === 'flock') {
       // Only flock's own options precede the lockfile; a later `-c` belongs to
       // the launched program. `flock -c` hands the command string to a shell.
@@ -484,7 +604,7 @@ async function handoffFromLauncher(
     const shell = shellIn(program.value)
     if (shell !== undefined) return { shell, statement: command.trim().slice(0, 400) }
     if (programName(program.value) === 'nu') {
-      const script = flagValue(remaining, program.index + 1, ['-c', '--commands'])
+      const script = flagValue(remaining, program.index + 1, NU_SCRIPT_FLAGS)
       if (script !== undefined) {
         const nested = await findHandoffIn(script, depth + 1, options)
         if (nested !== undefined) return { shell: nested.shell, statement: script.trim().slice(0, 400) }

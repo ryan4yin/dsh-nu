@@ -157,8 +157,9 @@ Sandbox budgets (`cwd`, `timeoutMs`, …) stay on the `nu-executor` row, not in 
 The guard is not a sandbox: it checks command positions it can read, and everything else is out of reach.
 
 - A shell name inside a plain quoted string is data, not a command position: `'bash -c "echo hi"'` evaluates to a string, it does not run bash. `$"…"` and `$'…'` interpolate, so each parenthesized expression inside one is inspected as code; quoted text inside it stays data.
-- A literal `nu -c '<script>'` is inspected recursively, up to four levels. A script value built at run time is not inspected.
-- A shell name computed at run time, or a program that starts a shell itself (a language runtime, an editor), is out of reach. The guard follows literal shell names, a fixed launcher table, `run-external`, and literal `nu -c` scripts.
+- A literal `nu -c '<script>'` or `nu -e '<script>'` is inspected recursively, up to four levels. A script value built at run time is not inspected.
+- A Nushell script file is not read: `nu script.nu`, `source`, and `use` load code the guard never sees, so a handoff written into a file and run that way is out of reach.
+- A shell name computed at run time, or a program that starts a shell itself (a language runtime, an editor), is out of reach. The guard follows literal shell names, a fixed launcher table (including `nix shell` / `nix develop --command` and `nix run`), `run-external`, and literal `nu -c` scripts.
 - A preset row that spawns its own shell, such as a custom plugin calling `ctx.subprocess.spawn` directly or a PTY persistent-shell group. Disable it for a Nu-only deployment; see `examples/preset-nu-shell.md`.
 - Other shell seams. Hook bridges, persistent terminals, and tmux context use their own services or scripts and are outside this bundle. Keep them off for a strict deployment.
 - dsh-nu does not change sandbox behaviour: `danger-full-access` runs directly, and confined modes wrap the Nushell argv through `ctx.sandbox.confine()` with the same `mode` / `denied` / `enforcement` reporting.

@@ -116,6 +116,71 @@ test('follows launchers through run-external, env -S, raw strings, and attached 
   }
 })
 
+test('refuses nix, su, sudo shell flags, and process launchers that start a foreign shell', async () => {
+  for (const [command, shell] of [
+    ['nix shell nixpkgs#hello -c bash -c "echo x"', 'bash'],
+    ['nix shell nixpkgs#hello --command zsh', 'zsh'],
+    ['nix develop -c bash -c "echo x"', 'bash'],
+    ["nix --extra-experimental-features 'nix-command flakes' develop --command sh -c x", 'sh'],
+    ['nix develop', 'bash'],
+    ['nix shell nixpkgs#hello', 'sh'],
+    ['nix run nixpkgs#bash -- -c x', 'bash'],
+    ['nix run nixpkgs#bashInteractive', 'bash'],
+    ['nix run nixpkgs#legacyPackages.x86_64-linux.zsh', 'zsh'],
+    ['nix run nixpkgs#nushell -- -c "bash -c x"', 'bash'],
+    ['nix-shell -p hello --run hello', 'bash'],
+    ['nix-shell', 'bash'],
+    ['su -c "echo x"', 'sh'],
+    ['su - root', 'sh'],
+    ['su -s /bin/zsh root', 'zsh'],
+    ["su -s /usr/bin/nu -c 'bash -c x'", 'bash'],
+    ['runuser -u nobody -- bash -c x', 'bash'],
+    ['runuser nobody -c "echo x"', 'sh'],
+    ['sudo -s', 'sh'],
+    ['sudo -i ls', 'sh'],
+    ['sudo -u root --login whoami', 'sh'],
+    ['doas -s', 'sh'],
+    ['ionice -c 3 bash -c x', 'bash'],
+    ['chroot / bash', 'bash'],
+    ['chroot --userspec 1:1 /srv/root', 'sh'],
+    ['unbuffer bash -c x', 'bash'],
+    ['strace -f -o /tmp/trace bash -c x', 'bash'],
+    ['systemd-run --user --unit probe bash -c x', 'bash'],
+    ['timeout $env.LIMIT bash -c x', 'bash'],
+    ['nu -e "bash -c x"', 'bash'],
+    ["nu --execute 'zsh -c x'", 'zsh'],
+    ['xonsh -c x', 'xonsh'],
+    ['elvish -c x', 'elvish'],
+    ['yash -c x', 'yash'],
+    ['osh -c x', 'osh'],
+  ] as const) {
+    assert.equal(await shellOf(command), shell, command)
+  }
+})
+
+test('nix, sudo, and process launchers running a non-shell program are not handoffs', async () => {
+  for (const command of [
+    'nix shell nixpkgs#hello -c hello',
+    'nix develop -c npm test',
+    'nix develop --help',
+    'nix run nixpkgs#hello',
+    'nix run .',
+    'nix build .#checks.x86_64-linux.package',
+    'nix flake check',
+    'nix-shell --version',
+    'sudo -u root ls -s',
+    'ionice -c 3 ls',
+    'chroot / ls',
+    'strace -f ls',
+    'systemd-run --user ls',
+    'runuser -u nobody -- ls',
+    'nu -e "print hi"',
+    'su-tool --help',
+  ]) {
+    assert.equal(await findHandoff(command), undefined, command)
+  }
+})
+
 test('a dynamic run-external program is out of reach, not a later argument', async () => {
   assert.equal(await findHandoff('let prog = "echo"; run-external $prog -- bash'), undefined)
 })

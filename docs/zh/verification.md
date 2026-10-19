@@ -66,7 +66,7 @@ npm pack --dry-run
 ## 已知限制
 
 - 固定支持组合是 dsh `0.2.1-rc.2` 与 Nushell `0.115.1`。
-- guard 不是沙箱。它跟踪字面量 shell 名称、固定的 launcher 表、`run-external`，以及最多四层的字面量 `nu -c` 脚本。运行时才确定的 shell 名称、自己会启动 shell 的程序、藏在数据里的 shell 名称都在覆盖范围外。普通引号字符串是数据；`$"…"` / `$'…'` 插值会作为代码检查。
+- guard 不是沙箱。它跟踪字面量 shell 名称、固定的 launcher 表、`run-external`，以及最多四层的字面量 `nu -c` / `nu -e` 脚本。运行时才确定的 shell 名称、自己会启动 shell 的程序、藏在数据里的 shell 名称，以及 `nu <file>`、`source`、`use` 加载的脚本文件都在覆盖范围外。普通引号字符串是数据；`$"…"` / `$'…'` 插值会作为代码检查。
 - hint 只在调用失败且 Nushell 报错后出现；退出码 0 和沙箱拒绝都不会附带 hint。启动前被拒绝的命令没有 hint。
 - 预检 fail closed，因此 Nushell 的 IDE 输出与测试形状不符时，调用会被拒绝，直到版本对齐。
 - CI 的 Windows 上没有权限类差分 hint 样本，该样本在 Windows 上跳过。
