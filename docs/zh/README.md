@@ -161,6 +161,7 @@ guard 不是沙箱：它检查自己能读到的命令位置，其余情况不�
 - preset 自己启动 shell 的行，例如直接调用 `ctx.subprocess.spawn` 的插件，或 PTY 常驻 shell 组。严格部署时应关闭，见 `examples/preset-nu-shell.md`。
 - 其他 shell seam 不在 dsh-nu 的范围内：hook 桥、常驻终端和 tmux context 使用各自的服务或脚本。严格部署时应保持关闭。
 - dsh-nu 不改沙箱本身：`danger-full-access` 直接运行，受限模式通过 `ctx.sandbox.confine()` 包装 Nushell argv，`mode` / `denied` / `enforcement` 的报告方式保持不变。
+- 预检的解析器探针（`nu --ide-ast` 和 `nu --ide-check`）在沙箱外、命令运行之前执行。它们只解析不运行命令，但 `source` 或 `use` 指向的文件会被读取来解析；文件内容不会返回给模型。
 
 ## 文档
 

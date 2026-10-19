@@ -413,6 +413,7 @@ test('the preflight does not refuse commands the tested Nushell accepts', { skip
       '[[size]; [2mb]] | where size > 1kb | length',
       '(do { ^false } | complete).exit_code',
       'print "a > b"',
+      '^echo <html>',
       'print "2>$null &> out.txt"',
       'print "TOKEN=abc node build.cjs"',
       'print "export FOO=1"',

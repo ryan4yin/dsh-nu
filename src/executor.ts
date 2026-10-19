@@ -263,13 +263,15 @@ export class NushellExecutor extends BaseExecutor {
    * this is the one asynchronous step before the base executor sees a spec; the
    * argv builders below are pure.
    */
-  async preflight(command: string): Promise<void> {
+  async preflight(command: string, signal?: AbortSignal): Promise<void> {
     const settings = this.settings
     if (!settings.enforce && !settings.lint) return
     const shared = { allow: settings.allow, binary: this.nuBinary, cwd: this.probeCwd() }
     try {
-      if (settings.enforce) await assertNuOnly(command, shared)
-      if (settings.lint) await assertNushellSyntax(command, shared)
+      await untilAborted((async () => {
+        if (settings.enforce) await assertNuOnly(command, shared)
+        if (settings.lint) await assertNushellSyntax(command, shared)
+      })(), signal)
     } catch (error) {
       if (error instanceof PreflightError) {
         throw new Error(
@@ -335,7 +337,7 @@ export class NushellExecutor extends BaseExecutor {
 
   /** The one execution entry point of the shell seam. */
   override async execute(spec: ShellExecSpec): Promise<ShellExecution> {
-    await this.preflight(spec.command)
+    await this.preflight(spec.command, spec.signal)
     const policyService = (this.ctx as unknown as { sandboxPolicy: { resolve: () => SandboxExecutionPolicy } }).sandboxPolicy
     const policy: SandboxExecutionPolicy = spec.sandboxPolicy ?? policyService.resolve()
     if (policy.mode === 'danger-full-access') {
@@ -346,6 +348,20 @@ export class NushellExecutor extends BaseExecutor {
     const handle = await super.execute(delegated)
     return this.attach(handle, spec)
   }
+}
+
+/**
+ * Settle with `work`, or reject with the signal's reason once it aborts. The
+ * probes behind `work` are cached and shared, so they keep running for other callers.
+ */
+function untilAborted<T>(work: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (signal === undefined) return work
+  signal.throwIfAborted()
+  return new Promise<T>((resolve, reject) => {
+    const abort = (): void => reject(signal.reason)
+    signal.addEventListener('abort', abort, { once: true })
+    void work.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort))
+  })
 }
 
 export default NushellExecutor

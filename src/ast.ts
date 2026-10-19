@@ -111,7 +111,7 @@ async function analyzeUncached(command: string, binary: string, options: Analyze
     return {
       command,
       tokens: parseTokens(astStdout, command, offsets),
-      diagnostics: parseDiagnostics(checkStdout, command, offsets),
+      diagnostics: parseDiagnostics(checkStdout, offsets),
     }
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => undefined)
@@ -181,7 +181,8 @@ function parseTokens(stdout: string, command: string, offsets: readonly number[]
   return tokens
 }
 
-function parseDiagnostics(stdout: string, command: string, offsets: readonly number[]): AstDiagnostic[] {
+function parseDiagnostics(stdout: string, offsets: readonly number[]): AstDiagnostic[] {
+  const bytes = offsets.length - 1
   const diagnostics: AstDiagnostic[] = []
   for (const line of stdout.split(/\r?\n/)) {
     if (line.trim() === '') continue
@@ -197,8 +198,10 @@ function parseDiagnostics(stdout: string, command: string, offsets: readonly num
     const span = entry.span as Record<string, unknown> | undefined
     const startByte = typeof span?.start === 'number' ? span.start : 0
     const endByte = typeof span?.end === 'number' ? span.end : startByte
-    const start = offsets[startByte] ?? 0
-    const end = offsets[endByte] ?? command.length
+    // A span past the command belongs to a file it loads (`source`, `use`).
+    if (startByte < 0 || endByte > bytes || startByte > endByte) continue
+    const start = offsets[startByte]!
+    const end = offsets[endByte]!
     diagnostics.push({
       severity: typeof entry.severity === 'string' ? entry.severity : 'Error',
       message: entry.message,

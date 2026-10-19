@@ -66,6 +66,15 @@ test('a probe failure is wrapped in fail-closed guidance', async () => {
   )
 })
 
+test('an aborted call stops waiting for the preflight', async () => {
+  const executor = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu' }) as never)
+  await assert.rejects(executor.preflight('print hi', AbortSignal.abort()), { name: 'AbortError' })
+  const controller = new AbortController()
+  const pending = executor.preflight('print "slow probe"', controller.signal)
+  controller.abort()
+  await assert.rejects(pending, { name: 'AbortError' })
+})
+
 test('the allowlist exempts an exact command from both checks', async () => {
   const executor = new NushellExecutor(fakeContext() as never, executorConfig({ nuPath: 'nu', foreignShellAllowlist: ['bash -c "echo hi"'] }) as never)
   await assert.doesNotReject(executor.preflight('bash -c "echo hi"'))
