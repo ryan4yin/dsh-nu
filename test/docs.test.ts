@@ -102,9 +102,17 @@ function beforeAcknowledgements(markdown: string): string {
   return index === -1 ? markdown : markdown.slice(0, index)
 }
 
+/** The attribution badge may sit outside the acknowledgements. */
+function withoutPoweredByDshBadge(markdown: string): string {
+  return markdown
+    .split('\n')
+    .filter((line) => !line.startsWith('[![](https://img.shields.io/badge/powered_by-dsh-'))
+    .join('\n')
+}
+
 test('upstream repositories are referenced only in the acknowledgements', () => {
   for (const file of FILES.filter((entry) => entry.endsWith('.md'))) {
-    const outside = beforeAcknowledgements(read(file))
+    const outside = beforeAcknowledgements(withoutPoweredByDshBadge(read(file)))
     for (const upstream of UPSTREAM) assert.ok(!outside.includes(upstream), file + ' mentions ' + upstream + ' outside acknowledgements')
   }
   const readme = read('README.md')
