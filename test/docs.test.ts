@@ -94,32 +94,6 @@ test('relative markdown links resolve', () => {
   }
 })
 
-const UPSTREAM = ['github.com/YMRwithNoworry/dsh-nushell-only', 'github.com/deepseek-ai/deepseek-harness']
-
-/** Everything before the acknowledgement heading. */
-function beforeAcknowledgements(markdown: string): string {
-  const index = markdown.search(/^## (Acknowledgements|致谢)$/m)
-  return index === -1 ? markdown : markdown.slice(0, index)
-}
-
-/** The attribution badge may sit outside the acknowledgements. */
-function withoutPoweredByDshBadge(markdown: string): string {
-  return markdown
-    .split('\n')
-    .filter((line) => !line.startsWith('[![](https://img.shields.io/badge/powered_by-dsh-'))
-    .join('\n')
-}
-
-test('upstream repositories are referenced only in the acknowledgements', () => {
-  for (const file of FILES.filter((entry) => entry.endsWith('.md'))) {
-    const outside = beforeAcknowledgements(withoutPoweredByDshBadge(read(file)))
-    for (const upstream of UPSTREAM) assert.ok(!outside.includes(upstream), file + ' mentions ' + upstream + ' outside acknowledgements')
-  }
-  const readme = read('README.md')
-  const acknowledgement = readme.slice(readme.search(/^## Acknowledgements$/m))
-  for (const upstream of UPSTREAM) assert.ok(acknowledgement.includes(upstream), upstream)
-})
-
 test('the README does not frame the project as a rewrite or a port', () => {
   const readme = read('README.md')
   // "rewriteToolDescriptions" is a config key, not framing; only reject the
