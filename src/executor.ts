@@ -19,7 +19,6 @@ import { SandboxPwshExecutor } from '@deepseek-ai/dsh-pwsh-sandbox'
 import type { ConfinedArgv, SandboxExecutionPolicy, SandboxPolicy } from '@deepseek-ai/dsh-sandbox'
 import type { ShellExecSpec, ShellExecution, ShellRunResult, ShellSandboxInfo } from '@deepseek-ai/dsh-shell'
 import z from '@deepseek-ai/schemastery'
-import { existsSync } from 'node:fs'
 import { PreflightError, analyze } from './ast.js'
 import { assertNuOnly, compileAllowlist } from './guard.js'
 import { assertNushellSyntax, findSyntaxIssue, hintFor } from './syntax.js'
@@ -32,12 +31,31 @@ import {
   nuFacts,
   parseVersion,
   resolveDshVersion,
+  TESTED_DSH,
   TESTED_NUSHELL,
 } from './nu.js'
 import type { NuChoice } from './nu.js'
 
 /** The platform's first-party sandbox executor whose mechanics this keeps. */
 const BaseExecutor = (process.platform === 'win32' ? SandboxPwshExecutor : SandboxBashExecutor) as unknown as typeof SandboxBashExecutor
+
+/**
+ * The parent methods this provider overrides or calls. They are not public
+ * dsh API: if a release renamed one, the parent would quietly run its own shell
+ * instead of Nushell, so construction fails instead.
+ */
+const BASE_SEAMS: readonly string[] = process.platform === 'win32' ? ['executeArgv', 'confine', 'argv'] : ['executeArgv', 'confine']
+
+/** Throw when the base executor no longer has a seam this provider relies on. */
+export function assertBaseSeams(prototype: object, seams: readonly string[] = BASE_SEAMS): void {
+  const missing = seams.filter((seam) => typeof (prototype as Record<string, unknown>)[seam] !== 'function')
+  if (missing.length === 0) return
+  throw new Error(
+    'dsh-nu: the installed dsh shell executor no longer has ' + missing.join(', ')
+    + ', which the Nushell executor overrides; refusing to start rather than run commands in its built-in shell. '
+    + 'Install the tested dsh ' + (TESTED_DSH ?? 'version') + '.',
+  )
+}
 
 /** Nushell's own read-only denial signature; the sandbox runner only knows the POSIX EROFS text. */
 const NU_DENIAL_SIGNATURES = ['read-only_filesystem_or_storage_medium'] as const
@@ -121,6 +139,7 @@ export class NushellExecutor extends BaseExecutor {
 
   constructor(ctx: Context, config: NushellConfig = {}) {
     super(ctx, config as BaseConfig)
+    assertBaseSeams(BaseExecutor.prototype)
     const choice = chooseBinary(config.nuPath)
     this.settings = {
       choice,
@@ -184,12 +203,9 @@ export class NushellExecutor extends BaseExecutor {
 
   /**
    * Prove the two parser probes work before the first shell call, and that the
-   * token and diagnostic contract the guard reads has not drifted. A resolved
-   * path that does not exist is left to the version probe: tests inject a fake
-   * resolution and must not shell out to it.
+   * token and diagnostic contract the guard reads has not drifted.
    */
   private async probeAst(): Promise<void> {
-    if (!existsSync(this.nuBinary)) return
     try {
       const tokens = await analyze('^true', { binary: this.nuBinary, cwd: this.probeCwd() })
       if (!tokens.tokens.some((token) => token.shape === 'shape_external' && token.content === 'true')) {

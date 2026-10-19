@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { Service } from '@deepseek-ai/cordis'
-import { NushellExecutor } from '../src/executor.ts'
+import { assertBaseSeams, NushellExecutor } from '../src/executor.ts'
 import { nuFacts, TESTED_NUSHELL } from '../src/nu.ts'
 
 function fakeContext() {
@@ -111,7 +111,8 @@ test('boot probes nu --version and records the resolved executable', async () =>
     resolve: async () => '/opt/nu/bin/nu',
     spawn: (spec) => { spawns.push(spec); return probeHandle('nu ' + TESTED_NUSHELL) },
   })
-  const executor = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu' }) as never)
+  // The fake path cannot run the parser canary; the canary has its own tests.
+  const executor = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu', enforceNushellOnly: false, syntaxLint: false }) as never)
   nuFacts.version = undefined
   await (executor as unknown as Record<symbol, () => Promise<void>>)[Service.init]!()
   assert.equal(executor.nuBinary, '/opt/nu/bin/nu')
@@ -125,6 +126,62 @@ test('boot warns when the probed Nushell is not the tested version', async () =>
   const executor = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu' }) as never)
   await (executor as unknown as Record<symbol, () => Promise<void>>)[Service.init]!()
   assert.ok(warnings.some((line) => line.includes('0.114.0') && line.includes(TESTED_NUSHELL!)))
+})
+
+test('boot runs the parser canary against the resolved Nushell', async () => {
+  const context = bootContext({ spawn: () => probeHandle('nu ' + TESTED_NUSHELL) })
+  const executor = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu' }) as never)
+  await (executor as unknown as Record<symbol, () => Promise<void>>)[Service.init]!()
+})
+
+test('boot fails closed when the parser canary cannot run', async () => {
+  const resolve = async () => process.execPath
+  const strict = new NushellExecutor(bootContext({ resolve, spawn: () => probeHandle('nu ' + TESTED_NUSHELL) }) as never, executorConfig({ nuPath: 'nu' }) as never)
+  await assert.rejects((strict as unknown as Record<symbol, () => Promise<void>>)[Service.init]!(), /cannot run the AST preflight/)
+  const warnings: string[] = []
+  const lenient = new NushellExecutor(
+    bootContext({ resolve, spawn: () => probeHandle('nu ' + TESTED_NUSHELL), warn: (line) => warnings.push(line) }) as never,
+    executorConfig({ nuPath: 'nu', requireNu: false }) as never,
+  )
+  await (lenient as unknown as Record<symbol, () => Promise<void>>)[Service.init]!()
+  assert.ok(warnings.some((line) => line.includes('AST preflight is unavailable')))
+})
+
+test('construction fails when the base executor loses a seam it relies on', () => {
+  assert.throws(() => assertBaseSeams({ executeArgv() {} }, ['executeArgv', 'confine']), /no longer has confine/)
+  assert.doesNotThrow(() => assertBaseSeams({ executeArgv() {}, confine() {} }, ['executeArgv', 'confine']))
+})
+
+test('a confined call goes through the parent and spawns the Nu argv it confined', async () => {
+  const confined: unknown[] = []
+  const spawned: string[][] = []
+  const context = fakeContext() as unknown as Record<string, unknown>
+  context.sandbox = {
+    confine: async (argv: string[]) => {
+      confined.push(argv)
+      return { argv: ['runner', ...argv], enforcement: 'full', denialSignatures: [], runnerFailureRules: [] }
+    },
+  }
+  context.subprocess = {
+    resolveExecutable: async (binary: string) => binary,
+    spawn: (spec: { argv: string[] }) => {
+      spawned.push(spec.argv)
+      return probeHandle('ok\n')
+    },
+  }
+  const executor = new NushellExecutor(context as never, executorConfig({ nuPath: 'nu' }) as never)
+  const handle = await executor.execute({
+    command: 'print ok',
+    workdir: process.cwd(),
+    timeoutMs: 1_000,
+    onExpiry: 'kill' as const,
+    stdoutMaxBytes: 64_000,
+    sandboxPolicy: { mode: 'workspace-write' as const, workspaceRoot: process.cwd() },
+  })
+  const result = await handle.result()
+  assert.deepEqual(confined, [['nu', '--no-config-file', '-c', 'print ok']])
+  assert.deepEqual(spawned, [['runner', 'nu', '--no-config-file', '-c', 'print ok']])
+  assert.equal(result.sandbox?.mode, 'workspace-write')
 })
 
 test('boot fails closed when requireNu is set and resolution fails', async () => {

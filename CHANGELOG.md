@@ -31,6 +31,11 @@ All notable changes to this project are recorded here. The format follows
 - The Nix package defaults to the tested Nushell from this flake's own
   nixpkgs pin instead of the caller's, and warns at evaluation time when the
   Nushell it is given differs from `testedWith`.
+- The executor refuses to start when the installed dsh executor no longer has
+  a method it overrides, instead of quietly running commands in that
+  executor's own shell.
+- The boot parser canary now also runs when the resolved Nushell path is not
+  an existing file, such as a bare name resolved from `PATH`.
 
 ## 0.4.0 (2026-10-19)
 
