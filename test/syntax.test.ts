@@ -331,7 +331,7 @@ test('every hint is produced by a real failure of the tested Nushell', { skip: !
         skipped.push(sample.id + ' (environment produced a different error)')
         continue
       }
-      const hint = hintFor(result.stderr, { exitCode: result.status, stdout: result.stdout })
+      const hint = hintFor(result.stderr)
       assert.match(hint ?? '', new RegExp('^Nushell hint \\(' + sample.id + '\\)'), sample.command + ' :: ' + result.stderr.slice(0, 160))
       checked.push(sample.id)
     }

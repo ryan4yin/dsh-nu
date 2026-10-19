@@ -506,14 +506,8 @@ const HINTS: readonly HintRule[] = [
 /** All hint ids, in rule order. */
 export const HINT_IDS: readonly string[] = HINTS.map((rule) => rule.id)
 
-/** Options for {@link hintFor}. @deprecated Ignored: hints match stderr alone. */
-export interface HintOptions {
-  exitCode?: number | null
-  stdout?: string | null
-}
-
 /** Pick one actionable hint for a failure, or nothing when no rule matches. */
-export function hintFor(stderr: string, _options: HintOptions = {}): string | undefined {
+export function hintFor(stderr: string): string | undefined {
   if (typeof stderr !== 'string' || stderr.length === 0) return undefined
   for (const rule of HINTS) {
     if (rule.match.test(stderr)) return 'Nushell hint (' + rule.id + '): ' + rule.hint
