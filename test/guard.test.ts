@@ -47,6 +47,9 @@ test('refuses launchers that would start a foreign shell', async () => {
     'taskset -c 0-3 bash -c "echo hi"',
     'taskset -c0-3 bash -c "echo hi"',
     'flock /tmp/x.lock sh -c "echo hi"',
+    "script -c 'bash -c \"echo hi\"'",
+    "script -q -c 'bash -c \"echo hi\"'",
+    'script -c "echo hi"',
   ]) {
     assert.notEqual(await findHandoff(command), undefined, command)
   }
