@@ -130,7 +130,7 @@ test('every teaching claim holds in the real Nushell', { skip: !nuAvailable }, (
     mkdirSync(join(cwd, 'docs'))
     writeFileSync(join(cwd, 'README.md'), 'r')
     writeFileSync(join(cwd, 'docs', 'a.md'), 'a')
-    assert.equal(ok(run('ls **/*.md | where type == file | get name | sort | to text', cwd), 'ls relative names').replace(/\\/g, '/'), 'README.md\ndocs/a.md')
+    assert.equal(ok(run('ls **/*.md | where type == file | get name | sort | to text', cwd), 'ls relative names').replace(/\r\n/g, '\n').replace(/\\/g, '/'), 'README.md\ndocs/a.md')
     const globbed = ok(run('glob **/*.md | sort | to text', cwd), 'glob absolute')
     assert.ok(globbed.split('\n').every((line) => isAbsolute(line)), globbed)
     const globFlag = run('glob --type files **/*.md', cwd)
