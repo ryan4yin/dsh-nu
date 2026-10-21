@@ -22,9 +22,12 @@ test('normalizePrefix defaults to a fresh default argv and rejects bad input', (
   assert.deepEqual(prefix, [...DEFAULT_NU_ARGS])
   assert.notEqual(prefix, DEFAULT_NU_ARGS)
   assert.deepEqual(normalizePrefix(['--no-config-file', '-c']), ['--no-config-file', '-c'])
-  for (const bad of ['--no-config-file', [], ['-c', 1], 42]) {
+  for (const bad of ['--no-config-file', [], ['-c', 1], 42, ['--no-config-file'], ['-I', 'x.nu']]) {
     assert.throws(() => normalizePrefix(bad), /nuArgs/)
   }
+  // The command is appended after the script flag, so the prefix must end at one.
+  assert.throws(() => normalizePrefix(['--no-config-file', '--ide-ast']), /must end with -c/)
+  assert.deepEqual(normalizePrefix(['--commands']), ['--commands'])
 })
 
 test('commandArgv appends the command after the prefix', () => {

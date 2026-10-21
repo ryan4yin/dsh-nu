@@ -137,7 +137,16 @@ test('boot runs the parser canary against the resolved Nushell', async () => {
 test('boot fails closed when the parser canary cannot run', async () => {
   const resolve = async () => process.execPath
   const strict = new NushellExecutor(bootContext({ resolve, spawn: () => probeHandle('nu ' + TESTED_NUSHELL) }) as never, executorConfig({ nuPath: 'nu' }) as never)
-  await assert.rejects((strict as unknown as Record<symbol, () => Promise<void>>)[Service.init]!(), /cannot run the AST preflight/)
+  // The canary ran a real binary, so its failure keeps its own guidance instead
+  // of the "install Nushell and put nu on PATH" advice.
+  await assert.rejects(
+    (strict as unknown as Record<symbol, () => Promise<void>>)[Service.init]!(),
+    (error: Error) => {
+      assert.match(error.message, /cannot run the AST preflight/)
+      assert.doesNotMatch(error.message, /cannot use the Nushell executable/)
+      return true
+    },
+  )
   const warnings: string[] = []
   const lenient = new NushellExecutor(
     bootContext({ resolve, spawn: () => probeHandle('nu ' + TESTED_NUSHELL), warn: (line) => warnings.push(line) }) as never,

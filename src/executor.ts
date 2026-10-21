@@ -60,6 +60,14 @@ export function assertBaseSeams(prototype: object, seams: readonly string[] = BA
 /** Nushell's own read-only denial signature; the sandbox runner only knows the POSIX EROFS text. */
 const NU_DENIAL_SIGNATURES = ['read-only_filesystem_or_storage_medium'] as const
 
+/**
+ * A boot failure of the parser canary. It carries its own actionable message,
+ * so `Service.init` rethrows it instead of wrapping it as "install Nushell".
+ */
+export class AstProbeError extends Error {
+  override name = 'AstProbeError'
+}
+
 /** The plugin name used in loader diagnostics. */
 export const name = 'nu-executor'
 
@@ -181,6 +189,11 @@ export class NushellExecutor extends BaseExecutor {
           ? 'shell executor bound to Nushell at ' + settings.resolvedPath
           : 'shell executor bound to Nushell ' + version + ' (' + settings.resolvedPath + ')')
         if (settings.enforce || settings.lint) await this.probeAst()
+        if ((settings.enforce || settings.lint) && !this.settings.prefix.includes('--no-config-file')) {
+          // The probes always parse with --no-config-file; a config that defines
+          // aliases or commands would run code the preflight never saw.
+          this.note('warn', 'nuArgs omits --no-config-file, so Nushell may load a config whose aliases and commands the preflight does not see')
+        }
         const warning = dshVersionWarning(resolveDshVersion())
         if (warning !== undefined) this.note('warn', warning)
         return
@@ -189,6 +202,9 @@ export class NushellExecutor extends BaseExecutor {
       nuFacts.resolvedPath = settings.resolvedPath
       this.note('info', 'shell executor bound to Nushell at ' + settings.resolvedPath)
     } catch (error) {
+      // The AST probe already names the tested version and the escape hatches;
+      // adding "install Nushell" advice would be wrong for a binary that ran.
+      if (error instanceof AstProbeError) throw error
       const detail = error instanceof Error ? error.message : String(error)
       nuFacts.problem = detail
       if (settings.require) {
@@ -218,7 +234,7 @@ export class NushellExecutor extends BaseExecutor {
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error)
       if (this.settings.require) {
-        throw new Error(
+        throw new AstProbeError(
           'dsh-nu: Nushell at ' + this.nuBinary + ' cannot run the AST preflight (' + detail + '). '
           + 'Install the tested Nushell version, or set enforceNushellOnly: false / syntaxLint: false to run without the only-Nushell check.',
         )
