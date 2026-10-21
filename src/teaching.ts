@@ -101,8 +101,7 @@ interface ToolSchema {
 }
 
 /** Whether a description claims to run bash or PowerShell. */
-function claimsForeignShell(tool: ToolSchema): boolean {
-  const description = typeof tool.description === 'string' ? tool.description : ''
+function claimsForeignShell(description: string): boolean {
   return /\bbash\b|\bpwsh\b|PowerShell/i.test(description)
 }
 
@@ -111,8 +110,12 @@ function rewriteTool(raw: unknown, options: Options): unknown {
   if (raw === null || typeof raw !== 'object') return raw
   const tool = raw as ToolSchema
   if (typeof tool.name !== 'string' || !options.toolNames.includes(tool.name)) return raw
-  if (!claimsForeignShell(tool)) return raw
-  const rewritten: ToolSchema = { ...tool, description: buildToolDescription() }
+  const original = typeof tool.description === 'string' ? tool.description : ''
+  if (!claimsForeignShell(original)) return raw
+  // Keep the host's contract and swap only its shell claims; an unrecognized
+  // host wording falls back to the bundle's own description.
+  const edited = rewriteSdkText(original)
+  const rewritten: ToolSchema = { ...tool, description: claimsForeignShell(edited) ? buildToolDescription() : edited }
   const command = tool.parameters?.properties?.command
   if (command !== undefined && tool.parameters?.properties !== undefined) {
     rewritten.parameters = {
@@ -123,7 +126,7 @@ function rewriteTool(raw: unknown, options: Options): unknown {
   return rewritten
 }
 
-/** Generated PTC SDK text claims, rewritten into Nushell terms. */
+/** Host shell claims in tool descriptions and the generated PTC SDK text, rewritten into Nushell terms. */
 const SDK_REPLACEMENTS: ReadonlyArray<readonly [RegExp, string]> = [
   [/Execute a bash command/gi, 'Execute a Nushell command'],
   [/Execute a PowerShell command/gi, 'Execute a Nushell command'],
@@ -140,11 +143,15 @@ const SDK_REPLACEMENTS: ReadonlyArray<readonly [RegExp, string]> = [
   [/Do not assign to automatic variables such as `\$HOME`; variable names are case-insensitive, so `\$home` is the same read-only variable\./g, 'Variable names are case-sensitive.'],
   [/Under the Windows sandbox, read-only pwsh runs in PowerShell ConstrainedLanguage mode[\s\S]*?core cmdlets work\. /g, ''],
   [/fresh pwsh process/gi, 'fresh Nushell process'],
+  // The bash description says "fresh shell"; a nu -c call is a fresh process.
+  [/fresh shell/gi, 'fresh process'],
   [/PowerShell's own pipelines/gi, "Nushell's own pipelines"],
   [/\$env:/g, '$env.'],
+  // Nushell reads environment values under $env, never as bare $NAME.
+  [/`\$DSH_\*`/g, '`$env.DSH_*`'],
 ]
 
-/** Rewrite the generated PTC SDK section text; idempotent. */
+/** Rewrite host shell-tool text (a tool description or the PTC SDK section); idempotent. */
 export function rewriteSdkText(text: string): string {
   let output = text
   for (const [pattern, replacement] of SDK_REPLACEMENTS) output = output.replace(pattern, replacement)

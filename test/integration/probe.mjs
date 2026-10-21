@@ -86,9 +86,10 @@ export async function apply(ctx) {
   // PTC exposes run_code and the SDK binding instead of a direct shell schema.
   if (!ptc) record('the shell tool is assembled', tool !== undefined)
   if (tool !== undefined) {
-    // The rewrite replaces the whole description with the guide's text, so pin
-    // that contract instead of matching one sentence that may be trimmed.
-    record('the shell tool description is Nushell', tool.description === buildToolDescription(), tool.description)
+    // The rewrite keeps the host's own contract and swaps only its shell
+    // claims; the bundle's fallback text means a host wording went unrecognized.
+    record('the shell tool description is Nushell', /^Execute a Nushell command \(`nu --no-config-file -c`\)/.test(tool.description) && !/\bbash\b|\bpwsh\b|PowerShell/i.test(tool.description), tool.description)
+    record('the shell tool description keeps the host contract', tool.description !== buildToolDescription() && tool.description.includes('[sandbox: file access denied'), tool.description)
   }
 
   const sdk = assembly.sections.find((section) => section.name === 'tools:sdk')

@@ -134,7 +134,7 @@ The bundle's patch mounts one executor row and one teaching row; a profile patch
 | `syntaxHints` | `true` | Append one `Nushell hint (…)` line to a failed call |
 | `guide` | `full` | Prompt guide: `full`, `compact`, or `off` |
 | `rules` | `true` | Prepend the shell-rules section |
-| `rewriteToolDescriptions` | `true` | Rewrite the `bash` / `pwsh` tool descriptions |
+| `rewriteToolDescriptions` | `true` | Replace the shell claims in the `bash` / `pwsh` tool descriptions, keeping the host's own contract text |
 | `toolNames` | `["bash","pwsh"]` | Tool schemas whose shell text is rewritten |
 | `timeoutMs` | `60000` | Default per-call timeout; `maxTimeoutMs` caps overrides |
 | `requireNu` / `verifyNu` | `true` / `true` | Fail boot when `nu` cannot be resolved, reports no version, or cannot run the preflight |
