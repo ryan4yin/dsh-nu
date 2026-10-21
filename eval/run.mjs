@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { findHandoff } from '../src/guard.ts'
 import { findSyntaxIssue } from '../src/syntax.ts'
+import { shellEvidence } from './evidence.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const repo = resolve(here, '..')
@@ -190,6 +191,7 @@ async function grade(item, events) {
   }))
   const refused = results.filter((event) => /dsh-nu: refusing/.test(String(event.result ?? ''))).length
   const hints = results.filter((event) => /Nushell hint \(/.test(String(event.result ?? ''))).length
+  const { firstCommandMatched, recoveryMatched, outputMatched } = shellEvidence(item.expect, calls, results)
   const answerMatched = new RegExp(item.expect.finalMatches, 'i').test(finalText)
   const withinCalls = commands.length >= (item.minShellCalls ?? 0) && commands.length <= (item.maxShellCalls ?? Infinity)
   const firstClean = findings.length > 0 && findings[0].clean
@@ -203,7 +205,10 @@ async function grade(item, events) {
     .filter((event) => event.type === 'status' && event.phase === 'step_end' && event.usage)
     .reduce((sum, event) => sum + (Number(event.usage.totalTokens) || 0), 0)
   return {
-    taskSuccess: answerMatched && withinCalls && !longSleep,
+    taskSuccess: answerMatched && withinCalls && !longSleep && firstCommandMatched && recoveryMatched && outputMatched,
+    firstCommandMatched,
+    recoveryMatched,
+    outputMatched,
     answerMatched,
     withinCalls,
     shellCalls: commands.length,

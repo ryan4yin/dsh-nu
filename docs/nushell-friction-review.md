@@ -31,21 +31,21 @@ A later review of the guard, preflight, and executor ran each finding against th
 - `do { /bin/sh -c … }`, `do { env bash … }`, `do { FOO=1 bash … }`, and `let x = (env bash …)` start a foreign shell, while the old guard only inspected the block head. The guard now covers every command position: block, subexpression, separator, pipe, path-qualified program, environment prefix, and launcher.
 - Multiline records, lists, and closures, `match "bash" { bash => 1 }`, `{ sh : 1 }`, and `|sh, ...rest|` were refused by the guard. The parser decides where statements end, and record keys, match arms, and closure parameters are no longer command positions.
 - On Windows every confined call failed: the parent passes the `ShellExecSpec` to `confine`, which read `.command` from a string. The seam now accepts both shapes.
-- Hints were appended to exit-0 calls and to sandbox denials, and a junk `nu --version` could still boot. A hint now needs a non-zero exit and no denial, and the version probe must report a version.
+- Hints were appended to ordinary exit-0 calls and to sandbox denials, and a junk `nu --version` could still boot. That review restricted hints to non-zero exits without denial, and required the version probe to report a version. Successful deprecation warnings are now an explicit exception; see [hint handling](troubleshooting.md#a-result-carries-a-nushell-hint).
 - The generated PTC `tools:sdk` text kept host claims (`${VAR:?}`, `$env:`, case-insensitive variables, pwsh sandbox modes). The rewrite now removes them.
 
 ## What changed
 
 - The guard's foreign-shell names, launcher table, wrapper chains, nested and interpolated handoffs, and allowlist are covered by unit tests and the Linux-only PATH-shim fuzz test.
 - A syntax rule is added when the pinned Nushell rejects the fragment or silently misreads it; the silent cases are pinned separately because exit 0 proves nothing.
-- Every hint pattern has a real failing command in `test/syntax.test.ts`.
+- Every hint pattern has a real diagnostic sample in `test/syntax.test.ts`, including deprecation warnings on successful commands.
 - `test/friction.test.ts` runs a corpus of common agent commands through the preflight and then through the real shell.
 - `test/syntax.test.ts` accepts and refuses commands by running them, including the silent redirects that exit 0 but write nothing, so a rule that is wrong about Nushell fails the suite.
 
 ## Known gaps
 
 - The guard is not a sandbox. Syntax forms inside plain strings, comments, or raw strings are data and pass; `$"…"` / `$'…'` interpolation is code and is inspected. A shell name computed at run time, a program that starts a shell itself, a shell name that exists only as data, and a script file loaded by `nu <file>`, `source`, or `use` are out of reach. The allowlist remains for commands that genuinely need a foreign shell.
-- Hints only fire on a failing call; exit 0 and a sandbox denial carry no hint, and a refused command has no hint.
+- Hints cover recognized errors and deprecations, including successful warnings; [hint handling](troubleshooting.md#a-result-carries-a-nushell-hint) describes their priority and exclusions.
 - Windows has no permission-denied hint sample in CI; the sample is skipped there.
 - The corpus covers common agent commands, not every Nushell feature. A command outside it that the guard refuses wrongly should become a corpus entry.
 - The `stdout-redirect` / `stdin-redirect` checks are token-based: comparisons are operator tokens, so any word starting with `>` or `<` in argument position is refused, including `cmd > out` with no path marker. `where size > 1kb`, `if $n > 2`, and datetime comparisons stay valid because the parser emits them as operators.

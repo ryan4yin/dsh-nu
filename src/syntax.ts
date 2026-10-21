@@ -64,13 +64,15 @@ export interface SyntaxOptions extends AnalyzeOptions {
   allow?: readonly RegExp[]
 }
 
+/** File redirection preserves external status; ignoring internal errors is a separate choice. */
+const STDERR_GUIDANCE = 'For an external command, use ^cmd e> err.txt (append: e>> err.txt), ^cmd o> out.txt, or ^cmd o+e> all.txt. On POSIX, ^cmd e> /dev/null discards stderr and preserves the exit status. Internal errors need try { ... } catch { |err| ... }; do -i { ... } deliberately ignores failure. e>| ignore changes the pipeline and may hide a failing exit status.'
+
 /** The replacement guidance for each rule. */
 const FIXES: Readonly<Record<RuleId, string>> = {
-  'stderr-redirect': 'Nushell has no 2>&1. Redirect with o+e> out.txt, or capture both streams with (do { cmd } | complete).',
-  // `2> target` with a space is a Nushell parse error; every other numbered
-  // redirect spelling is lexed as a word and runs.
-  'stderr-as-word': 'Nushell reads 2>... as an ordinary argument: the command runs, stderr is not redirected, and nothing fails. Drop stderr with e>| ignore, send it with e> err.txt, keep both streams with o+e> all.txt, or capture both with (do { cmd } | complete).',
-  'stderr-file': '2> is a shell redirection, and Nushell rejects it. Send stderr with e> err.txt, stdout with o> out.txt, both with o+e> out.txt.',
+  'stderr-redirect': 'Nushell has no 2>&1. For an external command, use ^cmd o+e> out.txt, or (do { ^cmd } | complete) to capture stdout, stderr and exit_code. Internal commands return values or raise errors; handle their errors with try { ... } catch { |err| ... }.',
+  // `2> target` and `2>|` are parser errors; attached targets can be words.
+  'stderr-as-word': 'Nushell can read numbered or merged shell redirects as ordinary arguments instead of redirecting. ' + STDERR_GUIDANCE,
+  'stderr-file': '2> (including 2>|) is not a Nushell redirection. ' + STDERR_GUIDANCE,
   // Comparisons are shape_operator tokens and never reach the token rule, so
   // any word starting with > is a shell redirect in argument position.
   'stdout-redirect': 'In Nushell a bare > is comparison, not a redirect: cmd > out.txt would pass > and the filename as arguments, exit 0, and write no file. The preflight refuses that spelling. Redirect stdout with o> out.txt, append with o>> out.txt, keep both streams with o+e> out.txt, or pipe into save -f out.txt.',
@@ -469,8 +471,13 @@ interface HintRule {
  * hint below is exercised against real `nu 0.115.1` stderr in the test suite.
  */
 const HINTS: readonly HintRule[] = [
-  { id: 'stderr-redirect', match: /nu::parser::shell_outerr/, hint: '2>&1 is not Nushell. Write o+e> out.txt, or use (do { cmd } | complete) to capture both streams.' },
-  { id: 'stderr-file', match: /nu::parser::shell_err\b/, hint: '2> file is not Nushell. Send stderr with e> err.txt; stdout is o> and both is o+e>.' },
+  { id: 'stderr-redirect', match: /nu::parser::shell_outerr/, hint: FIXES['stderr-redirect'] },
+  { id: 'stderr-file', match: /nu::parser::shell_err\b/, hint: FIXES['stderr-file'] },
+  { id: 'input-type', match: /nu::shell::only_supports_this_input_type\b/, hint: 'This command does not accept its pipeline input type. For a record, read a field with get <key>; for $env, use $env.NAME?. To filter a record by key, use transpose key value | where key == "NAME" | get value | first.' },
+  { id: 'complete-internal', match: /nu::shell::error\s+[x×]\s+Complete only works with external commands\b/, hint: 'complete captures an external process: (do { ^cmd } | complete) returns stdout, stderr and exit_code. An internal command returns a Nushell value; consume it directly, or handle a failure with try { ... } catch { |err| ... }.' },
+  { id: 'statement-in-pipeline', match: /nu::parser::unexpected_keyword\s+[x×]\s+Statement used in pipeline\./, hint: 'A statement such as for cannot produce a pipeline value. Transform a list with [1 2] | each { |x| $x * 2 } | to json. To use a bound value in another pipeline, bind first: let result = (1 | to json); $result.' },
+  { id: 'invalid-base64', match: /nu::shell::incorrect_value[\s\S]*\bdecode base64\b[\s\S]*^[ \t]*[:·│][ \t|│]*(?:`--|[╰└]──) invalid (?:(?:padding )?length|symbol) at \d+\b/m, hint: 'Base64 decoding rejected the input. Check the alphabet and padding; quoting alone does not repair malformed encoded data. A valid example is \'aGk=\' | decode base64.' },
+  { id: 'internal-stderr-pipe', match: /nu::shell::error\s+[x×]\s+Can't redirect stderr of internal command output\b/, hint: 'An internal command returns a value or raises an error, so e>| cannot redirect its errors. Consume the value directly; handle errors with try { ... } catch { |err| ... }, or use do -i { ... } only when failure should be ignored.' },
   { id: 'path-not-found', match: /nu::shell::(?:io::)?(?:file_)?not_found/, hint: 'The path does not exist. Check it with path exists, or quote it if it contains spaces.' },
   { id: 'glob-pattern', match: /No matches found for/, hint: 'That glob matched nothing, and ls <glob> treats an empty match as an error. Use glob <pattern> (empty list is fine) or widen the pattern; ? in a path is a one-character wildcard in Nushell.' },
   { id: 'incompatible-path-access', match: /nu::shell::incompatible_path_access/, hint: 'A pipeline and or/and were mixed: wrap each comparison, (str contains "a") or (str contains "b"), or use one regex =~.' },
@@ -479,15 +486,14 @@ const HINTS: readonly HintRule[] = [
   { id: 'percent-sigil', match: /percent sigil/, hint: 'Nushell has no %{ ... } block. Use do { ... }, each { ... }, or a named closure.' },
   { id: 'column-not-found', match: /nu::shell::column_not_found/, hint: 'Nushell could not find that column or environment variable. For a table, inspect it with columns or first 1; for an optional variable, write $env.NAME?.' },
   { id: 'find-builtin', match: /find. command doesn't have flag/, hint: 'find here is the Nushell text-search builtin, not GNU find. Use glob "**/*.rs", or force the external tool with ^find . -name "*.rs".' },
-  { id: 'deprecated-flag', match: /nu::parser::deprecated/, hint: 'That PowerShell-style flag is deprecated or gone: use first 20, last 20, uniq, or sort-by instead of -First / -Last / -Unique.' },
-  { id: 'unknown-flag', match: /nu::parser::unknown_flag/, hint: 'Nushell flags differ from bash flags: check help <command> (for example ls --all, rm -r -f, mkdir a/b).' },
+  { id: 'unknown-flag', match: /nu::parser::unknown_flag/, hint: 'This flag is not accepted by the installed Nushell version. Check help <command> for its current signature; external programs keep their own flags, and ^program selects the external when names collide.' },
   { id: 'name-not-found', match: /nu::shell::name_not_found/, hint: 'The command or column name is not known here. Nushell columns are space-separated (select name size), and list the real ones with columns.' },
   { id: 'unknown-command', match: /nu::parser::unknown_command/, hint: 'That is not a Nushell command. Check the spelling, remove a foreign sigil such as @(...) / %{...}, or prefix an external binary with ^.' },
   { id: 'extra-positional', match: /nu::parser::extra_positional/, hint: 'Too many positional arguments. glob takes one pattern plus --depth; check help <command> for the accepted shape.' },
   { id: 'http-error', match: /nu::shell::io::connection_refused|nu::shell::http_error/, hint: 'The HTTP request failed (offline, DNS/TLS, refused connection, or a non-2xx status). Try http get --full <url> to inspect the status without raising.' },
   { id: 'immutable-assignment', match: /nu::parser::assignment_requires_mutable_variable/, hint: 'let variables are immutable. Declare it with mut before reassigning: mut x = 1; $x = 2.' },
   { id: 'env-var-not-var', match: /nu::parser::env_var_not_var/, hint: 'Environment values live under $env: write $env.PATH, not $PATH.' },
-  { id: 'assignment-requires-variable', match: /nu::parser::assignment_requires_variable/, hint: '= assigns to a variable. A record literal uses { a: 1 }, and a table uses [[a]; [1]].' },
+  { id: 'assignment-requires-variable', match: /nu::parser::assignment_requires_variable/, hint: '= assigns to a variable. Put a binding before its input pipeline: let values = ([1 2] | each { |x| $x * 2 }); $values. A record literal uses { a: 1 }, and a table uses [[a]; [1]].' },
   { id: 'condition-not-boolean', match: /nu::shell::cant_convert[\s\S]{0,240}boolean/, hint: 'The condition is not a boolean. An empty check is ($x | is-empty), a file check is (path exists), and a comparison needs an operator such as ==.' },
   { id: 'cannot-pass-list-to-external', match: /nu::shell::cannot_pass_list_to_external/, hint: 'Nushell does not pass a list to an external program implicitly. Spread it (^git add ...$files) or convert it (to text).' },
   { id: 'needs-positive-value', match: /nu::shell::needs_positive_value/, hint: 'first and last take a positive count: first 3, not first -3.' },
@@ -503,14 +509,39 @@ const HINTS: readonly HintRule[] = [
   { id: 'parse-error', match: /nu::parser::parse_mismatch|nu::parser::unclosed_delimiter/, hint: 'Nushell refused to parse this. Check quoting and parentheses: single quotes keep backslashes literal, and every brace, bracket, and parenthesis needs its pair in the same command.' },
 ]
 
-/** All hint ids, in rule order. */
-export const HINT_IDS: readonly string[] = HINTS.map((rule) => rule.id)
+/** All hint ids; deprecation guidance is selected separately from failures. */
+export const HINT_IDS: readonly string[] = [...HINTS.map((rule) => rule.id), 'deprecated-flag']
 
-/** Pick one actionable hint for a failure, or nothing when no rule matches. */
+/** Select guidance only from Nushell deprecation warning blocks. */
+export function deprecationHintFor(stderr: string): string | undefined {
+  if (typeof stderr !== 'string') return undefined
+  const warnings = stderr.split(/(?=^(?:Error|Warning):)/m)
+    .filter((block) => /^Warning: nu::parser::deprecated\b/.test(block)).join('\n')
+  if (warnings.length === 0) return undefined
+  // Source rows can quote any warning text; only rendered diagnostic labels identify the deprecated command.
+  const labels = Array.from(warnings.matchAll(/^[ \t]*[:·│][ \t|│]*(?:`--|[╰└]──) (.*)$/gm), (match) => match[1]).join('\n')
+  let hint: string
+  if (/^filter was deprecated\b/m.test(labels)) {
+    hint = 'filter is deprecated. Use where with the same predicate closure: [1 2] | where { |x| $x > 1 }.'
+  } else if (/^get --ignore-errors was deprecated\b/m.test(labels)) {
+    hint = 'get -i / --ignore-errors is deprecated. Use get -o / --optional; missing cell paths return null: { a: 1 } | get -o missing.'
+  } else if (/^str upcase was deprecated\b/m.test(labels)) {
+    hint = 'str upcase is deprecated. Use str uppercase: "abc" | str uppercase.'
+  } else {
+    hint = 'This Nushell command or flag is deprecated. Follow the replacement in the warning\'s help text, and check help <command> for the installed version\'s signature.'
+  }
+  return 'Nushell hint (deprecated-flag): ' + hint
+}
+
+/** Pick one actionable hint, preferring an actual error over a warning. */
 export function hintFor(stderr: string): string | undefined {
   if (typeof stderr !== 'string' || stderr.length === 0) return undefined
+  // Warning excerpts can contain source text that matches an unrelated error.
+  const failures = stderr.split(/(?=^(?:Error|Warning):)/m)
+    .filter((block) => block.startsWith('Error:')).join('\n')
+  if (failures.length === 0 && /^Warning:/m.test(stderr)) return deprecationHintFor(stderr)
   for (const rule of HINTS) {
-    if (rule.match.test(stderr)) return 'Nushell hint (' + rule.id + '): ' + rule.hint
+    if (rule.match.test(failures || stderr)) return 'Nushell hint (' + rule.id + '): ' + rule.hint
   }
   return undefined
 }

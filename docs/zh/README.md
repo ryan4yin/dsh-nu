@@ -129,7 +129,7 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
 | `enforceNushellOnly` | `true` | 拒绝把命令交给其他 shell |
 | `foreignShellAllowlist` | `[]` | 豁免两项预检检查的正则；必须匹配整条命令 |
 | `syntaxLint` | `true` | 启动进程前拦下 bash/PowerShell 语法 |
-| `syntaxHints` | `true` | 调用失败时追加一行 `Nushell hint (…)` |
+| `syntaxHints` | `true` | 为已识别的失败或弃用警告追加一行 `Nushell hint (…)`，包括退出码 0 的弃用警告 |
 | `guide` | `full` | prompt 指南：`full`、`compact`、`off` |
 | `rules` | `true` | 在 prompt 前加上 shell 规则段 |
 | `rewriteToolDescriptions` | `true` | 只替换 `bash` / `pwsh` 工具描述里的 shell 说法，保留宿主自己的契约文本 |

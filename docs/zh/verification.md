@@ -10,7 +10,7 @@
 - 解析器契约测试。预检依赖 `nu --ide-ast` 与 `nu --ide-check` 的精确输出：包含 shape、content、span 的扁平 token 列表，以及 JSONL 诊断。契约测试固定预检读取的 shape、offset 和字段；Nushell 的 IDE 输出变化会让测试失败，而不是悄悄放松 guard；
 - 差分语料。每条拒绝的语法形式都交给固定版本的 Nushell 执行，必须失败；Nushell 静默接受的写法另有测试：实际运行、断言退出码 0 的真实行为。所有允许的写法必须能运行。交接用例断言 guard 的结论，覆盖嵌套 block、closure、插值、包装链，以及只是数据的 shell 名称；
 - 仅限 Linux 的 PATH-shim fuzz 测试。预检放行的命令会在真实 Nushell 里执行，同时把外部 shell 的替身可执行文件放在 `PATH` 最前面；替身一旦被调用，测试就失败；
-- hint 覆盖。每个 hint id 都有一条真实失败命令；测试用这条命令的 stderr 检查 hint；
+- hint 覆盖。每个 hint id 都有真实 Nushell 诊断，包括成功退出时的弃用警告。恢复测试执行建议的新写法，并检查输出和退出状态；通用诊断 ID 还配有不应匹配的反例；
 - claims 测试。教学指南里可执行的断言都交给固定版本 Nushell 运行；
 - manifest 契约：peer 范围、bundle patch、exports 和发布文件列表；
 - 文档测试：文档集合存在、没有序列化占位符、重复的固定版本号、README 里的 bundle 行 id、相对 Markdown 链接有效。
@@ -67,6 +67,7 @@ npm pack --dry-run
 
 - 固定支持组合是 dsh `0.2.1-rc.2` 与 Nushell `0.115.1`。
 - guard 不是沙箱。它跟踪字面量 shell 名称、固定的 launcher 表、`run-external`，以及最多四层的字面量 `nu -c` / `nu -e` 脚本。运行时才确定的 shell 名称、自己会启动 shell 的程序、藏在数据里的 shell 名称，以及 `nu <file>`、`source`、`use` 加载的脚本文件都在覆盖范围外。普通引号字符串是数据；`$"…"` / `$'…'` 插值会作为代码检查。
-- hint 只在调用失败且 Nushell 报错后出现；退出码 0 和沙箱拒绝都不会附带 hint。启动前被拒绝的命令没有 hint。
+- hint 解释已识别的 Nushell 错误和弃用警告，成功退出的弃用警告也会得到提示；实际错误优先于警告。普通退出码 0 的 stderr、超时、取消和沙箱拒绝不追加 hint。预检拒绝使用自己的修复说明。
+- [会话扫描器](../../dev/session-scan.md) 汇总明确指定的本地事件文件，区分退出状态未知和失败，不推断修复或任务成功率。
 - 预检 fail closed，因此 Nushell 的 IDE 输出与测试形状不符时，调用会被拒绝，直到版本对齐。
 - CI 的 Windows 上没有权限类差分 hint 样本，该样本在 Windows 上跳过。

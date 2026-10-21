@@ -4,6 +4,23 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+
+- Refusal and runtime guidance distinguishes external stderr from internal
+  errors, and preserves stdout pipelines and exit status when discarding stderr.
+- Hints cover record input, internal `complete`, misplaced pipeline statements,
+  invalid base64, and internal stderr piping. Deprecation warnings receive the
+  current replacement even on exit 0; actual errors take priority.
+
+### Added
+
+- Real Nushell recovery tests and live DSH probes verify suggested commands,
+  output, and exit status. Model eval cases check the next repair result.
+- A local session scanner reports aggregate refusals, hints, diagnostics, and
+  explicit exit statuses from supplied event files without exposing payloads.
+
 ## 0.6.0 (2026-10-21)
 
 ### Added

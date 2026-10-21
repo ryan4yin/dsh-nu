@@ -93,7 +93,8 @@ test('guide off drops the guide and rules false drops the rules', () => {
   const bare = fakeContext()
   apply(bare.ctx as never, { rules: false, guide: 'compact' })
   assert.deepEqual(bare.sections.map((section) => section.name), [GUIDE_SECTION])
-  assert.match((bare.sections[0]!.text as () => string)(), /e>\| ignore/)
+  assert.match((bare.sections[0]!.text as () => string)(), /e> \/dev\/null.*POSIX/)
+  assert.doesNotMatch((bare.sections[0]!.text as () => string)(), /→ `cmd e>\| ignore`/)
 })
 
 test('the assemble listener rewrites shell tool descriptions and their command parameter', async () => {

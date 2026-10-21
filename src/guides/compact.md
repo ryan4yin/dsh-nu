@@ -1,7 +1,7 @@
 Nushell syntax guide
 
 Rewrite the bash habits the preflight refuses:
-- `cmd 2>/dev/null` → `cmd e>| ignore` (even when the task says to ignore errors); `cmd 2>&1` → `cmd o+e> f` or `(do { cmd } | complete)`.
+- External `cmd 2>/dev/null` → `^cmd e> /dev/null` on POSIX, keeping stdout and exit status; portable capture: `(do { ^cmd } | complete)`. Internal errors need `try { cmd } catch { |err| $err.msg }`; `do -i { cmd }` intentionally ignores failure. `cmd 2>&1` → `^cmd o+e> f`.
 - `cmd > out.txt` → `cmd o> out.txt`; `cmd 2> f` → `cmd e> f`. A bare `>` is comparison.
 - `a && b` → `a; b` (wrap a command that may fail in `do -i { }`); `a || b` → `try { a } catch { b }`.
 - `mkdir -p a/b` → `mkdir a/b`; `ls -la` → `ls --all --long`; `ls -R` → `ls **/*`; `for f in ...; do ...; done` → `for f in [...] { }` or `... | each { |f| ... }`; `test -d p` → `$p | path exists`.

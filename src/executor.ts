@@ -21,7 +21,7 @@ import type { ShellExecSpec, ShellExecution, ShellRunResult, ShellSandboxInfo } 
 import z from '@deepseek-ai/schemastery'
 import { PreflightError, analyze } from './ast.js'
 import { assertNuOnly, compileAllowlist } from './guard.js'
-import { assertNushellSyntax, findSyntaxIssue, hintFor } from './syntax.js'
+import { assertNushellSyntax, deprecationHintFor, findSyntaxIssue, hintFor } from './syntax.js'
 import {
   chooseBinary,
   commandArgv,
@@ -120,7 +120,7 @@ interface NuSettings {
  * | enforceNushellOnly | true | refuse commands that hand off to another shell |
  * | foreignShellAllowlist | [] | regexes exempt from both checks; each must match the whole command |
  * | syntaxLint | true | refuse bash/PowerShell syntax before spawning |
- * | syntaxHints | true | append one hint to a failed command's stderr |
+ * | syntaxHints | true | append one hint for a recognized failure or deprecation warning, including exit 0 |
  * | requireNu | true | fail boot when nu cannot be resolved |
  * | verifyNu | true | run nu --version once at boot |
  * | verifyTimeoutMs | 10000 | bound for that probe |
@@ -338,7 +338,7 @@ export class NushellExecutor extends BaseExecutor {
     }
   }
 
-  /** Wrap a handle so its foreground projection carries one hint on failure. */
+  /** Wrap a handle so its foreground projection carries at most one hint. */
   private attach(handle: ShellExecution, sandbox?: ShellSandboxInfo): ShellExecution {
     const base = handle.result.bind(handle)
     let decorated: Promise<ShellRunResult> | undefined
@@ -349,19 +349,18 @@ export class NushellExecutor extends BaseExecutor {
     return handle
   }
 
-  /** Append one hint to a failed result's stderr. */
+  /** Append one hint for a failure or a successful deprecation warning. */
   private withHint(result: ShellRunResult, sandbox?: ShellSandboxInfo): ShellRunResult {
     const projected = sandbox === undefined ? result : { ...result, sandbox }
     if (!this.settings.hints) return projected
-    // The docs promise a hint on a failing command; exit 0 (and a timeout with
-    // no exit code) is not a syntax failure, and stderr may still carry text
-    // that happens to look like a Nu error.
-    if (typeof projected.exitCode !== 'number' || projected.exitCode === 0) return projected
+    if (typeof projected.exitCode !== 'number' || projected.timedOut || projected.aborted) return projected
     // A sandbox denial already carries the host's own denial/escalation wording.
     if (projected.sandbox?.denied === true) return projected
     const text = projected.stderr?.text
     if (typeof text !== 'string' || text.length === 0) return projected
-    const hint = hintFor(text)
+    // Successful commands may emit deprecation warnings, but ordinary stderr
+    // that resembles an error must not gain a failure hint on exit 0.
+    const hint = projected.exitCode === 0 ? deprecationHintFor(text) : hintFor(text)
     if (hint === undefined) return projected
     const separator = text.endsWith('\n') ? '' : '\n'
     return { ...projected, stderr: { ...projected.stderr, text: text + separator + hint + '\n' } }

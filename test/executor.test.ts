@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { test } from 'node:test'
 import { Service } from '@deepseek-ai/cordis'
 import { assertBaseSeams, NushellExecutor } from '../src/executor.ts'
@@ -361,4 +362,99 @@ test('syntaxHints: false suppresses the failure hint', async () => {
   const handle = await executor.execute(spec)
   const result = await handle.result()
   assert.doesNotMatch(result.stderr.text, /Nushell hint/)
+})
+
+/** Keep the executor path intact while running its argv with the real binary. */
+function realNuExecutor(overrides: Record<string, unknown> = {}) {
+  const context = fakeContext() as unknown as Record<string, unknown>
+  context.subprocess = {
+    resolveExecutable: async (binary: string) => binary,
+    spawn: (spec: { argv: string[] }) => {
+      const result = spawnSync(spec.argv[0]!, spec.argv.slice(1), { encoding: 'utf8', timeout: 10_000 })
+      assert.ifError(result.error)
+      assert.notEqual(result.status, null)
+      const stream = (text: string) => ({ readFrom: () => ({ text, lossy: false, nextOffset: Buffer.byteLength(text) }) })
+      return {
+        done: Promise.resolve({ exitCode: result.status, signal: result.signal }),
+        collected: { stdout: stream(result.stdout), stderr: stream(result.stderr) },
+      }
+    },
+  }
+  return new NushellExecutor(context as never, executorConfig({ nuPath: 'nu', ...overrides }) as never)
+}
+
+async function executeReal(executor: NushellExecutor, command: string) {
+  const handle = await executor.execute({
+    command,
+    workdir: process.cwd(),
+    timeoutMs: 10_000,
+    onExpiry: 'kill' as const,
+    stdoutMaxBytes: 64_000,
+    sandboxPolicy: { mode: 'danger-full-access' as const, workspaceRoot: process.cwd() },
+  })
+  const result = await handle.result()
+  assert.strictEqual(await handle.result(), result, 'result decoration is cached')
+  return result
+}
+
+test('real successful deprecations keep stdout and exit status and gain one replacement hint', async () => {
+  const executor = realNuExecutor()
+  for (const [command, expected, replacement] of [
+    ['[1 2] | filter { |n| $n > 1 } | first', '2', /where/],
+    ['{a: 1} | get -i a', '1', /get -o|--optional/],
+    ['"alpha" | str upcase', 'ALPHA', /str uppercase/],
+  ] as const) {
+    const result = await executeReal(executor, command)
+    assert.equal(result.exitCode, 0, result.stderr.text)
+    assert.equal(result.stdout.text.trim(), expected)
+    assert.match(result.stderr.text, /Warning: nu::parser::deprecated/)
+    const hints = result.stderr.text.match(/^Nushell hint .*$/gm) ?? []
+    assert.equal(hints.length, 1)
+    assert.match(hints[0]!, replacement)
+  }
+})
+
+test('real failure wins over a preceding deprecation warning', async () => {
+  const result = await executeReal(realNuExecutor(), '[1 2] | filter { |n| $n > 1 }; open dsh-nu-missing-hint-fixture')
+  assert.notEqual(result.exitCode, 0)
+  assert.match(result.stderr.text, /Warning: nu::parser::deprecated/)
+  assert.match(result.stderr.text, /Nushell hint \(path-not-found\)/)
+  assert.equal((result.stderr.text.match(/^Nushell hint /gm) ?? []).length, 1)
+})
+
+test('syntaxHints false also suppresses real successful deprecation hints', async () => {
+  const result = await executeReal(realNuExecutor({ syntaxHints: false }), '{a: 1} | get -i a')
+  assert.equal(result.exitCode, 0)
+  assert.equal(result.stdout.text.trim(), '1')
+  assert.match(result.stderr.text, /Warning: nu::parser::deprecated/)
+  assert.doesNotMatch(result.stderr.text, /Nushell hint/)
+})
+
+test('ordinary successful stderr never gains an error hint', async () => {
+  const result = await executeReal(realNuExecutor(), 'print -e "Error: nu::parser::unknown_flag"; print ok')
+  assert.equal(result.exitCode, 0)
+  assert.equal(result.stdout.text.trim(), 'ok')
+  assert.doesNotMatch(result.stderr.text, /Nushell hint/)
+})
+
+test('incomplete results and sandbox denials do not decorate real warnings', () => {
+  const warning = spawnSync('nu', ['--no-config-file', '-c', '{a: 1} | get -i a'], { encoding: 'utf8', timeout: 10_000 })
+  assert.equal(warning.status, 0)
+  assert.match(warning.stderr, /Warning: nu::parser::deprecated/)
+  const executor = realNuExecutor()
+  for (const override of [
+    { exitCode: null },
+    { timedOut: true },
+    { aborted: true },
+    { sandbox: { mode: 'workspace-write', denied: true } },
+  ]) {
+    const result = {
+      exitCode: 0, timedOut: false, aborted: false, signal: null, timeoutMs: 10_000,
+      stdout: { text: warning.stdout, lossy: false, nextOffset: 0 },
+      stderr: { text: warning.stderr, lossy: false, nextOffset: 0 },
+      ...override,
+    }
+    const decorated = (executor as unknown as { withHint: (value: unknown) => typeof result }).withHint(result)
+    assert.strictEqual(decorated, result)
+  }
 })
