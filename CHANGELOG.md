@@ -15,6 +15,13 @@ All notable changes to this project are recorded here. The format follows
 
 ### Changed
 
+- The teaching text is about half the size: the mandatory rules keep only the
+  policy, the guide owns the syntax, and each fact appears once. The shell-tool
+  description is now the host's own text with its shell claims replaced, so the
+  contract (the `description` argument, the sandbox denial, budgets) no longer
+  has to be re-stated by hand; the bundle's description is a fallback for a host
+  wording the replacements do not recognize.
+- `test/teaching.test.ts` fails when the rules and the guide repeat a sentence.
 - `nuArgs` must end with `-c` or `--commands`, because the command is appended
   after it; any other prefix is rejected at construction instead of producing an
   argv that never runs the command.
@@ -40,6 +47,8 @@ All notable changes to this project are recorded here. The format follows
   `ssh`'s `Permission denied (publickey)` no longer carries sandbox advice.
 - The `stdin-redirect` refusal pipes the file into the command
   (`open --raw in.txt | ^prog`) instead of passing its contents as an argument.
+- The rewritten bash tool description no longer claims each call runs in a
+  "fresh shell"; `nu -c` runs a fresh process.
 
 ## 0.5.0 (2026-10-19)
 

@@ -5,7 +5,13 @@ The model-facing prose lives here:
 - `rules.md`: mandatory shell rules, always included by `buildRules()`.
 - `full.md`: detailed syntax guide, selected by `guide: full`.
 - `compact.md`: condensed syntax guide, selected by `guide: compact`.
-- `tool-description.md`: rewritten shell-tool description.
+- `tool-description.md`: fallback shell-tool description, used only when the
+  host's own description still claims bash or PowerShell after its shell terms
+  are replaced (`SDK_REPLACEMENTS` in `src/teaching.ts`).
+
+Each fact has one home: the rules state policy, the guide owns syntax, and the
+tool description only covers the calling contract. The eval compares the arms;
+`test/teaching.test.ts` fails when the rules and the guide repeat a sentence.
 
 The one-line command argument description stays in `src/guide.ts`. The build
 copies only the four files above into `dist/guides`; this maintenance README is

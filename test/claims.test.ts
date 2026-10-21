@@ -54,6 +54,9 @@ test('every teaching claim holds in the real Nushell', { skip: !nuAvailable }, (
     // claim is checked with an external command that produces a stream.
     assert.equal(ok(run('^nu --no-config-file -c "print x" o>> g.txt; ^nu --no-config-file -c "print y" o>> g.txt; open --raw g.txt | lines | length', cwd), 'o>> append'), '2')
 
+    // A pipeline feeds an external program's stdin, which replaces `cmd < in.txt`.
+    assert.equal(ok(run('"abc" | save -f in.txt; open --raw in.txt | ^nu --no-config-file --stdin -c "$in | str length"', cwd), 'stdin from a file'), '3')
+
     // print writes to stdout but returns nothing, so a pipeline after it has no input.
     const printed = run('print "x" | str length', cwd)
     assert.notEqual(printed.status, 0, 'print pipeline should fail')

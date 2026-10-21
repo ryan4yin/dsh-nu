@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { buildGuide, buildToolDescription, NUSHELL_COMMAND_DESCRIPTION } from '../src/guide.ts'
+import { buildGuide, buildRules, buildToolDescription, NUSHELL_COMMAND_DESCRIPTION } from '../src/guide.ts'
 import {
   apply,
   GUIDE_SECTION,
@@ -65,17 +65,25 @@ test('the guide does not claim double-quoted strings interpolate', () => {
   assert.match(text, /to json.*returns text|return text, not a table/)
 })
 
-test('the guides serialize final output and state fail-closed behavior', () => {
+test('the guides serialize final output', () => {
   for (const variant of ['full', 'compact'] as const) {
     const text = buildGuide({ variant })
     assert.match(text, /to text[\s\S]*(?:to json|for lines)/i)
   }
   const full = buildGuide({ variant: 'full' })
-  assert.match(full, /fails closed/)
   assert.doesNotMatch(full, /Single and double quotes are literal/)
   assert.match(full, /Single quotes are literal; double quotes process escapes/)
-  const tool = buildToolDescription()
-  assert.match(tool, /to text[\s\S]*(?:to json|for lines)/i)
+})
+
+test('each teaching fact has one home across rules, guide, and fallback description', () => {
+  // The rules section states the policy; the guide owns syntax. A repeated
+  // sentence across them costs prompt tokens on every request.
+  const sentences = (text: string): string[] => text.split(/(?<=[.;:])\s+|\n+/).map((part) => part.trim()).filter((part) => part.length > 40)
+  const rules = new Set(sentences(buildRules()))
+  for (const variant of ['full', 'compact'] as const) {
+    for (const sentence of sentences(buildGuide({ variant }))) assert.ok(!rules.has(sentence), variant + ' repeats the rules: ' + sentence)
+  }
+  assert.doesNotMatch(buildRules() + buildGuide({ variant: 'full' }), /fails closed/)
 })
 
 test('guide off drops the guide and rules false drops the rules', () => {
@@ -85,7 +93,7 @@ test('guide off drops the guide and rules false drops the rules', () => {
   const bare = fakeContext()
   apply(bare.ctx as never, { rules: false, guide: 'compact' })
   assert.deepEqual(bare.sections.map((section) => section.name), [GUIDE_SECTION])
-  assert.match((bare.sections[0]!.text as () => string)(), /one fresh process per call/)
+  assert.match((bare.sections[0]!.text as () => string)(), /e>\| ignore/)
 })
 
 test('the assemble listener rewrites shell tool descriptions and their command parameter', async () => {
@@ -105,6 +113,37 @@ test('the assemble listener rewrites shell tool descriptions and their command p
   assert.equal(result.sections[0].text.includes('bash -c'), false)
   assert.match(result.sections[0].text, /nu --no-config-file -c/)
   assert.match(result.sections[0].text, /Execute a Nushell command/)
+})
+
+// Host descriptions as dsh 0.2.1-rc.2 renders them (bash; pwsh without the Windows sandbox).
+const HOST_BASH = 'Execute a bash command (`bash -c`) and return its stdout/stderr. Each call runs in a fresh shell; pass `workdir` instead of using `cd`. Managed `$DSH_*` variables expose current harness environment facts. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. Provide `description` before `command` in the arguments. Before any delete or move, verify that the resolved absolute target path is the intended one; never run it against a computed path you have not checked. An unset variable expands to an empty string, so guard variables in such paths with `${VAR:?}`. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way.'
+const HOST_PWSH = 'Execute a PowerShell command (`pwsh -Command`) and return its stdout/stderr. Each call runs in a fresh pwsh process; pass `workdir` instead of using `cd`. Paths use native Windows form (`C:\\...`); read environment variables with `$env:NAME`. Managed `$env:DSH_*` variables expose current harness environment facts. Long output is truncated to its tail; the full output is saved to a file whose path is reported when available. On Windows a force-killed command settles as `[exit code: 1]` without a signal marker — treat it as an interruption, not a command failure. Provide `description` before `command` in the arguments. Before any delete or move, verify that the resolved absolute target path is the intended one; never run it against a computed path you have not checked. Do not assign to automatic variables such as `$HOME`; variable names are case-insensitive, so `$home` is the same read-only variable. Commands may run under a file sandbox; a blocked file operation is reported as `[sandbox: file access denied under <mode> mode]`, a policy denial: do not retry another way.'
+
+test('the host tool descriptions keep their contract and lose only shell claims', async () => {
+  const { ctx, listeners } = fakeContext()
+  apply(ctx as never, {})
+  const listener = listeners.get('system-prompt/assemble')![0]!
+  for (const [name, description] of [['bash', HOST_BASH], ['pwsh', HOST_PWSH]] as const) {
+    const tool = { ...bashTool(description), name }
+    const result = await listener({ tools: [tool] }, {}, async () => ({ tools: [tool] }))
+    const text = result.tools[0].description as string
+    assert.match(text, /^Execute a Nushell command \(`nu --no-config-file -c`\)/, name)
+    assert.doesNotMatch(text, /\bbash\b|\bpwsh\b|PowerShell|\$\{VAR:\?\}|\$env:|`\$DSH_|fresh shell/i, name)
+    assert.match(text, /`\$env\.DSH_\*`/, name)
+    assert.match(text, /\[sandbox: file access denied under <mode> mode\]/, name)
+    assert.match(text, /Provide `description` before `command`/, name)
+    assert.notEqual(text, buildToolDescription(), name)
+  }
+})
+
+test('an unrecognized host wording falls back to the bundle description', async () => {
+  const { ctx, listeners } = fakeContext()
+  apply(ctx as never, {})
+  const listener = listeners.get('system-prompt/assemble')![0]!
+  const tool = bashTool('Runs your command in GNU bash 5.')
+  const result = await listener({ tools: [tool] }, {}, async () => ({ tools: [tool] }))
+  assert.equal(result.tools[0].description, buildToolDescription())
+  assert.match(buildToolDescription(), /^Execute a Nushell command/)
 })
 
 test('a tool whose description does not claim bash is left alone', async () => {

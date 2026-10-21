@@ -132,7 +132,7 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
 | `syntaxHints` | `true` | 调用失败时追加一行 `Nushell hint (…)` |
 | `guide` | `full` | prompt 指南：`full`、`compact`、`off` |
 | `rules` | `true` | 在 prompt 前加上 shell 规则段 |
-| `rewriteToolDescriptions` | `true` | 改写 `bash` / `pwsh` 工具描述 |
+| `rewriteToolDescriptions` | `true` | 只替换 `bash` / `pwsh` 工具描述里的 shell 说法，保留宿主自己的契约文本 |
 | `toolNames` | `["bash","pwsh"]` | 改写哪些工具 schema 的 shell 文本 |
 | `timeoutMs` | `60000` | 单次调用默认超时；`maxTimeoutMs` 限制覆盖值 |
 | `requireNu` / `verifyNu` | `true` / `true` | nu 无法解析、报不出版本或无法运行预检时，启动直接失败 |
