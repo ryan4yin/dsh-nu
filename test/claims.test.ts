@@ -130,7 +130,7 @@ test('every teaching claim holds in the real Nushell', { skip: !nuAvailable }, (
     mkdirSync(join(cwd, 'docs'))
     writeFileSync(join(cwd, 'README.md'), 'r')
     writeFileSync(join(cwd, 'docs', 'a.md'), 'a')
-    assert.equal(ok(run('ls **/*.md | where type == file | get name | sort | to text', cwd), 'ls relative names'), 'README.md\ndocs/a.md')
+    assert.equal(ok(run('ls **/*.md | where type == file | get name | sort | to text', cwd), 'ls relative names').replace(/\\/g, '/'), 'README.md\ndocs/a.md')
     const globbed = ok(run('glob **/*.md | sort | to text', cwd), 'glob absolute')
     assert.ok(globbed.split('\n').every((line) => isAbsolute(line)), globbed)
     const globFlag = run('glob --type files **/*.md', cwd)
@@ -146,8 +146,8 @@ test('every teaching claim holds in the real Nushell', { skip: !nuAvailable }, (
     }
 
     // `$env` is a record, not a table: filtering it directly fails.
-    assert.equal(ok(run('$env | transpose key value | where key == "PWD" | get key | first', cwd), 'env transpose'), 'PWD')
-    const envFilter = run('$env | where name == "PWD"', cwd)
+    assert.equal(ok(run('$env.CLAIMS_PROBE = "x"; $env | transpose key value | where key == "CLAIMS_PROBE" | get key | first', cwd), 'env transpose'), 'CLAIMS_PROBE')
+    const envFilter = run('$env.CLAIMS_PROBE = "x"; $env | where name == "CLAIMS_PROBE"', cwd)
     assert.notEqual(envFilter.status, 0, '$env is a record, not a table')
 
     // A mut variable keeps the type of its first value.
