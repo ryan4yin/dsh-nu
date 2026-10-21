@@ -23,15 +23,20 @@ import type { AnalyzeOptions, AstToken } from './ast.js'
 
 /** Programs that are a different shell. */
 const FOREIGN_SHELLS = new Set([
-  'bash', 'sh', 'dash', 'zsh', 'ksh', 'mksh', 'oksh', 'ash', 'yash', 'fish', 'csh', 'tcsh',
+  'bash', 'rbash', 'sh', 'dash', 'zsh', 'ksh', 'mksh', 'oksh', 'ash', 'yash', 'fish', 'csh', 'tcsh',
   'osh', 'ysh', 'xonsh', 'elvish', 'pwsh', 'powershell', 'cmd', 'wsl',
 ])
 
-/** Programs that run another program, so their arguments decide the shell. */
+/**
+ * Programs that run another program, so their arguments decide the shell.
+ * `watch` and `hyperfine` are deliberately absent: they run their own argument
+ * text and are not shells a command hands work to; see the README boundary.
+ */
 const LAUNCHERS = new Set([
   'env', 'xargs', 'sudo', 'doas', 'nohup', 'timeout', 'nice', 'stdbuf', 'exec', 'busybox',
   'time', 'setsid', 'flock', 'taskset', 'chrt', 'script', 'watch', 'parallel', 'command',
   'ionice', 'chroot', 'unbuffer', 'strace', 'systemd-run', 'su', 'runuser', 'nix', 'nix-shell',
+  'unshare', 'nsenter', 'bwrap', 'firejail', 'pkexec', 'fakeroot',
 ])
 
 /** The shell flags whose next argument is command text rather than a file. */
@@ -224,27 +229,39 @@ function flagValue(atoms: readonly Atom[], from: number, names: readonly string[
   return undefined
 }
 
+/**
+ * The first positional atom after the launcher's own options, skipping the
+ * values of `valueFlags` and `skipPositional` positionals (a lockfile, a
+ * timeout duration). A dynamic value is unknown rather than a program.
+ */
+function genericProgram(
+  atoms: readonly Atom[],
+  valueFlags: ReadonlySet<string>,
+  skipPositional = 0,
+): { value: string; index: number } | undefined {
+  let skipped = 0
+  let index = 0
+  while (index < atoms.length) {
+    const atom = atoms[index]!
+    if (atom.flag) {
+      index += valueFlags.has(atom.content) ? 2 : 1
+      continue
+    }
+    if (skipped < skipPositional) {
+      skipped += 1
+      index += 1
+      continue
+    }
+    if (atom.dynamic || atom.value === undefined) return undefined
+    return { value: atom.value, index }
+  }
+  return undefined
+}
+
 /** Resolve the program a launcher runs, as an index into `atoms`. */
 function launcherProgram(name: string, atoms: readonly Atom[]): { value: string; index: number } | undefined {
-  const generic = (valueFlags: ReadonlySet<string>, skipPositional = 0): { value: string; index: number } | undefined => {
-    let skipped = 0
-    let index = 0
-    while (index < atoms.length) {
-      const atom = atoms[index]!
-      if (atom.flag) {
-        index += valueFlags.has(atom.content) ? 2 : 1
-        continue
-      }
-      if (skipped < skipPositional) {
-        skipped += 1
-        index += 1
-        continue
-      }
-      if (atom.dynamic || atom.value === undefined) return undefined
-      return { value: atom.value, index }
-    }
-    return undefined
-  }
+  const generic = (valueFlags: ReadonlySet<string>, skipPositional = 0): { value: string; index: number } | undefined =>
+    genericProgram(atoms, valueFlags, skipPositional)
   switch (name) {
     case 'env': {
       let index = 0
@@ -362,9 +379,69 @@ function launcherProgram(name: string, atoms: readonly Atom[]): { value: string;
       return atoms.some((atom) => atom.content === '--help' || atom.content === '--version') ? undefined : { value: 'bash', index: atoms.length }
     case 'nix':
       return nixProgram(atoms)
+    case 'bwrap':
+      // bwrap only runs a program after its own `--` separator; without one it
+      // rejects the invocation instead of starting a shell.
+      return programAfterSeparator(atoms)
+    case 'nsenter':
+      // -t/-S/-G/-r/-w take a value; a namespace flag such as -m does not.
+      return positionalOrShell(atoms, new Set([
+        '-t', '--target', '-S', '--setuid', '-G', '--setgid', '-r', '--root', '-w', '--wd',
+      ]))
+    case 'unshare':
+      return positionalOrShell(atoms, new Set([
+        '--propagation', '-R', '--root', '-w', '--wd', '-S', '--setuid', '-G', '--setgid',
+        '--setgroups', '--map-users', '--map-groups', '--map-user', '--map-group',
+      ]))
+    case 'firejail':
+      // firejail runs the program named after its options; with none it reports
+      // an error rather than starting a shell.
+      return generic(new Set([
+        '--profile', '-p', '--include', '--name', '--net', '--ip', '--dns', '--hostname',
+        '--env', '--cwd', '--timeout', '--cpu', '--bind', '--tmpfs', '--whitelist',
+        '--blacklist', '--read-only', '--output', '--private', '--mkdir',
+      ]))
+    case 'pkexec':
+      // pkexec runs a program, or the target user's shell without one.
+      return positionalOrShell(atoms, new Set(['-u', '--user']))
+    case 'fakeroot':
+      // fakeroot runs a program, or $SHELL without one.
+      return positionalOrShell(atoms, new Set([
+        '-l', '--lib', '-f', '--faked', '-i', '--load', '-s', '--save-file', '-b', '--fakeroot-dir',
+      ]))
     default:
       return undefined
   }
+}
+
+/** The program after a `--` separator, when the command has one. */
+function programAfterSeparator(atoms: readonly Atom[]): { value: string; index: number } | undefined {
+  const separator = atoms.findIndex((atom) => atom.content === '--')
+  if (separator < 0) return undefined
+  const program = atoms[separator + 1]
+  return program === undefined || program.dynamic || program.value === undefined ? undefined : { value: program.value, index: separator + 1 }
+}
+
+/**
+ * The program a launcher runs, treating a bare invocation as the shell it
+ * starts (`nsenter`, `pkexec`, and `fakeroot` run $SHELL without a program).
+ * A dynamic positional is unknown, not a shell.
+ */
+function positionalOrShell(atoms: readonly Atom[], valueFlags: ReadonlySet<string>): { value: string; index: number } | undefined {
+  const program = genericProgram(atoms, valueFlags)
+  if (program !== undefined) return program
+  return hasPositional(atoms, valueFlags) ? undefined : { value: 'sh', index: atoms.length }
+}
+
+/** Whether a positional argument remains once each option's value is skipped. */
+function hasPositional(atoms: readonly Atom[], valueFlags: ReadonlySet<string>): boolean {
+  let index = 0
+  while (index < atoms.length) {
+    const atom = atoms[index]!
+    if (!atom.flag) return true
+    index += valueFlags.has(atom.content) ? 2 : 1
+  }
+  return false
 }
 
 /** The first positional atom at or after `from`, skipping options and the values they take. */
@@ -531,6 +608,28 @@ function isExternalHead(token: AstToken): boolean {
   return token.shape === 'shape_external'
 }
 
+/**
+ * Whether a token names the program of its command. Nushell runs a quoted,
+ * raw, or interpolated name in command position when a caret forces the
+ * external, so `^'bash' -c …`, `` ^`bash` -c … ``, `^r#'bash'# -c …`, and
+ * `^$"bash" -c …` all start bash.
+ */
+function isCommandHead(token: AstToken, command: string): boolean {
+  if (isExternalHead(token)) return true
+  if (command[token.start - 1] !== '^') return false
+  return token.shape === 'shape_raw_string' || token.shape === 'shape_string_interpolation'
+}
+
+/**
+ * The program a command head names, with its quoting and escapes resolved:
+ * Nushell runs `^'bash'` and `^"\u{62}ash"` as the external `bash`, so the name
+ * is compared by value rather than by the source spelling.
+ */
+function headProgram(token: AstToken, atom: Atom): string | undefined {
+  if (token.shape !== 'shape_external') return atom.value
+  return atom.value ?? literalValue(token.content)
+}
+
 /** Find the first foreign-shell handoff in a command. */
 async function findHandoffIn(command: string, depth: number, options: HandoffOptions): Promise<ShellHandoff | undefined> {
   if (depth > MAX_DEPTH) return undefined
@@ -539,14 +638,15 @@ async function findHandoffIn(command: string, depth: number, options: HandoffOpt
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index]!
     const atom = readAtom(tokens, command, index)
-    if (isExternalHead(token)) {
+    const head = isCommandHead(token, command) ? headProgram(token, atom) : undefined
+    if (head !== undefined) {
       const atoms = commandAtoms(tokens, command, index)
-      const shell = shellIn(atom.value ?? token.content)
+      const shell = shellIn(head)
       if (shell !== undefined) return { shell, statement: command.trim().slice(0, 400), script: scriptFileArg(atoms) }
-      const direct = programName(token.content)
+      const direct = programName(head)
       const handled = await handoffFromLauncher(direct, atoms, depth, command, options)
       if (handled !== undefined) return handled
-      if (direct === 'nu' || direct === 'nu.exe') {
+      if (direct === 'nu') {
         const script = flagValue(atoms, 0, NU_SCRIPT_FLAGS)
         if (script !== undefined) {
           const nested = await findHandoffIn(script, depth + 1, options)

@@ -79,3 +79,14 @@ test('quoted literals are decoded, bare words are returned as written', () => {
   assert.equal(literalValue("r#'a b'#"), 'a b')
   assert.equal(literalValue(`r##'a "b"'##`), `a "b"`)
 })
+
+test('backtick and unicode escapes decode to the value Nushell runs', () => {
+  // Nushell runs each of these as the external program `bash`.
+  assert.equal(isQuoted('`a`'), true)
+  assert.equal(literalValue('`bash`'), 'bash')
+  assert.equal(literalValue('"b\\u{61}sh"'), 'bash')
+  assert.equal(literalValue('"b\\u0061sh"'), 'bash')
+  // An escaped backslash stays literal, so the u after it is not an escape.
+  assert.equal(literalValue('"a\\\\u{61}"'), 'a\\u{61}')
+  assert.equal(literalValue('"a\\tq"'), 'a\tq')
+})
