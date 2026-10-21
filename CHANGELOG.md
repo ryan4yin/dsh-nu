@@ -12,6 +12,9 @@ All notable changes to this project are recorded here. The format follows
   `firejail`, `pkexec`, and `fakeroot`. The last three match `su` and `chroot`:
   without a program they start `${SHELL:-/bin/sh}`, so the bare form is refused
   too. `rbash` is a foreign shell name.
+- Eval cases for the refusal forms real sessions hit most: `stderr-to-file`,
+  `stdin-file`, `capture-substitution`, `conditional-chain`, `stdout-to-file`,
+  and `explicit-bash` (26 cases total).
 
 ### Changed
 
@@ -31,6 +34,10 @@ All notable changes to this project are recorded here. The format follows
 - The README states the boundary on purpose: a tool that runs its own argument
   text (`hyperfine`, `watch`, `make`, `npm run`, `git` hooks) is not a shell
   handoff and stays allowed.
+- The guide covers the forms real sessions still miss: `ls | where type` over
+  `glob` for path listings, `complete` on external commands only, a caret in
+  command position only, `chmod +x` for a project script, `$env` as a record,
+  `format date`, and a `mut` variable keeping its first type.
 
 ### Fixed
 

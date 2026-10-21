@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import { test } from 'node:test'
 
 /**
@@ -124,6 +124,46 @@ test('every teaching claim holds in the real Nushell', { skip: !nuAvailable }, (
     assert.equal(ok(run('^nu --no-config-file -c "print -e err" e> err.txt; open --raw err.txt | str contains "err"', cwd), 'e> redirect'), 'true')
     assert.equal(ok(run('^nu --no-config-file -c "print -e err" e>| ignore; print "after"', cwd), 'discard stderr'), 'after')
     assert.equal(ok(run('(do { ^nu --no-config-file -c "print out; print -e err" } | complete).stderr | str contains "err"', cwd), 'complete stderr'), 'true')
+
+    // `ls` names are relative to the cwd; `glob` returns absolute strings and
+    // has no type filter, which is why path listings use `ls ... | where type`.
+    mkdirSync(join(cwd, 'docs'))
+    writeFileSync(join(cwd, 'README.md'), 'r')
+    writeFileSync(join(cwd, 'docs', 'a.md'), 'a')
+    assert.equal(ok(run('ls **/*.md | where type == file | get name | sort | to text', cwd), 'ls relative names').replace(/\r\n/g, '\n').replace(/\\/g, '/'), 'README.md\ndocs/a.md')
+    const globbed = ok(run('glob **/*.md | sort | to text', cwd), 'glob absolute')
+    assert.ok(globbed.split('\n').every((line) => isAbsolute(line)), globbed)
+    const globFlag = run('glob --type files **/*.md', cwd)
+    assert.notEqual(globFlag.status, 0, 'glob takes no --type flag')
+    assert.match(globFlag.stderr, /unknown flag/)
+
+    // A caret is a command-position spelling: after xargs the name is literal.
+    if (process.platform !== 'win32' && spawnSync('xargs', ['--version'], { encoding: 'utf8' }).status === 0) {
+      assert.equal(ok(run('^printf "x" | ^xargs echo hi', cwd), 'xargs runs the named program'), 'hi x')
+      const caretInArgument = run('^printf "x" | ^xargs ^echo hi', cwd)
+      assert.notEqual(caretInArgument.status, 0, 'a caret after xargs is a literal program name')
+      assert.match(caretInArgument.stderr, /\^echo/)
+    }
+
+    // `$env` is a record, not a table: filtering it directly fails.
+    assert.equal(ok(run('$env.CLAIMS_PROBE = "x"; $env | transpose key value | where key == "CLAIMS_PROBE" | get key | first', cwd), 'env transpose'), 'CLAIMS_PROBE')
+    const envFilter = run('$env.CLAIMS_PROBE = "x"; $env | where name == "CLAIMS_PROBE"', cwd)
+    assert.notEqual(envFilter.status, 0, '$env is a record, not a table')
+
+    // A mut variable keeps the type of its first value.
+    assert.equal(ok(run('mut x = ""; $x = "a"; print $x', cwd), 'mut keeps type'), 'a')
+    const mutNull = run('mut x = null; $x = { a: 1 }; print $x', cwd)
+    assert.notEqual(mutNull.status, 0, 'null cannot become a record')
+    assert.match(mutNull.stderr, /operator_incompatible_types/)
+
+    // format date replaces bash's `date -u +FORMAT`.
+    assert.match(ok(run('date now | format date "%Y"', cwd), 'format date'), /^\d{4}$/)
+
+    // complete wraps an external command; a builtin needs try/catch instead.
+    assert.equal(ok(run('(do { ^nu --no-config-file -c "print out" } | complete).exit_code', cwd), 'complete exit code'), '0')
+    const builtinComplete = run('(do { open README.md } | complete)', cwd)
+    assert.notEqual(builtinComplete.status, 0, 'complete on a builtin should fail')
+    assert.match(builtinComplete.stderr, /external command/)
 
     // A project script that ships a bash entrypoint runs directly.
     if (process.platform !== 'win32') {
