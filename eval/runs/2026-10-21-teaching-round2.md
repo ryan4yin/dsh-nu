@@ -79,23 +79,33 @@ Per case (pass of 3, `main` -> branch): `proc-inspect` 2->3, `recursive-list`
 `search-ignore` 2->1, `chain-step` 0->0. A targeted rerun after the `mut` line:
 `chain-step` 1/3, `deep-mkdir` 3/3.
 
-The six new refusal cases on the branch: 15/18 pass, no refusals — the model
-already wrote the Nushell form for four of them, so they now protect the
-behaviour instead of only the refusal.
+The six new refusal cases on the branch: 15/18 pass on the local model, no
+refusals — the model already wrote the Nushell form for most of them, so they
+now protect the behaviour instead of only the refusal.
 
-DeepSeek v4.1 Flash on the same fifteen cases, 45 samples: 37 pass, 43 answers
-matched, 6 hints, 1 refusal. Per case it fails only where the local model does:
-`chain-step` 0/3, `pipeline-status`, `recursive-list`, `project-script`,
-`stderr-to-file`, and `stdout-to-file` 2/3 each. The six new cases pass 15/18 on
-the local model and 17/18 on Flash, so they cover behaviour rather than only the
-refusal path.
+The 18 cases that were not already at 100% on the 2026-10-21 baseline (twelve
+old plus the six new ones), `full` arm, three samples per case, `main` against
+this branch:
+
+| model | main | branch | answers matched | hints |
+| --- | --- | --- | --- | --- |
+| DeepSeek v4.1 Flash, 12 old cases | 22/36 | 30/36 | 35 -> 36 of 36 | 17 -> 8 |
+| GPT-6 Luna, 12 old cases | 18/36 | 23/36 | 21 -> 26 of 36 | 11 -> 10 |
+| DeepSeek v4.1 Flash, 6 new cases | - | 16/18 | 16 of 18 | 0 |
+| GPT-6 Luna, 6 new cases | - | 12/18 | 12 of 18 | 4 |
+
+Flash answers every case correctly on the branch; its failures are call-budget
+overruns. Luna still writes shell-shaped commands it has to retry (`refused` 5,
+`violations` 5) and answers some cases without the required `RESULT:` line.
 
 ## Reading
 
-Every fail in the local round was a call-budget overrun with a correct answer,
-never a wrong answer: the remaining cost is retries, not mistakes. Hints fell
-by two thirds and calls by a third, which is the guidance doing its job at the
-moment of failure.
+Every local failure and every Flash failure was a call-budget overrun with a
+correct answer, never a wrong answer: the remaining cost is retries, not
+mistakes. Hints fell by a third to two thirds and calls by a third, which is the
+guidance doing its job at the moment of failure. Luna still reaches for bash
+forms first, so the guard is what stops it; its `refused` count is the one number
+that did not improve.
 
 `chain-step` and `search-ignore` still thrash: the model writes its own
 recursion or invents `set` before settling. That is model behaviour, not a
