@@ -125,7 +125,7 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `nuPath` | `$DSH_NU_PATH`，否则 `nu` | Nushell 可执行文件：先看字段，再看环境变量，最后看 PATH |
-| `nuArgs` | `["--no-config-file","-c"]` | argv 前缀；命令追加在最后 |
+| `nuArgs` | `["--no-config-file","-c"]` | argv 前缀；命令追加在最后，因此必须以 `-c` 或 `--commands` 结尾 |
 | `enforceNushellOnly` | `true` | 拒绝把命令交给其他 shell |
 | `foreignShellAllowlist` | `[]` | 豁免两项预检检查的正则；必须匹配整条命令 |
 | `syntaxLint` | `true` | 启动进程前拦下 bash/PowerShell 语法 |
@@ -156,6 +156,7 @@ guard 不是沙箱：它检查自己能读到的命令位置，其余情况不�
 - 字面量 `nu -c '<script>'` 或 `nu -e '<script>'` 会递归检查，最多四层；运行时拼出来的脚本不会。
 - Nushell 脚本文件不会被读取：`nu script.nu`、`source` 和 `use` 加载的代码 guard 看不到，所以先写进文件再这样运行的交接不在覆盖范围内。
 - 运行时才确定的 shell 名称，或者自己会启动 shell 的程序（语言运行时、编辑器），都不在覆盖范围内。guard 只跟踪字面量 shell 名称、固定的 launcher 表（包括 `nix shell` / `nix develop --command` 和 `nix run`）、`run-external` 和字面量 `nu -c` 脚本。
+- 把参数文本当命令执行的工具是刻意不管的：`hyperfine`、`watch`、`make`、`npm run` 和 `git` hook 不是 shell 交接，即使它们内部可能启动 `sh`，guard 也会放行。禁掉它们只会让这些工具不可用，而不是让部署变成"只有 Nushell"。要让它跑 Nushell，就显式指定 shell：`hyperfine -S nu 'ls | length'`、`hyperfine -N 'rg foo'`（完全不经 shell），或 `watch -x rg foo`。`watch` 自己启动的 shell 不可能是 Nushell，所以 `watch 'a && b'` 跑的是 bash，不是 Nushell。
 - preset 自己启动 shell 的行，例如直接调用 `ctx.subprocess.spawn` 的插件，或 PTY 常驻 shell 组。严格部署时应关闭，见 `examples/preset-nu-shell.md`。
 - 其他 shell seam 不在 dsh-nu 的范围内：hook 桥、常驻终端和 tmux context 使用各自的服务或脚本。严格部署时应保持关闭。
 - dsh-nu 不改沙箱本身：`danger-full-access` 直接运行，受限模式通过 `ctx.sandbox.confine()` 包装 Nushell argv，`mode` / `denied` / `enforcement` 的报告方式保持不变。

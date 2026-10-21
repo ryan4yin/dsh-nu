@@ -127,7 +127,7 @@ The bundle's patch mounts one executor row and one teaching row; a profile patch
 | Field | Default | Meaning |
 |---|---|---|
 | `nuPath` | `$DSH_NU_PATH`, then `nu` | Nushell executable: field, then environment, then PATH |
-| `nuArgs` | `["--no-config-file","-c"]` | Argv prefix; the command is appended last |
+| `nuArgs` | `["--no-config-file","-c"]` | Argv prefix; the command is appended last, so it must end with `-c` or `--commands` |
 | `enforceNushellOnly` | `true` | Refuse handing the command to another shell |
 | `foreignShellAllowlist` | `[]` | Regexes exempt from both preflight checks; each must match the whole command |
 | `syntaxLint` | `true` | Refuse bash/PowerShell syntax before spawning |
@@ -158,6 +158,7 @@ The guard is not a sandbox: it checks command positions it can read, and everyth
 - A literal `nu -c '<script>'` or `nu -e '<script>'` is inspected recursively, up to four levels. A script value built at run time is not inspected.
 - A Nushell script file is not read: `nu script.nu`, `source`, and `use` load code the guard never sees, so a handoff written into a file and run that way is out of reach.
 - A shell name computed at run time, or a program that starts a shell itself (a language runtime, an editor), is out of reach. The guard follows literal shell names, a fixed launcher table (including `nix shell` / `nix develop --command` and `nix run`), `run-external`, and literal `nu -c` scripts.
+- A tool that runs its own argument text is out of scope on purpose: `hyperfine`, `watch`, `make`, `npm run`, and `git` hooks are not shell handoffs, so the guard allows them even though they may start `sh` internally. Refusing them would break the tools rather than keep the deployment Nu-only. When the command you pass to one of them is Nushell, name the shell: `hyperfine -S nu 'ls | length'`, `hyperfine -N 'rg foo'` (no shell at all), or `watch -x rg foo`. Nushell cannot be the shell `watch` starts by itself, so `watch 'a && b'` runs bash, not Nushell.
 - A preset row that spawns its own shell, such as a custom plugin calling `ctx.subprocess.spawn` directly or a PTY persistent-shell group. Disable it for a Nu-only deployment; see `examples/preset-nu-shell.md`.
 - Other shell seams. Hook bridges, persistent terminals, and tmux context use their own services or scripts and are outside this bundle. Keep them off for a strict deployment.
 - dsh-nu does not change sandbox behaviour: `danger-full-access` runs directly, and confined modes wrap the Nushell argv through `ctx.sandbox.confine()` with the same `mode` / `denied` / `enforcement` reporting.

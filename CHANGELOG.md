@@ -4,6 +4,43 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- The guard follows more process launchers: `unshare`, `nsenter`, `bwrap`,
+  `firejail`, `pkexec`, and `fakeroot`. The last three match `su` and `chroot`:
+  without a program they start `${SHELL:-/bin/sh}`, so the bare form is refused
+  too. `rbash` is a foreign shell name.
+
+### Changed
+
+- `nuArgs` must end with `-c` or `--commands`, because the command is appended
+  after it; any other prefix is rejected at construction instead of producing an
+  argv that never runs the command.
+- Boot warns when `nuArgs` omits `--no-config-file` while a preflight check is
+  on: the probes always parse without a config, so aliases and commands a config
+  defines would run code the guard never saw.
+- The README states the boundary on purpose: a tool that runs its own argument
+  text (`hyperfine`, `watch`, `make`, `npm run`, `git` hooks) is not a shell
+  handoff and stays allowed.
+
+### Fixed
+
+- A shell named through quoting, a backtick string, a raw string, an
+  interpolated string, or a unicode escape is refused: `^'bash' -c …`,
+  `` ^`bash` -c … ``, `^r#'bash'# -c …`, `^$"bash" -c …`, `^"\u{62}ash" -c …`,
+  and the same spellings after `run-external`. The guard compared the source
+  spelling against the shell table, so all of them ran the foreign shell.
+- A boot failure of the parser canary keeps its own message instead of being
+  wrapped as "install Nushell and put nu on PATH", which was wrong for a binary
+  that had just run.
+- A hint no longer matches another program's stderr text: `permission-denied`
+  and `glob-pattern` match Nushell's own error identifiers, so
+  `ssh`'s `Permission denied (publickey)` no longer carries sandbox advice.
+- The `stdin-redirect` refusal pipes the file into the command
+  (`open --raw in.txt | ^prog`) instead of passing its contents as an argument.
+
 ## 0.5.0 (2026-10-19)
 
 ### Added
