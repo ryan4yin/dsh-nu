@@ -97,13 +97,23 @@ export function chooseBinary(configured: unknown, env: Record<string, string | u
   return { binary: 'nu', origin: 'path' }
 }
 
+/** The script-carrying flag a prefix must end with; the command is appended after it. */
+const SCRIPT_FLAGS: readonly string[] = ['-c', '--commands']
+
 /** Validate an argv prefix. The command is always appended, so it must end at -c. */
 export function normalizePrefix(raw: unknown): string[] {
   if (raw === undefined || raw === null) return [...DEFAULT_NU_ARGS]
   if (!Array.isArray(raw) || raw.length === 0 || !raw.every((entry) => typeof entry === 'string')) {
     throw new Error('dsh-nu: nuArgs must be a non-empty array of strings')
   }
-  return [...(raw as string[])]
+  const prefix = [...(raw as string[])]
+  const last = prefix[prefix.length - 1]!
+  if (!SCRIPT_FLAGS.includes(last)) {
+    throw new Error(
+      'dsh-nu: nuArgs must end with -c or --commands, because the command is appended after it; got ' + JSON.stringify(prefix),
+    )
+  }
+  return prefix
 }
 
 /** The argv one command runs as. */
