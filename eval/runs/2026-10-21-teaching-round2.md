@@ -81,7 +81,10 @@ Per case (pass of 3, `main` -> branch): `proc-inspect` 2->3, `recursive-list`
 
 The six new refusal cases on the branch: 15/18 pass on the local model, no
 refusals — the model already wrote the Nushell form for most of them, so they
-now protect the behaviour instead of only the refusal.
+now protect the behaviour instead of only the refusal. `stderr-to-file` first
+ran with an `exit 1`, so its one call could not also read the file and both
+cloud models paid for a retry; the case now uses a command that succeeds, and
+both cloud models pass it 3/3.
 
 The 18 cases that were not already at 100% on the 2026-10-21 baseline (twelve
 old plus the six new ones), `full` arm, three samples per case, `main` against
@@ -91,8 +94,8 @@ this branch:
 | --- | --- | --- | --- | --- |
 | DeepSeek v4.1 Flash, 12 old cases | 22/36 | 30/36 | 35 -> 36 of 36 | 17 -> 8 |
 | GPT-6 Luna, 12 old cases | 18/36 | 23/36 | 21 -> 26 of 36 | 11 -> 10 |
-| DeepSeek v4.1 Flash, 6 new cases | - | 16/18 | 16 of 18 | 0 |
-| GPT-6 Luna, 6 new cases | - | 12/18 | 12 of 18 | 4 |
+| DeepSeek v4.1 Flash, 6 new cases | - | 18/18 | 18 of 18 | 0 |
+| GPT-6 Luna, 6 new cases | - | 15/18 | 15 of 18 | 4 |
 
 Flash answers every case correctly on the branch; its failures are call-budget
 overruns. Luna still writes shell-shaped commands it has to retry (`refused` 5,

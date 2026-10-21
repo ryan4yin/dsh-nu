@@ -231,7 +231,7 @@
   },
   {
     "id": "stderr-to-file",
-    "prompt": "Use one bash call to run ^nu --no-config-file -c 'print -e boom; exit 1' and save its error output to errors.txt, then print that file. End with RESULT: <the saved text>.",
+    "prompt": "Use one bash call to run ^nu --no-config-file -c 'print -e boom' and save its error output to errors.txt, then print that file. End with RESULT: <the saved text>.",
     "fixtures": {},
     "expect": {
       "finalMatches": "RESULT:\\s*boom"
