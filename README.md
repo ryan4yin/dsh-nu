@@ -131,7 +131,7 @@ The bundle's patch mounts one executor row and one teaching row; a profile patch
 | `enforceNushellOnly` | `true` | Refuse handing the command to another shell |
 | `foreignShellAllowlist` | `[]` | Regexes exempt from both preflight checks; each must match the whole command |
 | `syntaxLint` | `true` | Refuse bash/PowerShell syntax before spawning |
-| `syntaxHints` | `true` | Append one `Nushell hint (…)` line to a failed call |
+| `syntaxHints` | `true` | Append one `Nushell hint (…)` for a recognized failure or deprecation warning, including exit 0 |
 | `guide` | `full` | Prompt guide: `full`, `compact`, or `off` |
 | `rules` | `true` | Prepend the shell-rules section |
 | `rewriteToolDescriptions` | `true` | Replace the shell claims in the `bash` / `pwsh` tool descriptions, keeping the host's own contract text |

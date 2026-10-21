@@ -26,6 +26,17 @@ long sleep when a case sets `maxSleepSeconds`, and counts blocking shapes such a
 `tail -f`, `watch`, `ps ... grep`, and `while true`. The wait cases are
 `background-wait`, `readiness-wait`, and `pipeline-status`.
 
+The `hint-*` recovery cases require a specific first command that produces a
+real Nushell error or deprecation warning. Success also requires the next shell
+result to match the expected value without a warning, error, or refusal; a
+correct final answer alone is insufficient. `stderr-discard-status` requires the
+first shell result to parse as the expected compact JSON, including stdout and
+the original exit code. A final answer does not substitute for that evidence.
+
+For aggregate diagnostic counts from saved samples, see the
+[local session scanner](../dev/session-scan.md). Unknown shell exit statuses stay
+unknown; its banner counts do not establish task success.
+
 ## Prerequisites
 
 1. Build the bundle: `npm run build`.

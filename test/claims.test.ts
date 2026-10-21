@@ -178,3 +178,43 @@ test('every teaching claim holds in the real Nushell', { skip: !nuAvailable }, (
     rmSync(cwd, { recursive: true, force: true })
   }
 })
+
+test('stderr suppression, failure handling, and capture have distinct real semantics', { skip: !nuAvailable }, () => {
+  const cwd = mkdtempSync(join(tmpdir(), 'dsh-nu-stream-claims-'))
+  try {
+    const captured = run('(do { ^nu --no-config-file -c "print visible; print -e hidden; exit 7" } | complete) | to json', cwd)
+    assert.deepEqual(JSON.parse(ok(captured, 'portable external capture')), {
+      stdout: 'visible\n', stderr: 'hidden\n', exit_code: 7,
+    })
+    assert.equal(captured.stderr, '')
+
+    const internal = run('echo visible e>| ignore', cwd)
+    assert.notEqual(internal.status, 0)
+    assert.match(internal.stderr, /Can't redirect stderr of internal command output/)
+    const caught = run('try { error make {msg: "internal"} } catch { |err| $err.msg }', cwd)
+    assert.equal(ok(caught, 'catch an internal error'), 'internal')
+    assert.equal(caught.stderr, '')
+    const ignored = run('do -i { error make {msg: "internal"} }; print after', cwd)
+    assert.equal(ok(ignored, 'intentionally ignore an internal error'), 'after')
+    assert.equal(ignored.stderr, '')
+
+    const consumed = run('^nu --no-config-file -c "print -e hidden; exit 7" e>| ignore', cwd)
+    assert.equal(consumed.status, 0, 'ignore does not preserve the external failure status')
+    assert.equal(consumed.stderr, '')
+    const emptyPipeline = run('^nu --no-config-file -c "print visible; print -e hidden" e>| ignore | str uppercase', cwd)
+    assert.notEqual(emptyPipeline.status, 0)
+    assert.match(emptyPipeline.stderr, /pipeline_mismatch/)
+
+    if (process.platform !== 'win32') {
+      const redirected = run('^nu --no-config-file -c "print visible; print -e hidden; exit 7" e> /dev/null', cwd)
+      assert.equal(redirected.status, 7)
+      assert.equal(redirected.stdout.trim(), 'visible')
+      assert.equal(redirected.stderr, '')
+      const pipeline = run('^nu --no-config-file -c "print visible; print -e hidden" e> /dev/null | str uppercase', cwd)
+      assert.equal(ok(pipeline, 'stdout still feeds the next stage'), 'VISIBLE')
+      assert.equal(pipeline.stderr, '')
+    }
+  } finally {
+    rmSync(cwd, { recursive: true, force: true })
+  }
+})

@@ -4,7 +4,7 @@ Nushell syntax guide
 
 The preflight refuses the left-hand spellings before a process starts:
 
-- `cmd 2>/dev/null` → `cmd e>| ignore` (even when the task says to ignore errors); `cmd 2>&1` → `cmd o+e> f`, or `(do { cmd } | complete)` to capture both streams.
+- For external commands, `cmd 2>/dev/null` → `^cmd e> /dev/null` on POSIX; this keeps stdout and the exit status. For portable capture, use `(do { ^cmd } | complete)` and select `stdout`, `stderr`, or `exit_code`. Internal errors need `try { cmd } catch { |err| $err.msg }`; use `do -i { cmd }` only to intentionally ignore failure. `cmd 2>&1` → `^cmd o+e> f`.
 - `cmd > out.txt` / `cmd 2> f` / `cmd &> f` → `cmd o> out.txt` / `cmd e> f` / `cmd o+e> f`; append with `o>>` / `e>>`. A bare `>` is comparison, so `cmd > f` would write no file.
 - `cmd < in.txt` → `open --raw in.txt | cmd`; Nushell has no `<`, `<<`, or `<<<`.
 - `a && b` → `a; b`; a failing external aborts the rest, so wrap it in `do -i { a }` when it may fail. `a || b` → `try { a } catch { b }`.

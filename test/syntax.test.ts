@@ -10,6 +10,7 @@ import { clearAnalysisCache } from '../src/ast.ts'
 const REFUSED: ReadonlyArray<readonly [string, string]> = [
   ['echo hi 2>&1', 'stderr-redirect'],
   ['echo hi > out.txt 2> err.txt', 'stderr-file'],
+  ['echo hi 2>| ignore', 'stderr-file'],
   ['echo hi 2>/dev/null', 'stderr-as-word'],
   ['echo hi 2>$null', 'stderr-as-word'],
   ['echo hi 2>nul', 'stderr-as-word'],
@@ -262,6 +263,8 @@ test('shell redirections Nushell accepts but silently ignores are refused', { sk
 interface HintSample {
   id: string
   command: string
+  /** Deprecations can succeed while still producing a diagnostic. */
+  status?: number
   setup?: (cwd: string) => void
   enabled?: () => boolean
   /** When set, the sample counts only if stderr contains this marker. */
@@ -271,6 +274,11 @@ interface HintSample {
 const HINT_SAMPLES: readonly HintSample[] = [
   { id: 'stderr-redirect', command: 'print hi 2>&1' },
   { id: 'stderr-file', command: 'print hi 2> err.txt' },
+  { id: 'input-type', command: '$env.DSH_NU_HINT_SAMPLE = "sample"; $env | select DSH_NU_HINT_SAMPLE | where name == sample' },
+  { id: 'complete-internal', command: 'echo hello | complete' },
+  { id: 'statement-in-pipeline', command: 'for x in [1 2] { $x } | to json' },
+  { id: 'invalid-base64', command: '"A" | decode base64' },
+  { id: 'internal-stderr-pipe', command: 'echo hello e>| ignore' },
   { id: 'path-not-found', command: 'ls /definitely/missing' },
   { id: 'glob-pattern', command: "ls 'definitely-missing/**/*.md'" },
   { id: 'incompatible-path-access', command: "'abc' | str contains 'a' or 'b'" },
@@ -283,7 +291,7 @@ const HINT_SAMPLES: readonly HintSample[] = [
   { id: 'column-not-found', command: '[[a]; [1]] | get b' },
   { id: 'find-builtin', command: 'find . -name "*.rs"' },
   { id: 'unknown-flag', command: 'ls --definitely-not-a-flag' },
-  { id: 'deprecated-flag', command: 'ls | select -First 2' },
+  { id: 'deprecated-flag', command: '[1 2] | filter { |x| $x > 1 }', status: 0 },
   { id: 'name-not-found', command: 'ls | select name, type', setup: (cwd) => {
     writeFileSync(join(cwd, 'a.txt'), 'a')
     writeFileSync(join(cwd, 'b.txt'), 'b')
@@ -317,7 +325,11 @@ const HINT_SAMPLES: readonly HintSample[] = [
   { id: 'parse-error', command: 'print (1' },
 ]
 
-test('every hint is produced by a real failure of the tested Nushell', { skip: !nuAvailable }, () => {
+test('hint samples cover each exported id exactly once', () => {
+  assert.deepEqual(HINT_SAMPLES.map((sample) => sample.id).sort(), [...HINT_IDS].sort())
+})
+
+test('every hint is produced by a real diagnostic of the tested Nushell', { skip: !nuAvailable }, () => {
   const cwd = mkdtempSync(join(tmpdir(), 'dsh-nu-hints-'))
   const checked: string[] = []
   const skipped: string[] = []
@@ -326,7 +338,7 @@ test('every hint is produced by a real failure of the tested Nushell', { skip: !
       if (sample.enabled !== undefined && !sample.enabled()) continue
       sample.setup?.(cwd)
       const result = runNu(sample.command, cwd)
-      assert.notEqual(result.status, 0, 'expected a failure from: ' + sample.command)
+      assert.equal(result.status, sample.status ?? 1, 'unexpected status from: ' + sample.command)
       if (sample.onlyIf !== undefined && !result.stderr.includes(sample.onlyIf)) {
         skipped.push(sample.id + ' (environment produced a different error)')
         continue

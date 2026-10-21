@@ -294,5 +294,76 @@
     },
     "minShellCalls": 1,
     "maxShellCalls": 4
+  },
+  {
+    "id": "hint-record-input",
+    "prompt": "Test Nushell error recovery using exactly two bash calls. First use the bash tool to run this exact command: open record.json | where key == PROBE. Then fix the command so it selects the PROBE entry and returns its value. End with RESULT: <value>.",
+    "fixtures": {"record.json": "{\"PROBE\":\"ready\"}\n"},
+    "expect": {
+      "firstCommand": "open record.json | where key == PROBE",
+      "recoveryMatches": "^ready\\s*$",
+      "finalMatches": "RESULT:\\s*ready\\b"
+    },
+    "minShellCalls": 2,
+    "maxShellCalls": 2
+  },
+  {
+    "id": "hint-builtin-complete",
+    "prompt": "Test Nushell error recovery using exactly two bash calls. First use the bash tool to run this exact command: (do { open --raw value.txt } | complete). Then fix it to read the file and return its text, catching internal errors if needed. End with RESULT: <text>.",
+    "fixtures": {"value.txt": "ready\n"},
+    "expect": {
+      "firstCommand": "(do { open --raw value.txt } | complete)",
+      "recoveryMatches": "^ready\\s*$",
+      "finalMatches": "RESULT:\\s*ready\\b"
+    },
+    "minShellCalls": 2,
+    "maxShellCalls": 2
+  },
+  {
+    "id": "hint-for-pipeline",
+    "prompt": "Test Nushell error recovery using exactly two bash calls. First use the bash tool to run this exact command: for x in [1 2] { $x * 2 } | to json. Then fix it to return the doubled list as compact JSON. End with RESULT: <JSON>.",
+    "fixtures": {},
+    "expect": {
+      "firstCommand": "for x in [1 2] { $x * 2 } | to json",
+      "recoveryMatches": "^\\[\\s*2\\s*,\\s*4\\s*\\]\\s*$",
+      "finalMatches": "RESULT:\\s*\\[\\s*2\\s*,\\s*4\\s*\\]"
+    },
+    "minShellCalls": 2,
+    "maxShellCalls": 2
+  },
+  {
+    "id": "hint-internal-stderr",
+    "prompt": "Test Nushell error recovery using exactly two bash calls. First use the bash tool to run this exact command: open --raw value.txt e>| ignore. Then fix it to read the text while intentionally ignoring any internal file-read error. End with RESULT: <text>.",
+    "fixtures": {"value.txt": "ready\n"},
+    "expect": {
+      "firstCommand": "open --raw value.txt e>| ignore",
+      "recoveryMatches": "^ready\\s*$",
+      "finalMatches": "RESULT:\\s*ready\\b"
+    },
+    "minShellCalls": 2,
+    "maxShellCalls": 2
+  },
+  {
+    "id": "hint-deprecated-get",
+    "prompt": "Test Nushell warning recovery using exactly two bash calls. First use the bash tool to run this exact command: {a: 1} | get -i a. Then use the warning to run a replacement that returns the same value without a deprecation warning. End with RESULT: <value>.",
+    "fixtures": {},
+    "expect": {
+      "firstCommand": "{a: 1} | get -i a",
+      "recoveryMatches": "^1\\s*$",
+      "finalMatches": "RESULT:\\s*1\\b"
+    },
+    "minShellCalls": 2,
+    "maxShellCalls": 2
+  },
+  {
+    "id": "stderr-discard-status",
+    "prompt": "Use exactly one bash call to run ^nu --no-config-file -c 'print visible; print -e hidden; exit 7', suppress its stderr, and make the shell call print only a compact JSON object containing only stdout and the original exit_code. Preserve stdout's newline in the JSON string. In your final answer, end with RESULT: <stdout> exit=<code>.",
+    "fixtures": {},
+    "expect": {
+      "outputJson": {"stdout": "visible\n", "exit_code": 7},
+      "finalMatches": "RESULT:\\s*visible\\s+exit=7\\b"
+    },
+    "minShellCalls": 1,
+    "maxShellCalls": 1
   }
 ]

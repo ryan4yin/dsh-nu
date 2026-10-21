@@ -31,21 +31,21 @@
 - `do { /bin/sh -c … }`、`do { env bash … }`、`do { FOO=1 bash … }` 和 `let x = (env bash …)` 都会启动外部 shell，而旧 guard 只看块的开头。现在 guard 覆盖每个命令位置：块、子表达式、分隔符、管道、带路径的程序、环境前缀和启动器。
 - 多行 record、list、closure、`match "bash" { bash => 1 }`、`{ sh : 1 }` 和 `|sh, ...rest|` 曾被 guard 误拒。现在由解析器判断语句边界，record key、match arm 和 closure 参数不再当作命令位置。
 - Windows 上所有受限调用都会失败：父类把 `ShellExecSpec` 传给 `confine`，旧实现却从字符串上读 `.command`。现在两种形态都接受。
-- hint 曾追加到退出码 0 的调用和沙箱拒绝上，垃圾 `nu --version` 输出也能启动。现在 hint 要求非零退出码且非拒绝，版本探测必须解析出版本号。
+- hint 曾误加到普通退出码 0 的调用和沙箱拒绝上，垃圾 `nu --version` 输出也能启动。那次复查将 hint 限制为非零退出码且非拒绝，并要求版本探测解析出版本号。如今成功退出的弃用警告是明确的例外，详见 [hint 处理](troubleshooting.md#结果中带-nushell-hint)。
 - 生成的 PTC `tools:sdk` 文本残留宿主声明（`${VAR:?}`、`$env:`、大小写不敏感变量、pwsh 沙箱模式），改写规则现在会清掉。
 
 ## 改了什么
 
 - guard 的外部 shell 名称、启动器表、包装链、嵌套与插值里的交接和 allowlist，都有单元测试和仅限 Linux 的 PATH-shim fuzz 测试覆盖。
 - 新增语法规则的前提，是固定版本 Nushell 真的拒绝或静默误读那条片段；静默的一类单独断言，因为退出码 0 证明不了什么。
-- 每个 hint 模式都在 `test/syntax.test.ts` 里有一条对应的真实失败命令。
+- 每个 hint 模式都在 `test/syntax.test.ts` 中有对应的真实诊断样本，包括成功调用中的弃用警告。
 - `test/friction.test.ts` 让一组常见的 agent 命令先过预检，再交给真实 shell 执行。
 - `test/syntax.test.ts` 通过实际运行来判断接受还是拒绝，包括退出码 0 但什么都没写的静默重定向，规则一旦判断错，测试就会失败。
 
 ## 已知缺口
 
 - guard 不是沙箱。普通字符串、注释或原始字符串里的语法写法会当作数据放行；`$"…"` / `$'…'` 插值是代码，会继续检查。运行时才确定的 shell 名称、自己会启动 shell 的程序、只作为数据存在的 shell 名称，以及 `nu <file>`、`source`、`use` 加载的脚本文件都在覆盖范围外。allowlist 仍用于确实需要外部 shell 的命令。
-- hint 只在调用失败时出现；退出码 0 和沙箱拒绝都没有 hint，启动前被拒绝的命令也没有 hint。
+- hint 覆盖已识别的错误和弃用警告，包括成功退出的警告；优先级和排除条件见 [hint 处理](troubleshooting.md#结果中带-nushell-hint)。
 - Windows CI 上没有权限类差分 hint 样本，这个样本会跳过。
 - 语料覆盖的是常见 agent 命令，不是 Nushell 的全部功能。语料之外若被 guard 误拒，应该补一条语料。
 - `stdout-redirect` / `stdin-redirect` 现在按 token 判断：比较在解析结果里是 operator，所以参数位置上以 `>` 或 `<` 开头的词一律拒绝，包括没有路径特征的 `cmd > out`。`where size > 1kb`、`if $n > 2` 和日期时间比较仍然是 operator，照常可用。

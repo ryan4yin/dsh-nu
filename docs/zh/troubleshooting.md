@@ -18,9 +18,9 @@
 
 拒绝信息会指出片段和对应的 Nushell 写法，包括编号重定向、shell 风格的输入重定向、`$env:NAME`、裸赋值、`foreach`、PowerShell cmdlet、`&&` / `||`、`$?`、Nushell 内置命令上的未知 flag。按提示改掉那段写法；普通引号会把它变成数据，但 `$"…"` / `$'…'` 插值是代码，括号里的片段同样会作为代码检查。如果某项检查对某个调用点判断错了，把那条命令加进 allowlist，或者设置 `syntaxLint: false`。
 
-## 失败信息中带 Nushell hint
+## 结果中带 Nushell hint
 
-hint 行跟在命令自身 stderr 后面，以 `Nushell hint (<id>):` 开头，针对 Nushell 报出的错误给一条修复建议。只有调用以非零退出码失败时才会追加 hint；退出码 0 和沙箱拒绝都没有 hint。命令在启动前就被拒绝时也没有 hint，因为 Nushell 根本没运行。
+hint 行跟在命令自身 stderr 后面，以 `Nushell hint (<id>):` 开头，解释已识别的 Nushell 错误，或给出弃用警告的替代写法；退出码 0 的弃用警告也会得到提示。实际错误优先于警告。普通成功调用的 stderr、超时、取消和沙箱拒绝不追加 hint。启动前被拒绝的命令使用自己的修复说明，因为 Nushell 没有运行。
 
 ## 写入失败：只读或权限不足
 

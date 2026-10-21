@@ -55,7 +55,7 @@ providers register the same service, so a missing disable is visible at boot.
 | `enforceNushellOnly` | `true` | refuse commands that hand off to another shell |
 | `foreignShellAllowlist` | `[]` | regexes exempt from both checks; each must match the whole command |
 | `syntaxLint` | `true` | refuse bash/PowerShell syntax before spawning |
-| `syntaxHints` | `true` | append one hint to a failed command's stderr |
+| `syntaxHints` | `true` | append one hint for a recognized failure or deprecation warning, including exit 0 |
 | `requireNu` | `true` | fail boot when nu cannot be resolved |
 | `verifyNu` | `true` | run `nu --version` once at boot |
 | `verifyTimeoutMs` | `10000` | bound for that probe |

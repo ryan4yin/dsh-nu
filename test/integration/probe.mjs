@@ -77,6 +77,23 @@ export async function apply(ctx) {
   const failed = await run(shell, 'ls /definitely-missing-dsh-nu-probe')
   record('a failed command carries one Nushell hint', /Nushell hint \(path-not-found\)/.test(failed.stderr.text), failed.stderr.text)
 
+  for (const [id, command, fix, expected] of [
+    ['input-type', '$env.DSH_NU_PROBE = "x"; $env | select DSH_NU_PROBE | where key == DSH_NU_PROBE', '$env.DSH_NU_PROBE = "x"; $env | select DSH_NU_PROBE | transpose key value | where key == DSH_NU_PROBE | get value | first', 'x'],
+    ['complete-internal', '(do { echo value } | complete)', 'try { echo value } catch { |err| $err.msg }', 'value'],
+    ['statement-in-pipeline', 'for x in [1 2] { $x * 2 } | to json', '[1 2] | each { |x| $x * 2 } | to json --raw', '[2,4]'],
+    ['internal-stderr-pipe', 'echo visible e>| ignore', 'try { echo visible } catch { |err| $err.msg }', 'visible'],
+  ]) {
+    const failure = await run(shell, command)
+    record(id + ' reaches the live failure hint', failure.exitCode !== 0 && failure.stderr.text.includes('Nushell hint (' + id + ')'), failure.stderr.text)
+    const repaired = await run(shell, fix)
+    record(id + ' repair returns the intended value', repaired.exitCode === 0 && repaired.stdout.text.trim() === expected, repaired.stdout.text + repaired.stderr.text)
+  }
+
+  const deprecated = await run(shell, '{a: 1} | get -i a')
+  record('a successful deprecation carries a replacement hint', deprecated.exitCode === 0 && deprecated.stdout.text.trim() === '1' && /Nushell hint \(deprecated-flag\)/.test(deprecated.stderr.text), deprecated.stderr.text)
+  const replacement = await run(shell, '{a: 1} | get -o a')
+  record('the replacement keeps the value without a warning', replacement.exitCode === 0 && replacement.stdout.text.trim() === '1' && replacement.stderr.text === '', replacement.stderr.text)
+
   const assembly = await ctx.systemPrompt.assemble()
   const prompt = assembly.sections.map((section) => (typeof section.text === 'string' ? section.text : '')).join('\n\n')
   record('the prompt carries the shell rules', prompt.includes('Shell: Nushell only'))

@@ -18,9 +18,9 @@ The error names the shell and quotes the statement, for example `bash -c` or `pw
 
 The syntax rules name the fragment and the Nushell spelling to use: numbered redirection, shell input redirects, `$env:NAME`, bare assignment, `foreach`, PowerShell cmdlets, `&&` / `||`, `$?`, or an unknown flag on a Nushell builtin. Fix the fragment; plain quoting turns it into data, but a `$"…"` / `$'…'` interpolation is code, so its `(…)` parts are inspected too. If a check is wrong for one call site, allowlist that command or set `syntaxLint: false`.
 
-## A failure carries a Nushell hint
+## A result carries a Nushell hint
 
-The hint line comes after the command's own stderr and starts with `Nushell hint (<id>):`. It gives one fix for the error Nushell reported. Hints are added only when the call fails with a non-zero exit; exit 0 and a sandbox denial carry no hint. A command refused before spawning has no hint, because Nushell never ran.
+The hint line follows the command's stderr and starts with `Nushell hint (<id>):`. It explains a recognized Nushell error or gives a replacement for a deprecation warning, including warnings on exit 0. Actual errors take priority over warnings. Ordinary successful stderr, timeouts, aborted calls, and sandbox denials receive no hint. A command refused before spawning carries its own guidance because Nushell never ran.
 
 ## Writes fail: read-only or permission denied
 

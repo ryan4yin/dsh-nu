@@ -47,7 +47,7 @@ _Avoid_: sandbox, guarantee, security boundary
 ## Failure feedback
 
 **Hint**:
-The one-line `Nushell hint (<id>):` message appended to a failed shell call when Nushell reports an error, naming one fix.
+The one-line `Nushell hint (<id>):` message explaining a recognized Nushell error or deprecation warning, naming one fix. Successful warnings carry a hint; ordinary exit-0 stderr does not.
 _Avoid_: suggestion, tip, advice
 
 ## Support

@@ -10,7 +10,7 @@ English | [中文](zh/verification.md)
 - parser contract tests. The preflight depends on the exact output of `nu --ide-ast` and `nu --ide-check`: a flat token list with shape, content, and span, plus JSONL diagnostics. The contract tests pin the shapes, offsets, and fields the preflight reads, so a change in Nushell's IDE output fails the suite instead of quietly loosening the guard;
 - a differential corpus. Every refused syntax form runs against the pinned Nushell and must fail, except the forms Nushell accepts silently, which are pinned separately by running them and asserting their real exit-0 behaviour. Every allowed form must run. Handoff cases assert the guard's answer, including nested blocks, closures, interpolations, wrapper chains, and shell names that are data;
 - a Linux-only PATH-shim fuzz test. Commands the preflight allows run through the real Nushell with stand-in foreign shells first on `PATH`; a stand-in that records a call fails the test;
-- hint coverage. Every hint id has a real failing command, and the test checks the hint against that command's actual stderr;
+- hint coverage. Every hint id has a real Nushell diagnostic, including successful deprecation warnings. Recovery tests run the suggested replacements and check their output and exit status; broad diagnostic IDs also have negative cases;
 - claims tests. The teaching guide's executable statements run against the pinned Nushell;
 - a manifest contract for peer ranges, the bundle patch, exports, and the published file list;
 - documentation tests for the documentation set, serialization placeholders, repeated tested versions, the bundle rows named in the README, and relative markdown links.
@@ -67,6 +67,7 @@ A code pull request runs Ubuntu, macOS, and Windows with the pinned Nushell inst
 
 - The supported pair is dsh `0.2.1-rc.2` and Nushell `0.115.1`.
 - The guard is not a sandbox. It follows literal shell names, a fixed launcher table, `run-external`, and literal `nu -c` / `nu -e` scripts to depth 4. A dynamic shell name, a program that starts a shell itself, a shell name hidden in data, or a script file loaded by `nu <file>`, `source`, or `use` is out of reach. Plain quoted strings are data; `$"…"` / `$'…'` interpolation is inspected as code.
-- Hints only fire on a failing call after Nushell reports an error; exit 0 and a sandbox denial carry no hint. A command refused before spawning has no hint.
+- Hints explain recognized Nushell errors and deprecation warnings; successful deprecations also receive a hint. Actual errors take priority over warnings. Ordinary exit-0 stderr, timeouts, aborted calls, and sandbox denials receive no hint. Preflight refusals carry their own guidance.
+- [The session scanner](../dev/session-scan.md) aggregates explicit local event files. Its counts distinguish unknown exit status from failure; it does not infer repair or task success.
 - Because the preflight fails closed, a Nushell whose IDE output does not match the tested shape refuses calls until the pair is aligned.
 - Windows has no differential hint sample for file permissions in CI; the permission sample is skipped there.
