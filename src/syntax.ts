@@ -77,7 +77,7 @@ const FIXES: Readonly<Record<RuleId, string>> = {
   // `<` has no input-redirection form in Nushell either; `<<` / `<<<` (a
   // heredoc or here-string) are operators Nushell does not know. Comparisons
   // such as `where size < 1kb` are operator tokens and stay valid.
-  'stdin-redirect': 'Nushell has no < file input redirection, and no << / <<< operator: cmd < in.txt would pass < and the filename as arguments, so the preflight refuses it. Feed the file into the command instead, for example ^prog (open --raw in.txt), or pass the path as an argument.',
+  'stdin-redirect': 'Nushell has no < file input redirection, and no << / <<< operator: cmd < in.txt would pass < and the filename as arguments, so the preflight refuses it. Pipe the file into the command instead: open --raw in.txt | ^prog, or pass the path as an argument.',
   'powershell-env': 'PowerShell writes $env:NAME; Nushell writes $env.NAME (optional read: $env.NAME?).',
   'bare-assignment': 'Nushell has no bare $x = assignment: bind with let x = ... (immutable) or mut x = ... (reassignable); the environment is $env.x = ....',
   'foreach-loop': 'Nushell loops are for item in $items { ... }; transform a list with ... | each { |item| ... }.',
@@ -472,7 +472,7 @@ const HINTS: readonly HintRule[] = [
   { id: 'stderr-redirect', match: /nu::parser::shell_outerr/, hint: '2>&1 is not Nushell. Write o+e> out.txt, or use (do { cmd } | complete) to capture both streams.' },
   { id: 'stderr-file', match: /nu::parser::shell_err\b/, hint: '2> file is not Nushell. Send stderr with e> err.txt; stdout is o> and both is o+e>.' },
   { id: 'path-not-found', match: /nu::shell::(?:io::)?(?:file_)?not_found/, hint: 'The path does not exist. Check it with path exists, or quote it if it contains spaces.' },
-  { id: 'glob-pattern', match: /No matches found for|no matches found/i, hint: 'That glob matched nothing, and ls <glob> treats an empty match as an error. Use glob <pattern> (empty list is fine) or widen the pattern; ? in a path is a one-character wildcard in Nushell.' },
+  { id: 'glob-pattern', match: /No matches found for/, hint: 'That glob matched nothing, and ls <glob> treats an empty match as an error. Use glob <pattern> (empty list is fine) or widen the pattern; ? in a path is a one-character wildcard in Nushell.' },
   { id: 'incompatible-path-access', match: /nu::shell::incompatible_path_access/, hint: 'A pipeline and or/and were mixed: wrap each comparison, (str contains "a") or (str contains "b"), or use one regex =~.' },
   { id: 'eval-block-with-input', match: /nu::shell::eval_block_with_input/, hint: 'A closure failed on its pipeline input. Name the parameter ({ |row| ... }) or use $in, and check the value type the block receives.' },
   { id: 'redirection-nothing', match: /expected redirection target/, hint: 'A redirection needs a target after the operator. Write cmd o> out.txt, or pipe into save -f file.' },
@@ -496,7 +496,7 @@ const HINTS: readonly HintRule[] = [
   { id: 'operator-unsupported-type', match: /nu::(?:parser|shell)::operator_(?:unsupported_type|incompatible_types)/, hint: 'That operator does not accept this operand type. Convert first (into int, into string) or compare values of the same type.' },
   { id: 'type-mismatch', match: /nu::parser::input_type_mismatch|nu::shell::cant_convert/, hint: 'This value has the wrong type for that command. Parse it first (into int, into string) or check what the previous stage returned.' },
   { id: 'missing-external', match: /nu::shell::external_command/, hint: 'That external program is not installed. Nushell has a native equivalent for many tools; otherwise install it, or use ^program when the name clashes with a Nushell command.' },
-  { id: 'permission-denied', match: /nu::shell::io::permission_denied|permission denied/i, hint: 'Permission was denied. This is a filesystem permission or sandbox policy issue, not a syntax problem: use a permitted path and do not retry another way.' },
+  { id: 'permission-denied', match: /nu::shell::io::permission_denied/, hint: 'Permission was denied. This is a filesystem permission or sandbox policy issue, not a syntax problem: use a permitted path and do not retry another way.' },
   { id: 'read-only-filesystem', match: /read-only_filesystem_or_storage_medium/, hint: 'That filesystem is read-only. Choose a writable path, or check the sandbox policy; do not retry the same write.' },
   { id: 'empty-pipeline', match: /nu::shell::pipeline_mismatch/, hint: 'A stage received no input. Feed it explicitly, or check that the previous stage produced output.' },
   { id: 'exit-status', match: /Incomplete variable/, hint: '$? and similar bash variables are not Nushell. Use $env.LAST_EXIT_CODE? or (do { cmd } | complete).exit_code.' },
