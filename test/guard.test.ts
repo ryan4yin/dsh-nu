@@ -319,6 +319,71 @@ test('an allowlist entry does not exempt a longer command that contains it', asy
   await assert.rejects(assertNuOnly('bash -c "echo EVIL"', { allow: [/bash -c/] }), /bash/)
 })
 
+test('refuses a shell named through quoting, backticks, raw strings, or escapes', async () => {
+  // Nushell runs each spelling as the external program `bash`; the name is
+  // compared by value, not by how the source spells it.
+  for (const command of [
+    `^'bash' -c 'echo hi'`,
+    `^"bash" -c 'echo hi'`,
+    "^`bash` -c 'echo hi'",
+    `^r#'bash'# -c 'echo hi'`,
+    `^$"bash" -c 'echo hi'`,
+    `^$'bash' -c 'echo hi'`,
+    `^"b\\u{61}sh" -c 'echo hi'`,
+    `^"b\\u0061sh" -c 'echo hi'`,
+    `run-external "b\\u{61}sh" -c 'echo hi'`,
+    `^'env' bash -c 'echo hi'`,
+    `^"nu" -c 'bash -c yes'`,
+    `^'watch' -n 1 bash -c 'echo hi'`,
+    `^"bash.exe" -c 'echo hi'`,
+  ]) {
+    assert.equal(await shellOf(command), 'bash', command)
+  }
+  for (const command of [
+    `^'echo' hi`,
+    `^"ec\\u{68}o" hi`,
+    `^'ls' --all`,
+    `print '^bash'`,
+    `'bash' -c 'echo hi'`,
+  ]) {
+    assert.equal(await findHandoff(command), undefined, command)
+  }
+})
+
+test('refuses the process launchers whose arguments decide the program', async () => {
+  for (const [command, shell] of [
+    ['unshare -r bash -c id', 'bash'],
+    ['unshare --map-root-user --mount zsh -c id', 'zsh'],
+    ['nsenter -t 1 -m bash -c id', 'bash'],
+    ['bwrap --bind / / -- bash -c id', 'bash'],
+    ['firejail bash -c id', 'bash'],
+    ['pkexec bash -c id', 'bash'],
+    ['fakeroot bash -c id', 'bash'],
+    ['rbash -c id', 'rbash'],
+    ['^"rbash" -c id', 'rbash'],
+    // No program means the launcher starts ${SHELL:-/bin/sh} itself.
+    ['unshare -r', 'sh'],
+    ['nsenter -t 1 -m', 'sh'],
+    ['pkexec', 'sh'],
+    ['fakeroot', 'sh'],
+  ] as const) {
+    assert.equal(await shellOf(command), shell, command)
+  }
+  // A program that runs its own argument text is not a shell handoff.
+  for (const command of [
+    'pkexec ls',
+    'fakeroot ls',
+    'unshare -r ls',
+    'nsenter -t 1 -m ls',
+    'bwrap --bind / / -- ls',
+    'bwrap --bind / / ls',
+    `watch 'ls && echo x'`,
+    `hyperfine 'echo hi'`,
+  ]) {
+    assert.equal(await findHandoff(command), undefined, command)
+  }
+})
+
 test('the refusal names the shell and the offending statement', async () => {
   await assert.rejects(
     assertNuOnly('ls | zsh -c "echo hi"'),

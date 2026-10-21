@@ -167,9 +167,8 @@ function parseTokens(stdout: string, command: string, offsets: readonly number[]
   for (const item of raw) {
     if (typeof item !== 'object' || item === null) continue
     const token = item as Record<string, unknown>
-    const start = token.span
     if (typeof token.shape !== 'string' || typeof token.content !== 'string') continue
-    const span = start as Record<string, unknown> | undefined
+    const span = token.span as Record<string, unknown> | undefined
     const fromByte = typeof span?.start === 'number' ? span.start : undefined
     const toByte = typeof span?.end === 'number' ? span.end : undefined
     if (fromByte === undefined || toByte === undefined) continue
@@ -212,25 +211,61 @@ function parseDiagnostics(stdout: string, offsets: readonly number[]): AstDiagno
   return diagnostics
 }
 
-/** Whether a token is a plain literal string (single- or double-quoted, or bare). */
+/** Whether a token is a plain literal string (single-, double-, or backtick-quoted; or bare). */
 export function isQuoted(content: string): boolean {
-  return content.length >= 2 && (content.startsWith("'") && content.endsWith("'") || content.startsWith('"') && content.endsWith('"'))
+  if (content.length < 2) return false
+  const first = content[0]
+  return (first === "'" || first === '"' || first === '`') && content.endsWith(first)
 }
 
-/** A Nu single- or double-quoted or raw string's value, when it is a plain literal. */
+/** The escapes a Nushell double-quoted or backtick string processes. */
+const ESCAPES: ReadonlyMap<string, string> = new Map([
+  ['n', '\n'], ['r', '\r'], ['t', '\t'], ['0', '\0'],
+  ['\\', '\\'], ['"', '"'], ["'", "'"], ['`', '`'], ['/', '/'],
+])
+
+/**
+ * Decode one double-quoted or backtick string body, left to right, so an
+ * escaped backslash keeps the character after it literal. Unicode escapes
+ * (`\u{61}`, `\u0061`) matter to the guard: Nushell runs `"\u{62}ash"` as bash.
+ */
+function unescape(inner: string): string {
+  let out = ''
+  for (let index = 0; index < inner.length; index += 1) {
+    const char = inner[index]!
+    if (char !== '\\') {
+      out += char
+      continue
+    }
+    const next = inner[index + 1]
+    if (next === undefined) {
+      out += char
+      break
+    }
+    if (next === 'u') {
+      const braced = /^\{([0-9a-fA-F]{1,6})\}/.exec(inner.slice(index + 2))
+      const fixed = braced === null ? /^([0-9a-fA-F]{4})/.exec(inner.slice(index + 2)) : null
+      const hex = braced?.[1] ?? fixed?.[1]
+      const width = braced !== null ? braced[0].length : fixed !== null ? fixed[0].length : 0
+      const codePoint = hex === undefined ? undefined : Number.parseInt(hex, 16)
+      if (codePoint !== undefined && codePoint <= 0x10ffff) {
+        out += String.fromCodePoint(codePoint)
+        index += 1 + width
+        continue
+      }
+    }
+    const mapped = ESCAPES.get(next)
+    out += mapped ?? char + next
+    index += 1
+  }
+  return out
+}
+
+/** A Nu quoted, backtick, or raw string's value, when it is a plain literal. */
 export function literalValue(content: string): string | undefined {
   if (isQuoted(content)) {
     const inner = content.slice(1, -1)
-    if (content.startsWith("'")) return inner
-    return inner.replace(/\\([\\"'nrt0])/g, (_match, ch: string) => {
-      switch (ch) {
-        case 'n': return '\n'
-        case 'r': return '\r'
-        case 't': return '\t'
-        case '0': return '\0'
-        default: return ch
-      }
-    })
+    return content.startsWith("'") ? inner : unescape(inner)
   }
   const raw = /^r(#+)(['"])([\s\S]*)\2\1$/.exec(content)
   if (raw !== null) return raw[3]

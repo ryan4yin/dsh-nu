@@ -77,6 +77,17 @@ function handoffCorpus(random: () => number): string[] {
     `nu -e ${JSON.stringify(`${shell} -c ${script}`)}`,
     `ionice -c 3 ${shell} -c ${quoted}`,
     `timeout $env.PATH ${shell} -c ${quoted}`,
+    `^'${shell}' -c ${quoted}`,
+    `^"${shell}" -c ${quoted}`,
+    '^`' + shell + '` -c ' + quoted,
+    `^r#'${shell}'# -c ${quoted}`,
+    `^$"${shell}" -c ${quoted}`,
+    `nsenter -t 1 -m ${shell} -c ${quoted}`,
+    `unshare -r ${shell} -c ${quoted}`,
+    `bwrap --bind / / -- ${shell} -c ${quoted}`,
+    `pkexec ${shell} -c ${quoted}`,
+    `fakeroot ${shell} -c ${quoted}`,
+    `firejail ${shell} -c ${quoted}`,
   ]
   return templates
 }
