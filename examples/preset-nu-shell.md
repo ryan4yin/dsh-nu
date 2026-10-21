@@ -51,7 +51,7 @@ providers register the same service, so a missing disable is visible at boot.
 | key | default | meaning |
 |---|---|---|
 | `nuPath` | `DSH_NU_PATH`, then `nu` on PATH | executable |
-| `nuArgs` | `['--no-config-file', '-c']` | argv prefix; the command is appended |
+| `nuArgs` | `['--no-config-file', '-c']` | argv prefix; the command is appended, so it must end with `-c` |
 | `enforceNushellOnly` | `true` | refuse commands that hand off to another shell |
 | `foreignShellAllowlist` | `[]` | regexes exempt from both checks; each must match the whole command |
 | `syntaxLint` | `true` | refuse bash/PowerShell syntax before spawning |
