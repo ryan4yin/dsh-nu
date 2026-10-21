@@ -12,6 +12,9 @@ All notable changes to this project are recorded here. The format follows
   `firejail`, `pkexec`, and `fakeroot`. The last three match `su` and `chroot`:
   without a program they start `${SHELL:-/bin/sh}`, so the bare form is refused
   too. `rbash` is a foreign shell name.
+- Eval cases for the refusal forms real sessions hit most: `stderr-to-file`,
+  `stdin-file`, `capture-substitution`, `conditional-chain`, `stdout-to-file`,
+  and `explicit-bash` (26 cases total).
 
 ### Changed
 
