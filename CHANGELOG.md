@@ -11,18 +11,17 @@ All notable changes to this project are recorded here. The format follows
 - The tested pair is dsh `0.2.2-alpha.2` and Nushell `0.116.1`, and the dsh
   peer ranges follow it. The package now requires Node 24.9 or newer, matching
   the dsh alpha engine requirement; Node 22 is no longer accepted.
-- dsh alpha owns the model-facing tool schemas in its tool executor and no
-  longer passes them through `system-prompt/assemble`. The bundle disables
-  `tool-executor-native` and mounts a `nu-native-tool-executor` row
-  (`dsh-nu/native-executor`) whose `describe()` rewrites the `bash` / `pwsh`
-  descriptions. A profile that switches to PTC enables `tool-executor-ptc` and
-  disables `nu-native-tool-executor`, because each scope accepts only one tool
-  executor.
-- `toolNames` moved from the `nu-teaching` row to the
-  `nu-native-tool-executor` row, which also takes its own
-  `rewriteToolDescriptions`. `nu-teaching` ignores a leftover `toolNames` and
-  logs a warning that names the new row. On `nu-teaching`,
-  `rewriteToolDescriptions` now controls only the PTC `tools:sdk` rewrite.
+- dsh alpha no longer passes tool schemas through `system-prompt/assemble`;
+  executors read them from the tool registry. The bundle replaces the
+  `tool-bash` / `tool-pwsh` rows with `nu-tool-bash` / `nu-tool-pwsh`, which
+  run dsh's own tool and rewrite only the description it registers, so native
+  and PTC executors both show Nushell text and PTC needs no dsh-nu setting.
+  Settings for dsh's `tool-bash` / `tool-pwsh` rows move to the new rows, which
+  also take `rewriteToolDescriptions`.
+- `toolNames` is removed: each shell tool row rewrites its own tool.
+  `nu-teaching` ignores a leftover `toolNames` and logs a warning. On
+  `nu-teaching`, `rewriteToolDescriptions` now controls only the PTC
+  `tools:sdk` rewrite.
 
 ## 0.6.1 (2026-10-22)
 

@@ -9,7 +9,7 @@
  *    registry.
  *
  * The bash/pwsh tool schemas are provider-owned and never pass through the
- * assembly waterfall; `native-executor.ts` rewrites them in its describe().
+ * assembly waterfall; `shell-tool.ts` rewrites them where the tool registers.
  */
 
 import z from '@deepseek-ai/schemastery'
@@ -47,8 +47,8 @@ export const Config = z.object({
   rewriteToolDescriptions: z.boolean().default(true),
 })
 
-/** The warning for a profile that still sets the moved `toolNames` key. */
-export const MOVED_TOOL_NAMES_WARNING = 'dsh-nu: nu-teaching ignores toolNames; set it on the nu-native-tool-executor row'
+/** The warning for a profile that still sets the removed `toolNames` key. */
+export const MOVED_TOOL_NAMES_WARNING = 'dsh-nu: nu-teaching ignores toolNames; the nu-tool-bash and nu-tool-pwsh rows rewrite their own tool'
 
 /** Normalized options used at runtime. */
 export interface Options {

@@ -33,7 +33,7 @@ function boot(mode) {
   copyFileSync(join(ROOT, 'test', 'integration', 'probe.mjs'), join(profileDir, 'probe.mjs'))
   const patch = mode === 'ptc'
     ? [
-        '- id: nu-native-tool-executor',
+        '- id: tool-executor-native',
         '  disabled: true',
         '- id: tool-executor-ptc',
         '  disabled: false',

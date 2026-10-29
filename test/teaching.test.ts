@@ -167,7 +167,7 @@ test('totality: settings are validated at boot', () => {
   assert.throws(() => normalizeConfig({ rules: 'yes' }), /rules/)
 })
 
-test('a moved toolNames key warns instead of dropping the teaching layer', () => {
+test('a removed toolNames key warns instead of dropping the teaching layer', () => {
   const { ctx, sections } = fakeContext()
   const warnings: string[] = []
   Object.assign(ctx as object, { logger: { info(): void {}, warn: (message: string) => warnings.push(message) } })

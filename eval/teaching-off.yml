@@ -4,6 +4,9 @@
     guide: off
     rules: false
     rewriteToolDescriptions: false
-- id: nu-native-tool-executor
+- id: nu-tool-bash
+  config:
+    rewriteToolDescriptions: false
+- id: nu-tool-pwsh
   config:
     rewriteToolDescriptions: false

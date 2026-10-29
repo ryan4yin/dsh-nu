@@ -3,19 +3,20 @@
 # dsh-base mounts the platform shell executor row (bash on POSIX, pwsh on
 # Windows) and the matching shell tool row. This bundle disables both executor
 # rows and inserts one Nushell executor instead, then mounts the teaching layer.
-# DSH alpha owns model-facing schemas in its tool executor, so the native
-# executor is replaced by a variant that rewrites the bash/pwsh descriptions.
-# A profile that switches to PTC enables tool-executor-ptc and disables
-# nu-native-tool-executor: each scope accepts only one tool executor.
 #
-# The shell tool rows stay enabled: they call ctx.shell and the tool name the
-# model sees stays "bash"/"pwsh", which keeps prompts and saved sessions stable.
+# The shell tool rows are re-mounted, not removed: nu-tool-bash and nu-tool-pwsh
+# run dsh's own bash/pwsh tools, which call ctx.shell, and rewrite only the
+# description they register. The tool name the model sees stays "bash"/"pwsh",
+# and native and PTC executors both read the rewritten text from the registry.
 #
 # The sandbox is not part of this bundle: dsh-sandbox-local and
 # dsh-sandbox-policy stay mounted, and the Nu executor below extends the
 # platform sandbox executor, so confinement and denial reporting are unchanged.
 
-- id: tool-executor-native
+- id: tool-bash
+  disabled: true
+
+- id: tool-pwsh
   disabled: true
 
 - id: bash-sandbox
@@ -25,11 +26,17 @@
   disabled: true
 
 - insert:
-    - id: nu-native-tool-executor
-      name: dsh-nu/native-executor
+    - id: nu-tool-bash
+      name: dsh-nu/tool-bash
+      disabled: !!js process.platform === 'win32'
       config:
         rewriteToolDescriptions: true
-        toolNames: ["bash", "pwsh"]
+
+    - id: nu-tool-pwsh
+      name: dsh-nu/tool-pwsh
+      disabled: !!js process.platform !== 'win32'
+      config:
+        rewriteToolDescriptions: true
 
     - id: nu-executor
       name: dsh-nu/executor

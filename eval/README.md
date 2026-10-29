@@ -10,7 +10,7 @@ Three arms run the same task with the same executor and guard:
 - `full`: the shipped system prompt, rules, guide, and tool descriptions.
 - `compact`: the compact guide, rules, and rewritten tool descriptions.
 - `off`: `guide: off`, `rules: false`, and `rewriteToolDescriptions: false` on
-  both the teaching row and the native tool executor row.
+  the teaching row and the shell tool rows.
 
 The `off` arm keeps the guard and the syntax rules. A refusal there is a
 teaching failure, not a safety success, so the grader counts it separately.

@@ -1,29 +1,32 @@
 # Mounting dsh-nu in a base-backed profile
 
 A profile built on `@deepseek-ai/dsh-base` already mounts a platform shell
-executor (bash on macOS/Linux, PowerShell on Windows) and dsh's native tool
-executor. dsh-nu replaces both, so the profile patch must do two things:
+executor (bash on macOS/Linux, PowerShell on Windows) and the matching shell
+tool. dsh-nu replaces both, so the profile patch must do two things:
 
-1. disable the platform executor rows and `tool-executor-native`;
-2. mount `dsh-nu/executor`, `dsh-nu/native-executor`, and `dsh-nu/teaching`.
+1. disable the platform executor rows and the `tool-bash` / `tool-pwsh` rows;
+2. mount `dsh-nu/executor`, `dsh-nu/tool-bash` (or `dsh-nu/tool-pwsh`), and
+   `dsh-nu/teaching`.
 
-The native tool executor owns the model-facing tool schemas, so it is the row
-that rewrites the `bash` / `pwsh` descriptions into Nushell terms.
+`dsh-nu/tool-bash` runs dsh's own bash tool and rewrites only the description
+it registers, so native and PTC executors both show the Nushell text.
 
 The shell tool rows are left alone: they call `ctx.shell` and keep their
 model-facing names, so saved sessions and prompt caches stay valid.
 
 ```yaml
 # profile/cordis.patch.yml
-- id: tool-executor-native
+- id: tool-bash
+  disabled: true
+- id: tool-pwsh
   disabled: true
 - id: bash-sandbox
   disabled: true
 - id: pwsh-sandbox
   disabled: true
 - insert:
-    - id: nu-native-tool-executor
-      name: dsh-nu/native-executor
+    - id: nu-tool-bash
+      name: dsh-nu/tool-bash
     - id: nu-executor
       name: dsh-nu/executor
       config:
@@ -68,6 +71,5 @@ providers register the same service, so a missing disable is visible at boot.
 | `verifyTimeoutMs` | `10000` | bound for that probe |
 | `guide` (teaching) | `full` | `full`, `compact`, `off` |
 | `rules` (teaching) | `true` | add the mandatory-rules prompt section |
-| `rewriteToolDescriptions` (native tool executor) | `true` | rewrite the shell tool descriptions |
-| `toolNames` (native tool executor) | `['bash', 'pwsh']` | tool schemas whose shell text is rewritten |
+| `rewriteToolDescriptions` (shell tool) | `true` | rewrite the shell tool description |
 | `rewriteToolDescriptions` (teaching) | `true` | rewrite the PTC SDK section |
