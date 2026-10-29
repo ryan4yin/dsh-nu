@@ -65,7 +65,7 @@ A code pull request runs Ubuntu, macOS, and Windows with the pinned Nushell inst
 
 ## Known limits
 
-- The supported pair is dsh `0.2.1-rc.2` and Nushell `0.115.1`.
+- The supported pair is dsh `0.2.1-rc.2` and Nushell `0.116.1`.
 - The guard is not a sandbox. It follows literal shell names, a fixed launcher table, `run-external`, and literal `nu -c` / `nu -e` scripts to depth 4. A dynamic shell name, a program that starts a shell itself, a shell name hidden in data, or a script file loaded by `nu <file>`, `source`, or `use` is out of reach. Plain quoted strings are data; `$"…"` / `$'…'` interpolation is inspected as code.
 - Hints explain recognized Nushell errors and deprecation warnings; successful deprecations also receive a hint. Actual errors take priority over warnings. Ordinary exit-0 stderr, timeouts, aborted calls, and sandbox denials receive no hint. Preflight refusals carry their own guidance.
 - [The session scanner](../dev/session-scan.md) aggregates explicit local event files. Its counts distinguish unknown exit status from failure; it does not infer repair or task success.

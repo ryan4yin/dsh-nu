@@ -48,7 +48,7 @@ test('parseVersion accepts banner variants and rejects junk', () => {
 })
 
 test('the tested pins match the manifest', () => {
-  assert.equal(TESTED_NUSHELL, '0.115.1')
+  assert.equal(TESTED_NUSHELL, '0.116.1')
   assert.equal(TESTED_DSH, '0.2.1-rc.2')
 })
 

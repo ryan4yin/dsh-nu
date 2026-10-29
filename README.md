@@ -12,7 +12,7 @@ dsh-nu forces DeepSeek Harness to run every shell command in Nushell, with the `
 
 ## Status
 
-0.6.1 is published on npm. dsh `0.2.1-rc.2` and Nushell `0.115.1` are the tested pair, recorded in `package.json` under `testedWith`.
+0.6.1 is published on npm. dsh `0.2.1-rc.2` and Nushell `0.116.1` are the tested pair, recorded in `package.json` under `testedWith`.
 
 ## Compatibility
 
@@ -20,7 +20,7 @@ dsh-nu supports only that pair. The peer ranges cover the dsh family, and boot l
 
 ## Install
 
-Requires Node 22.19+, `pnpm` on `PATH` (the `dsh plugin` installer runs it), dsh `0.2.1-rc.2`, and Nushell `0.115.1` on `PATH`.
+Requires Node 22.19+, `pnpm` on `PATH` (the `dsh plugin` installer runs it), dsh `0.2.1-rc.2`, and Nushell `0.116.1` on `PATH`.
 
 Add the bundle to a dsh profile:
 
@@ -40,7 +40,7 @@ The repository ships a flake with the tested Node and Nushell versions:
 nix develop
 ```
 
-Inside the shell, or with your own Node 24 and Nushell 0.115.1:
+Inside the shell, or with your own Node 24 and Nushell 0.116.1:
 
 ```sh
 npm install

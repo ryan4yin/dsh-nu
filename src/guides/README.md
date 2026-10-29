@@ -19,7 +19,7 @@ not shipped.
 
 ## Sources
 
-- **Nushell 0.115.1, the pinned runtime.** Every executable claim is checked by
+- **Nushell 0.116.1, the pinned runtime.** Every executable claim is checked by
   `test/claims.test.ts`; observed failures are recorded in
   [`docs/nushell-friction-review.md`](../../docs/nushell-friction-review.md).
 - **Nushell official documentation:**
@@ -57,4 +57,4 @@ When changing the Nushell or DSH pins:
    from old bash sessions.
 5. Re-check the source links and add a new source here when one is used.
 
-Last validated: Nushell 0.115.1 with DSH 0.2.1-rc.2.
+Last validated: Nushell 0.116.1 with DSH 0.2.1-rc.2.

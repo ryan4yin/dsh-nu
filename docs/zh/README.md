@@ -12,7 +12,7 @@ dsh-nu 强制 DeepSeek Harness 用 Nushell 执行所有 shell 命令，禁用 `b
 
 ## 状态
 
-0.6.1 已发布到 npm。当前测试组合是 dsh `0.2.1-rc.2` 与 Nushell `0.115.1`，记录在 `package.json` 的 `testedWith` 里。
+0.6.1 已发布到 npm。当前测试组合是 dsh `0.2.1-rc.2` 与 Nushell `0.116.1`，记录在 `package.json` 的 `testedWith` 里。
 
 ## 兼容性
 
@@ -20,7 +20,7 @@ dsh-nu 只支持这一组合。peer 依赖只覆盖 dsh 家族；启动时如果
 
 ## 安装
 
-需要 Node 22.19+、`PATH` 上的 `pnpm`（`dsh plugin` 安装器会调用它）、dsh `0.2.1-rc.2` 和 Nushell `0.115.1`。
+需要 Node 22.19+、`PATH` 上的 `pnpm`（`dsh plugin` 安装器会调用它）、dsh `0.2.1-rc.2` 和 Nushell `0.116.1`。
 
 把 bundle 装进 dsh profile：
 
@@ -40,7 +40,7 @@ dsh plugin --profile tui add dsh-nu@0.6.1
 nix develop
 ```
 
-进入 shell 后，或者本机已有 Node 24 和 Nushell 0.115.1 时：
+进入 shell 后，或者本机已有 Node 24 和 Nushell 0.116.1 时：
 
 ```sh
 npm install

@@ -42,11 +42,11 @@ test('the tested versions are repeated in the places the user reads', () => {
   for (const file of ['README.md', 'docs/zh/README.md', 'docs/verification.md', 'docs/zh/verification.md']) {
     const text = read(file)
     assert.match(text, /0\.2\.1-rc\.2/, file)
-    assert.match(text, /0\.115\.1/, file)
+    assert.match(text, /0\.116\.1/, file)
   }
   const manifest = JSON.parse(read('package.json')) as { testedWith: { dsh: string; nushell: string } }
   assert.equal(manifest.testedWith.dsh, '0.2.1-rc.2')
-  assert.equal(manifest.testedWith.nushell, '0.115.1')
+  assert.equal(manifest.testedWith.nushell, '0.116.1')
 })
 
 test('the README configuration example names the bundle rows', () => {
