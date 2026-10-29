@@ -4,11 +4,11 @@
  * It mounts beside the executor and uses documented seams only:
  *
  * 1. systemPrompt.section for the mandatory rules and the syntax guide;
- * 2. a system-prompt/assemble listener that rewrites the bash/pwsh tool
- *    descriptions and their command parameter into Nushell terms;
- * 3. the same listener rewrites the generated PTC "tools:sdk" section, because
- *    that repository-rendered text comes from the tool registry and never
- *    passes through the assembled tool array.
+ * 2. a system-prompt/assemble listener that rewrites the generated PTC
+ *    "tools:sdk" section and, for older DSH releases that still expose tools
+ *    there, legacy shell tool descriptions;
+ * 3. the native executor wrapper in `native-executor.ts`, which rewrites
+ *    provider-owned tool schemas before DSH sends them to the model.
  */
 
 import z from '@deepseek-ai/schemastery'
@@ -106,7 +106,7 @@ function claimsForeignShell(description: string): boolean {
 }
 
 /** Rewrite one tool schema, leaving unrelated tools untouched. */
-function rewriteTool(raw: unknown, options: Options): unknown {
+export function rewriteToolSchema(raw: unknown, options: Options): unknown {
   if (raw === null || typeof raw !== 'object') return raw
   const tool = raw as ToolSchema
   if (typeof tool.name !== 'string' || !options.toolNames.includes(tool.name)) return raw
@@ -205,7 +205,7 @@ export function apply(rawContext: Context, config: Config = {}): void {
     ctx.on('system-prompt/assemble', async (_assembly, _context, next) => {
       const result = await next()
       if (result === null || typeof result !== 'object') return result
-      const tools = Array.isArray(result.tools) ? result.tools.map((tool) => rewriteTool(tool, options)) : undefined
+      const tools = Array.isArray(result.tools) ? result.tools.map((tool) => rewriteToolSchema(tool, options)) : undefined
       const sections = Array.isArray(result.sections) ? rewriteSdkSections(result.sections) : result.sections
       if (tools === undefined) return sections === result.sections ? result : { ...result, sections }
       return sections === result.sections ? { ...result, tools } : { ...result, tools, sections }

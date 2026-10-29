@@ -2,8 +2,9 @@
 #
 # dsh-base mounts the platform shell executor row (bash on POSIX, pwsh on
 # Windows) and the matching shell tool row. This bundle disables both executor
-# rows and inserts one Nushell executor instead, then mounts the teaching layer
-# that rewrites the model-facing shell tool text.
+# rows and inserts one Nushell executor instead, then mounts the teaching layer.
+# DSH alpha owns model-facing schemas in its tool executor, so the native
+# executor is replaced by a variant that rewrites the bash/pwsh descriptions.
 #
 # The shell tool rows stay enabled: they call ctx.shell and the tool name the
 # model sees stays "bash"/"pwsh", which keeps prompts and saved sessions stable.
@@ -12,6 +13,9 @@
 # dsh-sandbox-policy stay mounted, and the Nu executor below extends the
 # platform sandbox executor, so confinement and denial reporting are unchanged.
 
+- id: tool-executor-native
+  disabled: true
+
 - id: bash-sandbox
   disabled: true
 
@@ -19,6 +23,9 @@
   disabled: true
 
 - insert:
+    - id: nu-native-tool-executor
+      name: dsh-nu/native-executor
+
     - id: nu-executor
       name: dsh-nu/executor
       config:
