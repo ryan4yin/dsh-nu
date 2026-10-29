@@ -4,3 +4,6 @@
     guide: compact
     rules: true
     rewriteToolDescriptions: true
+- id: nu-native-tool-executor
+  config:
+    rewriteToolDescriptions: true

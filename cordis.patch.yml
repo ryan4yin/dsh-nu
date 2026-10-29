@@ -5,6 +5,8 @@
 # rows and inserts one Nushell executor instead, then mounts the teaching layer.
 # DSH alpha owns model-facing schemas in its tool executor, so the native
 # executor is replaced by a variant that rewrites the bash/pwsh descriptions.
+# A profile that switches to PTC enables tool-executor-ptc and disables
+# nu-native-tool-executor: each scope accepts only one tool executor.
 #
 # The shell tool rows stay enabled: they call ctx.shell and the tool name the
 # model sees stays "bash"/"pwsh", which keeps prompts and saved sessions stable.
@@ -25,6 +27,9 @@
 - insert:
     - id: nu-native-tool-executor
       name: dsh-nu/native-executor
+      config:
+        rewriteToolDescriptions: true
+        toolNames: ["bash", "pwsh"]
 
     - id: nu-executor
       name: dsh-nu/executor

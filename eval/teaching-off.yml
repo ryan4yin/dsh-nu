@@ -4,3 +4,6 @@
     guide: off
     rules: false
     rewriteToolDescriptions: false
+- id: nu-native-tool-executor
+  config:
+    rewriteToolDescriptions: false

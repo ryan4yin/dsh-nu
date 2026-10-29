@@ -12,7 +12,7 @@ dsh-nu forces DeepSeek Harness to run every shell command in Nushell, with the `
 
 ## Status
 
-0.6.1 is published on npm. dsh `0.2.2-alpha.2` and Nushell `0.116.1` are the tested pair, recorded in `package.json` under `testedWith`.
+0.6.1 is published on npm and was tested with dsh `0.2.1-rc.2` and Nushell `0.115.1`. The main branch targets dsh `0.2.2-alpha.2` and Nushell `0.116.1`, recorded in `package.json` under `testedWith`; the requirements below describe it and take effect with the next release.
 
 ## Compatibility
 
@@ -28,7 +28,7 @@ Add the bundle to a dsh profile:
 dsh plugin --profile tui add dsh-nu@0.6.1
 ```
 
-Use `--profile web` for the browser app. The first `dsh plugin` call creates the profile; the bundle's patch disables the platform shell executors and mounts the Nushell executor and teaching layer. Start the profile with `dsh tui` (or `dsh web`).
+Use `--profile web` for the browser app. The first `dsh plugin` call creates the profile; the bundle's patch disables the platform shell executors and the native tool executor, then mounts the Nushell executor, its own native tool executor, and the teaching layer. Start the profile with `dsh tui` (or `dsh web`).
 
 If pnpm reports `ERR_PNPM_NO_MATURE_MATCHING_VERSION` for a fresh release, it is applying `minimumReleaseAge`. Wait for the cutoff, or add `--config.minimumReleaseAge=0` to the same command.
 
@@ -98,7 +98,7 @@ dsh-nu does not package dsh itself. This flake builds the plugin from the checko
 
 ## Configuration
 
-The bundle's patch mounts one executor row and one teaching row; a profile patch overrides either by id. This profile patch spells out every field and its default:
+The bundle's patch mounts three rows: the shell executor, a native tool executor that rewrites the shell tool schemas, and the teaching layer. A profile patch overrides any of them by id. This profile patch spells out every field and its default:
 
 ```yaml
 - id: nu-executor
@@ -115,13 +115,18 @@ The bundle's patch mounts one executor row and one teaching row; a profile patch
     verifyTimeoutMs: 10000
     foreignShellAllowlist: []
 
+- id: nu-native-tool-executor
+  name: dsh-nu/native-executor
+  config:
+    rewriteToolDescriptions: true
+    toolNames: ["bash", "pwsh"]
+
 - id: nu-teaching
   name: dsh-nu/teaching
   config:
     guide: full          # full | compact | off
     rules: true
     rewriteToolDescriptions: true
-    toolNames: ["bash", "pwsh"]
 ```
 
 | Field | Default | Meaning |
@@ -134,8 +139,9 @@ The bundle's patch mounts one executor row and one teaching row; a profile patch
 | `syntaxHints` | `true` | Append one `Nushell hint (…)` for a recognized failure or deprecation warning, including exit 0 |
 | `guide` | `full` | Prompt guide: `full`, `compact`, or `off` |
 | `rules` | `true` | Prepend the shell-rules section |
-| `rewriteToolDescriptions` | `true` | Replace the shell claims in the `bash` / `pwsh` tool descriptions, keeping the host's own contract text |
-| `toolNames` | `["bash","pwsh"]` | Tool schemas whose shell text is rewritten |
+| `rewriteToolDescriptions` (native tool executor) | `true` | Replace the shell claims in the `bash` / `pwsh` tool descriptions, keeping the host's own contract text |
+| `toolNames` (native tool executor) | `["bash","pwsh"]` | Tool schemas whose shell text is rewritten |
+| `rewriteToolDescriptions` (teaching) | `true` | Replace the same shell claims in the generated PTC `tools:sdk` section |
 | `timeoutMs` | `60000` | Default per-call timeout; `maxTimeoutMs` caps overrides |
 | `requireNu` / `verifyNu` | `true` / `true` | Fail boot when `nu` cannot be resolved, reports no version, or cannot run the preflight |
 | `verifyTimeoutMs` | `10000` | Bound for that probe |
@@ -149,6 +155,21 @@ Choose the guide by goal:
 - `full` keeps the detailed syntax reference for uncommon syntax and edge cases.
 
 Sandbox budgets (`cwd`, `timeoutMs`, …) stay on the `nu-executor` row, not in dsh's shared `shell` settings namespace. Override any row by id in the profile's own `cordis.patch.yml`. `examples/preset-nu-shell.md` lists the preset-level shell bypasses to disable.
+
+To keep the host's tool descriptions, set `rewriteToolDescriptions: false` on the `nu-native-tool-executor` row instead of disabling it: the bundle already disables dsh's own native executor, so without this row no tool executor is left and boot fails.
+
+### PTC mode
+
+dsh selects the tool executor by row, and each scope accepts only one. To switch a profile to PTC, enable dsh's PTC executor and disable this bundle's native executor in the same patch:
+
+```yaml
+- id: tool-executor-ptc
+  disabled: false
+- id: nu-native-tool-executor
+  disabled: true
+```
+
+Enabling only `tool-executor-ptc` does not switch modes: the bundle's native executor claims the scope first, dsh prints no error, and the session keeps native tool calls with no `run_code` tool. In PTC mode the model calls the shell tools from `run_code` programs, and the `nu-teaching` row rewrites the generated `tools:sdk` declarations.
 
 ## What "only Nushell" does not cover
 

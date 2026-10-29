@@ -53,7 +53,7 @@ test('the README configuration example names the bundle rows', () => {
   const patch = read('cordis.patch.yml')
   for (const file of ['README.md', 'docs/zh/README.md']) {
     const text = read(file)
-    for (const id of ['nu-executor', 'nu-teaching']) {
+    for (const id of ['nu-executor', 'nu-native-tool-executor', 'nu-teaching']) {
       assert.match(text, new RegExp('- id: ' + id + '\\b'), file + ' mounts ' + id)
       assert.ok(patch.includes('- id: ' + id), 'cordis.patch.yml mounts ' + id)
     }

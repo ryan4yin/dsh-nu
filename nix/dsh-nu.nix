@@ -69,6 +69,7 @@ buildNpmPackage (finalAttrs: {
     # time because the wrapper does not inherit a Nushell PATH entry.
     substituteInPlace $out/cordis.patch.yml \
       --replace-fail 'dsh-nu/executor' "$out/dist/executor.js" \
+      --replace-fail 'dsh-nu/native-executor' "$out/dist/native-executor.js" \
       --replace-fail 'dsh-nu/teaching' "$out/dist/teaching.js"
     sed -i "s|nuPath:.*|nuPath: ${nushell}/bin/nu|" $out/cordis.patch.yml
 

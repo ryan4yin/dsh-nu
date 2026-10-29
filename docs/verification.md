@@ -48,7 +48,7 @@ The suite has a Linux-only PATH-shim fuzz test. It writes stand-in executables f
 
 ## Integration probe and boot
 
-The release gate needs a probe against the pinned dsh. `npm run probe` mounts the executor and the teaching layer in a real composition, then checks that both rows exist and the platform shell executor rows are disabled. It boots a temporary profile with `--dump-config`, inspects the composed tree, and does not call a model.
+The release gate needs a probe against the pinned dsh. `npm run probe` mounts the shell executor, the native tool executor, and the teaching layer in a real composition, then checks that all three rows exist and the platform shell executor rows are disabled. It boots a temporary profile with `--dump-config`, inspects the composed tree, and does not call a model.
 
 `npm run test:integration` goes further. It creates a scratch `DSH_HOME`, writes a profile that mounts this package, copies a small probe plugin into the profile, and boots the real dsh. The probe runs Nushell builtins through the live shell seam, checks that a foreign shell and a bash redirection are refused before a process exists, checks the failure hint, and inspects the assembled prompt and tool description. It boots twice by default: native mode checks the tool description, and PTC mode also checks the generated `tools:sdk` declarations. Pass `--native` or `--ptc` to run one mode. Both commands need the linked peers, a built `dist/`, and a dsh executable; the integration boot also needs a POSIX host and runs on Linux CI.
 
