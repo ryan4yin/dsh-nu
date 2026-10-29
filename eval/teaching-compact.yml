@@ -4,3 +4,9 @@
     guide: compact
     rules: true
     rewriteToolDescriptions: true
+- id: nu-tool-bash
+  config:
+    rewriteToolDescriptions: true
+- id: nu-tool-pwsh
+  config:
+    rewriteToolDescriptions: true

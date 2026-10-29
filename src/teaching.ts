@@ -4,11 +4,12 @@
  * It mounts beside the executor and uses documented seams only:
  *
  * 1. systemPrompt.section for the mandatory rules and the syntax guide;
- * 2. a system-prompt/assemble listener that rewrites the bash/pwsh tool
- *    descriptions and their command parameter into Nushell terms;
- * 3. the same listener rewrites the generated PTC "tools:sdk" section, because
- *    that repository-rendered text comes from the tool registry and never
- *    passes through the assembled tool array.
+ * 2. a system-prompt/assemble listener that rewrites the generated PTC
+ *    "tools:sdk" section, which the PTC executor renders from the tool
+ *    registry.
+ *
+ * The bash/pwsh tool schemas are provider-owned and never pass through the
+ * assembly waterfall; `shell-tool.ts` rewrites them where the tool registers.
  */
 
 import z from '@deepseek-ai/schemastery'
@@ -37,7 +38,6 @@ export interface Config {
   guide?: GuideVariant
   rules?: boolean
   rewriteToolDescriptions?: boolean
-  toolNames?: string[]
 }
 
 /** Loader-visible config schema. */
@@ -45,36 +45,32 @@ export const Config = z.object({
   guide: z.string().default('full'),
   rules: z.boolean().default(true),
   rewriteToolDescriptions: z.boolean().default(true),
-  toolNames: z.array(z.string()).default(['bash', 'pwsh']),
 })
+
+/** The warning for a profile that still sets the removed `toolNames` key. */
+export const MOVED_TOOL_NAMES_WARNING = 'dsh-nu: nu-teaching ignores toolNames; the nu-tool-bash and nu-tool-pwsh rows rewrite their own tool'
 
 /** Normalized options used at runtime. */
 export interface Options {
   guide: GuideVariant
   rules: boolean
   rewriteToolDescriptions: boolean
-  toolNames: string[]
 }
 
 /** Validate the config eagerly so a typo fails at boot. */
 export function normalizeConfig(config: unknown = {}): Options {
   if (config !== null && typeof config !== 'object') throw new Error('dsh-nu: teaching config must be an object')
-  const source = (config ?? {}) as { guide?: unknown; rules?: unknown; rewriteToolDescriptions?: unknown; toolNames?: unknown }
+  const source = (config ?? {}) as { guide?: unknown; rules?: unknown; rewriteToolDescriptions?: unknown }
   const guide = source.guide ?? 'full'
   if (guide !== 'full' && guide !== 'compact' && guide !== 'off') throw new Error('dsh-nu: teaching guide must be one of full, compact, off')
   if (source.rules !== undefined && typeof source.rules !== 'boolean') throw new Error('dsh-nu: teaching rules must be a boolean')
   if (source.rewriteToolDescriptions !== undefined && typeof source.rewriteToolDescriptions !== 'boolean') {
     throw new Error('dsh-nu: teaching rewriteToolDescriptions must be a boolean')
   }
-  const toolNames = source.toolNames ?? ['bash', 'pwsh']
-  if (!Array.isArray(toolNames) || !toolNames.every((entry) => typeof entry === 'string')) {
-    throw new Error('dsh-nu: teaching toolNames must be an array of strings')
-  }
   return {
     guide,
     rules: source.rules !== false,
     rewriteToolDescriptions: source.rewriteToolDescriptions !== false,
-    toolNames: [...toolNames],
   }
 }
 
@@ -87,7 +83,6 @@ interface Section {
 
 /** The structural assembly shape this layer reads. */
 interface Assembly {
-  tools?: unknown[] | undefined
   sections?: Section[] | undefined
   [key: string]: unknown
 }
@@ -106,10 +101,10 @@ function claimsForeignShell(description: string): boolean {
 }
 
 /** Rewrite one tool schema, leaving unrelated tools untouched. */
-function rewriteTool(raw: unknown, options: Options): unknown {
+export function rewriteToolSchema(raw: unknown, toolNames: readonly string[]): unknown {
   if (raw === null || typeof raw !== 'object') return raw
   const tool = raw as ToolSchema
-  if (typeof tool.name !== 'string' || !options.toolNames.includes(tool.name)) return raw
+  if (typeof tool.name !== 'string' || !toolNames.includes(tool.name)) return raw
   const original = typeof tool.description === 'string' ? tool.description : ''
   if (!claimsForeignShell(original)) return raw
   // Keep the host's contract and swap only its shell claims; an unrecognized
@@ -181,7 +176,7 @@ interface SystemPromptLike {
 interface TeachingContext {
   systemPrompt: SystemPromptLike
   on: (event: string, listener: (assembly: Assembly, context: unknown, next: () => Promise<Assembly>) => Promise<Assembly>) => void
-  logger?: { info: (message: string) => void }
+  logger?: { info: (message: string) => void; warn?: (message: string) => void }
 }
 
 /** The plugin entry point, with loader-visible metadata attached. */
@@ -194,6 +189,14 @@ export interface TeachingPlugin {
 export function apply(rawContext: Context, config: Config = {}): void {
   const ctx = rawContext as unknown as TeachingContext
   const options = normalizeConfig(config)
+  // dsh skips a plugin whose apply throws, so a stale key must not drop the whole layer.
+  if ((config as { toolNames?: unknown } | null)?.toolNames !== undefined) {
+    try {
+      ctx.logger?.warn?.(MOVED_TOOL_NAMES_WARNING)
+    } catch {
+      // Logging is best-effort.
+    }
+  }
   const base = ctx.systemPrompt.getSectionOrder?.('TOOL_BASH') ?? 1000
 
   if (options.rules) ctx.systemPrompt.section({ name: RULES_SECTION, order: base, text: buildRules() })
@@ -204,16 +207,14 @@ export function apply(rawContext: Context, config: Config = {}): void {
   if (options.rewriteToolDescriptions) {
     ctx.on('system-prompt/assemble', async (_assembly, _context, next) => {
       const result = await next()
-      if (result === null || typeof result !== 'object') return result
-      const tools = Array.isArray(result.tools) ? result.tools.map((tool) => rewriteTool(tool, options)) : undefined
-      const sections = Array.isArray(result.sections) ? rewriteSdkSections(result.sections) : result.sections
-      if (tools === undefined) return sections === result.sections ? result : { ...result, sections }
-      return sections === result.sections ? { ...result, tools } : { ...result, tools, sections }
+      if (result === null || typeof result !== 'object' || !Array.isArray(result.sections)) return result
+      const sections = rewriteSdkSections(result.sections)
+      return sections === result.sections ? result : { ...result, sections }
     })
   }
 
   try {
-    ctx.logger?.info('dsh-nu: teaching Nushell (guide: ' + options.guide + ', tool descriptions: ' + (options.rewriteToolDescriptions ? 'rewritten' : 'untouched') + ')')
+    ctx.logger?.info('dsh-nu: teaching Nushell (guide: ' + options.guide + ', SDK section: ' + (options.rewriteToolDescriptions ? 'rewritten' : 'untouched') + ')')
   } catch {
     // Logging is best-effort.
   }

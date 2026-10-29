@@ -31,7 +31,7 @@ buildNpmPackage (finalAttrs: {
       ]);
   };
 
-  npmDepsHash = "sha256-Xp638bo5h5WmXeae0IPpmKlBO64p744w34dnGqXb2FE=";
+  npmDepsHash = "sha256-2s9S54Z/kf50wGvpaqVSml2dNXAmT7Cf7TdWjvqWL0A=";
 
   dontNpmBuild = false;
 
@@ -69,6 +69,8 @@ buildNpmPackage (finalAttrs: {
     # time because the wrapper does not inherit a Nushell PATH entry.
     substituteInPlace $out/cordis.patch.yml \
       --replace-fail 'dsh-nu/executor' "$out/dist/executor.js" \
+      --replace-fail 'dsh-nu/tool-bash' "$out/dist/tool-bash.js" \
+      --replace-fail 'dsh-nu/tool-pwsh' "$out/dist/tool-pwsh.js" \
       --replace-fail 'dsh-nu/teaching' "$out/dist/teaching.js"
     sed -i "s|nuPath:.*|nuPath: ${nushell}/bin/nu|" $out/cordis.patch.yml
 

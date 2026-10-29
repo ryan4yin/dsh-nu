@@ -12,7 +12,7 @@ dsh-nu forces DeepSeek Harness to run every shell command in Nushell, with the `
 
 ## Status
 
-0.6.1 is published on npm. dsh `0.2.1-rc.2` and Nushell `0.115.1` are the tested pair, recorded in `package.json` under `testedWith`.
+0.6.1 is published on npm and was tested with dsh `0.2.1-rc.2` and Nushell `0.115.1`. The main branch targets dsh `0.2.2-alpha.2` and Nushell `0.116.1`, recorded in `package.json` under `testedWith`; the requirements below describe it and take effect with the next release.
 
 ## Compatibility
 
@@ -20,7 +20,7 @@ dsh-nu supports only that pair. The peer ranges cover the dsh family, and boot l
 
 ## Install
 
-Requires Node 22.19+, `pnpm` on `PATH` (the `dsh plugin` installer runs it), dsh `0.2.1-rc.2`, and Nushell `0.115.1` on `PATH`.
+Requires Node 24.9+, `pnpm` on `PATH` (the `dsh plugin` installer runs it), dsh `0.2.2-alpha.2`, and Nushell `0.116.1` on `PATH`.
 
 Add the bundle to a dsh profile:
 
@@ -28,7 +28,7 @@ Add the bundle to a dsh profile:
 dsh plugin --profile tui add dsh-nu@0.6.1
 ```
 
-Use `--profile web` for the browser app. The first `dsh plugin` call creates the profile; the bundle's patch disables the platform shell executors and mounts the Nushell executor and teaching layer. Start the profile with `dsh tui` (or `dsh web`).
+Use `--profile web` for the browser app. The first `dsh plugin` call creates the profile; the bundle's patch disables the platform shell executors, mounts the Nushell executor and teaching layer, and re-mounts the shell tool with a Nushell description. Start the profile with `dsh tui` (or `dsh web`).
 
 If pnpm reports `ERR_PNPM_NO_MATURE_MATCHING_VERSION` for a fresh release, it is applying `minimumReleaseAge`. Wait for the cutoff, or add `--config.minimumReleaseAge=0` to the same command.
 
@@ -40,7 +40,7 @@ The repository ships a flake with the tested Node and Nushell versions:
 nix develop
 ```
 
-Inside the shell, or with your own Node 24 and Nushell 0.115.1:
+Inside the shell, or with your own Node 24 and Nushell 0.116.1:
 
 ```sh
 npm install
@@ -52,7 +52,7 @@ npm run build
 
 `dev/link-peers.mjs` links the dsh peer packages into `node_modules`, so the tests can drive the real seams without publishing.
 
-The suite runs on Node 24. The package allows Node 22.19 and newer, but versions other than 24 are untested.
+The suite runs on Node 24. The package requires Node 24.9 and newer.
 
 Real-model teaching evals are separate from `npm test`; see [`eval/README.md`](./eval/README.md) for the three-arm harness, cross-model judging, and the dated results.
 
@@ -98,7 +98,7 @@ dsh-nu does not package dsh itself. This flake builds the plugin from the checko
 
 ## Configuration
 
-The bundle's patch mounts one executor row and one teaching row; a profile patch overrides either by id. This profile patch spells out every field and its default:
+The bundle's patch mounts the shell executor, the shell tool row (`nu-tool-bash` on POSIX, `nu-tool-pwsh` on Windows), and the teaching layer. A profile patch overrides any of them by id. This profile patch spells out every field and its default:
 
 ```yaml
 - id: nu-executor
@@ -115,13 +115,19 @@ The bundle's patch mounts one executor row and one teaching row; a profile patch
     verifyTimeoutMs: 10000
     foreignShellAllowlist: []
 
+- id: nu-tool-bash       # nu-tool-pwsh on Windows
+  name: dsh-nu/tool-bash
+  config:
+    rewriteToolDescriptions: true
+    enableRunInBackground: true
+    promoteOnTimeout: true
+
 - id: nu-teaching
   name: dsh-nu/teaching
   config:
     guide: full          # full | compact | off
     rules: true
     rewriteToolDescriptions: true
-    toolNames: ["bash", "pwsh"]
 ```
 
 | Field | Default | Meaning |
@@ -134,8 +140,9 @@ The bundle's patch mounts one executor row and one teaching row; a profile patch
 | `syntaxHints` | `true` | Append one `Nushell hint (…)` for a recognized failure or deprecation warning, including exit 0 |
 | `guide` | `full` | Prompt guide: `full`, `compact`, or `off` |
 | `rules` | `true` | Prepend the shell-rules section |
-| `rewriteToolDescriptions` | `true` | Replace the shell claims in the `bash` / `pwsh` tool descriptions, keeping the host's own contract text |
-| `toolNames` | `["bash","pwsh"]` | Tool schemas whose shell text is rewritten |
+| `rewriteToolDescriptions` (shell tool) | `true` | Replace the shell claims in the `bash` / `pwsh` tool description, keeping the host's own contract text |
+| `enableRunInBackground` / `promoteOnTimeout` (shell tool) | `true` / `true` | dsh's own `tool-bash` / `tool-pwsh` settings, passed through unchanged |
+| `rewriteToolDescriptions` (teaching) | `true` | Replace the same shell claims in the generated PTC `tools:sdk` section |
 | `timeoutMs` | `60000` | Default per-call timeout; `maxTimeoutMs` caps overrides |
 | `requireNu` / `verifyNu` | `true` / `true` | Fail boot when `nu` cannot be resolved, reports no version, or cannot run the preflight |
 | `verifyTimeoutMs` | `10000` | Bound for that probe |
@@ -149,6 +156,8 @@ Choose the guide by goal:
 - `full` keeps the detailed syntax reference for uncommon syntax and edge cases.
 
 Sandbox budgets (`cwd`, `timeoutMs`, …) stay on the `nu-executor` row, not in dsh's shared `shell` settings namespace. Override any row by id in the profile's own `cordis.patch.yml`. `examples/preset-nu-shell.md` lists the preset-level shell bypasses to disable.
+
+The shell tool rows run dsh's own `bash` / `pwsh` tool and change only the description it registers, so the tool name, arguments, and results are dsh's. dsh's settings for its `tool-bash` / `tool-pwsh` rows go on `nu-tool-bash` / `nu-tool-pwsh`. Native function calls and dsh's PTC executor read the same registered description, so switching a profile to PTC needs no dsh-nu setting.
 
 ## What "only Nushell" does not cover
 

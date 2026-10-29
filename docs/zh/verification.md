@@ -48,7 +48,7 @@ npm pack --dry-run
 
 ## 集成探针与真实启动
 
-发布前要针对固定版本 dsh 跑一次探针：`npm run probe` 在真实 composition 里挂载执行器和教学层，确认这两行存在，并且平台 shell 执行器行已经禁用。它构造临时 profile，用 `--dump-config` 启动并检查组合后的插件树，不调用模型。
+发布前要针对固定版本 dsh 跑一次探针：`npm run probe` 在真实 composition 里挂载 shell 执行器、shell 工具和教学层，确认这些行都存在，并且平台 shell 执行器行已经禁用。它构造临时 profile，用 `--dump-config` 启动并检查组合后的插件树，不调用模型。
 
 `npm run test:integration` 走得更远：创建临时 `DSH_HOME`，写入挂载本包的 profile，把一个小探针插件复制进去，然后启动真实 dsh。探针通过实时 shell seam 运行 Nushell 内置命令，确认外部 shell 和 bash 重定向在进程创建前就拒绝，检查失败 hint，并检查组装后的 prompt 和工具描述。默认启动两次：native 模式检查工具描述，PTC 模式还会检查生成的 `tools:sdk` 声明；传入 `--native` 或 `--ptc` 可以只跑一种模式。两个命令都需要已链接的 peer 包、构建好的 `dist/` 和 dsh 可执行文件；集成启动还需要 POSIX 主机，并在 Linux CI 上运行。
 
@@ -65,7 +65,7 @@ npm pack --dry-run
 
 ## 已知限制
 
-- 固定支持组合是 dsh `0.2.1-rc.2` 与 Nushell `0.115.1`。
+- 固定支持组合是 dsh `0.2.2-alpha.2` 与 Nushell `0.116.1`。
 - guard 不是沙箱。它跟踪字面量 shell 名称、固定的 launcher 表、`run-external`，以及最多四层的字面量 `nu -c` / `nu -e` 脚本。运行时才确定的 shell 名称、自己会启动 shell 的程序、藏在数据里的 shell 名称，以及 `nu <file>`、`source`、`use` 加载的脚本文件都在覆盖范围外。普通引号字符串是数据；`$"…"` / `$'…'` 插值会作为代码检查。
 - hint 解释已识别的 Nushell 错误和弃用警告，成功退出的弃用警告也会得到提示；实际错误优先于警告。普通退出码 0 的 stderr、超时、取消和沙箱拒绝不追加 hint。预检拒绝使用自己的修复说明。
 - [会话扫描器](../../dev/session-scan.md) 汇总明确指定的本地事件文件，区分退出状态未知和失败，不推断修复或任务成功率。

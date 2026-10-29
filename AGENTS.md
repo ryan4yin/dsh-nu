@@ -25,9 +25,10 @@ npm pack --dry-run
 - `src/guard.ts`: foreign-shell detection over Nushell's flat token stream, with the launcher table, `run-external`, and literal `nu -c` recursion.
 - `src/syntax.ts`: syntax-preflight rules over parser diagnostics and token shapes, failure hints, and their ids.
 - `src/guide.ts`: reads the model-facing rules, syntax guides, and tool descriptions from `src/guides/*.md`; the build copies the four model-facing files to `dist/guides`. `src/guides/README.md` records sources and maintenance steps.
-- `src/teaching.ts`: system-prompt sections and the PTC `tools:sdk` rewrite.
+- `src/shell-tool.ts`, `src/tool-bash.ts`, `src/tool-pwsh.ts`: re-mount dsh's bash/pwsh tools and rewrite the definition they register, so native and PTC executors read Nushell text. dsh no longer passes tool schemas through `system-prompt/assemble`.
+- `src/teaching.ts`: system-prompt sections, the PTC `tools:sdk` rewrite, and the shared tool-schema rewrite.
 - `src/nu.ts`: executable choice, argv prefix, tested pins, and version helpers.
-- `cordis.patch.yml`: disables the platform shell rows and mounts this bundle.
+- `cordis.patch.yml`: disables the platform shell executor and shell tool rows, and mounts this bundle.
 - `nix/dsh-nu.nix`: the flake package, reached through `lib.mkDshNuPackage`; the caller supplies `pkgs` and the `dsh` installation it plugs into, so no release tarball or NUR copy is involved.
 - `eval/`: manual real-model harness with `full`, `compact`, and `off` arms, cross-model judging, and dated reports. Raw samples stay out of the repository.
 

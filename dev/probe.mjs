@@ -55,6 +55,8 @@ try {
 const checks = [
   [/nu-executor/, 'nu-executor row'],
   [/dsh-nu\/executor/, 'executor plugin'],
+  [/nu-tool-bash/, 'nu-tool-bash row'],
+  [/dsh-nu\/tool-bash/, 'bash tool plugin'],
   [/nu-teaching/, 'nu-teaching row'],
   [/dsh-nu\/teaching/, 'teaching plugin'],
 ]
@@ -64,4 +66,4 @@ for (const [pattern, label] of checks) {
 if (/bash-sandbox/.test(output) && !/bash-sandbox[\s\S]{0,120}disabled/.test(output)) {
   fail('bash-sandbox is still enabled in the composed config')
 }
-console.log('probe: composed profile with dsh-nu (executor + teaching mounted)')
+console.log('probe: composed profile with dsh-nu (executor + shell tools + teaching mounted)')

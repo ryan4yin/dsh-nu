@@ -1,8 +1,8 @@
 {
   description = "dsh-nu: Nushell-only shell bundle for DeepSeek Harness";
 
-  # Pinned to the nixpkgs revision that packages the tested Nushell 0.115.1.
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/55ba7f49ef2962b42cbd126522b7df5f95037679";
+  # Pinned to the nixpkgs revision that packages the tested Nushell 0.116.1.
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/e62746b0b472753ef019baceab6f1e2e52014980";
 
   # A packaged dsh, used only by the checks. Consumers pass their own dsh to
   # `mkDshNuPackage`, so this input is not part of the library path.
@@ -71,8 +71,8 @@
         shellHook = ''
           echo "dsh-nu dev shell: node $(node --version), nu $(nu --version)"
           case "$(nu --version)" in
-            0.115.1*) ;;
-            *) echo "warning: this project is tested with Nushell 0.115.1" >&2 ;;
+            0.116.1*) ;;
+            *) echo "warning: this project is tested with Nushell 0.116.1" >&2 ;;
           esac
         '';
       };

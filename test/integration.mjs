@@ -32,7 +32,16 @@ function boot(mode) {
   symlinkSync(ROOT, join(profileDir, 'node_modules', 'dsh-nu'), 'dir')
   copyFileSync(join(ROOT, 'test', 'integration', 'probe.mjs'), join(profileDir, 'probe.mjs'))
   const patch = mode === 'ptc'
-    ? ['- id: tools', '  config:', '    mode: ptc', '- insert:', '    - id: nu-probe', '      name: ./probe.mjs', '']
+    ? [
+        '- id: tool-executor-native',
+        '  disabled: true',
+        '- id: tool-executor-ptc',
+        '  disabled: false',
+        '- insert:',
+        '    - id: nu-probe',
+        '      name: ./probe.mjs',
+        '',
+      ]
     : ['- insert:', '    - id: nu-probe', '      name: ./probe.mjs', '']
   writeFileSync(join(profileDir, 'cordis.patch.yml'), patch.join('\n'))
   const workdir = join(profileDir, 'probe-workdir')

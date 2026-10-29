@@ -16,12 +16,12 @@ const manifest = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8'))
   dsh: { bundle: { patch: string } }
 }
 
-test('the package allows Node 22 but is tested on Node 24', () => {
-  assert.equal(manifest.engines.node, '>=22.19.0')
+test('the package requires the Node version needed by dsh alpha', () => {
+  assert.equal(manifest.engines.node, '>=24.9.0')
 })
 
 test('the dsh peer ranges and the tested pair agree', () => {
-  assert.match(manifest.testedWith.dsh, /^\d+\.\d+\.\d+(-rc\.\d+)?$/)
+  assert.match(manifest.testedWith.dsh, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/)
   assert.match(manifest.testedWith.nushell, /^\d+\.\d+\.\d+$/)
   for (const [name, range] of Object.entries(manifest.peerDependencies)) {
     if (!name.startsWith('@deepseek-ai/dsh-')) continue
@@ -32,8 +32,10 @@ test('the dsh peer ranges and the tested pair agree', () => {
 test('the bundle patch mounts the exported plugins', () => {
   const patch = readFileSync(resolve(ROOT, 'cordis.patch.yml'), 'utf8').replace(/\r\n/g, '\n')
   assert.match(patch, /name: dsh-nu\/executor/)
+  assert.match(patch, /name: dsh-nu\/tool-bash/)
+  assert.match(patch, /name: dsh-nu\/tool-pwsh/)
   assert.match(patch, /name: dsh-nu\/teaching/)
-  for (const id of ['bash-sandbox', 'pwsh-sandbox']) {
+  for (const id of ['tool-bash', 'tool-pwsh', 'bash-sandbox', 'pwsh-sandbox']) {
     assert.match(patch, new RegExp('- id: ' + id + '\n  disabled: true'))
   }
 })

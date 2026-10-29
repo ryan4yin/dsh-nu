@@ -12,7 +12,7 @@ dsh-nu 强制 DeepSeek Harness 用 Nushell 执行所有 shell 命令，禁用 `b
 
 ## 状态
 
-0.6.1 已发布到 npm。当前测试组合是 dsh `0.2.1-rc.2` 与 Nushell `0.115.1`，记录在 `package.json` 的 `testedWith` 里。
+0.6.1 已发布到 npm，测试组合是 dsh `0.2.1-rc.2` 与 Nushell `0.115.1`。main 分支的目标组合是 dsh `0.2.2-alpha.2` 与 Nushell `0.116.1`，记录在 `package.json` 的 `testedWith` 里；下面的要求描述的是 main 分支，从下一个版本开始生效。
 
 ## 兼容性
 
@@ -20,7 +20,7 @@ dsh-nu 只支持这一组合。peer 依赖只覆盖 dsh 家族；启动时如果
 
 ## 安装
 
-需要 Node 22.19+、`PATH` 上的 `pnpm`（`dsh plugin` 安装器会调用它）、dsh `0.2.1-rc.2` 和 Nushell `0.115.1`。
+需要 Node 24.9+、`PATH` 上的 `pnpm`（`dsh plugin` 安装器会调用它）、dsh `0.2.2-alpha.2` 和 Nushell `0.116.1`。
 
 把 bundle 装进 dsh profile：
 
@@ -28,7 +28,7 @@ dsh-nu 只支持这一组合。peer 依赖只覆盖 dsh 家族；启动时如果
 dsh plugin --profile tui add dsh-nu@0.6.1
 ```
 
-浏览器界面把 `--profile` 换成 `web`。第一次运行 `dsh plugin` 会创建 profile；bundle 的 patch 会停用平台 shell 执行器，挂载 Nushell 执行器和教学层。用 `dsh tui`（或 `dsh web`）启动。
+浏览器界面把 `--profile` 换成 `web`。第一次运行 `dsh plugin` 会创建 profile；bundle 的 patch 会停用平台 shell 执行器，挂载 Nushell 执行器和教学层，并用 Nushell 描述重新挂载 shell 工具。用 `dsh tui`（或 `dsh web`）启动。
 
 刚发布时，pnpm 可能因为 `minimumReleaseAge` 报 `ERR_PNPM_NO_MATURE_MATCHING_VERSION`。等过冷却期，或者在原命令后加上 `--config.minimumReleaseAge=0`。
 
@@ -40,7 +40,7 @@ dsh plugin --profile tui add dsh-nu@0.6.1
 nix develop
 ```
 
-进入 shell 后，或者本机已有 Node 24 和 Nushell 0.115.1 时：
+进入 shell 后，或者本机已有 Node 24 和 Nushell 0.116.1 时：
 
 ```sh
 npm install
@@ -52,7 +52,7 @@ npm run build
 
 `dev/link-peers.mjs` 会把 dsh 的 peer 包链接到 `node_modules`，测试因此能直接使用真实的 shell seam，不需要先发布。
 
-测试跑在 Node 24 上。npm 允许安装到 Node 22.19 及以上，但除 24 之外的版本没有测试过。
+测试跑在 Node 24 上。包要求 Node 24.9 及以上。
 
 ## Nix
 
@@ -96,7 +96,7 @@ dsh-nu 不打包 dsh 本身。这个 flake 从当前 checkout 构建插件，dsh
 
 ## 配置
 
-bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch 按 id 覆盖其中任意一行。下面这个 profile patch 列出所有字段及其默认值：
+bundle 的 patch 挂载 shell executor、shell 工具行（POSIX 上是 `nu-tool-bash`，Windows 上是 `nu-tool-pwsh`）和 teaching 层。profile patch 可以按 id 覆盖其中任意一行。下面这个 profile patch 列出所有字段及其默认值：
 
 ```yaml
 - id: nu-executor
@@ -113,13 +113,19 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
     verifyTimeoutMs: 10000
     foreignShellAllowlist: []
 
+- id: nu-tool-bash       # Windows 上是 nu-tool-pwsh
+  name: dsh-nu/tool-bash
+  config:
+    rewriteToolDescriptions: true
+    enableRunInBackground: true
+    promoteOnTimeout: true
+
 - id: nu-teaching
   name: dsh-nu/teaching
   config:
     guide: full          # full | compact | off
     rules: true
     rewriteToolDescriptions: true
-    toolNames: ["bash", "pwsh"]
 ```
 
 | 字段 | 默认值 | 含义 |
@@ -132,8 +138,9 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
 | `syntaxHints` | `true` | 为已识别的失败或弃用警告追加一行 `Nushell hint (…)`，包括退出码 0 的弃用警告 |
 | `guide` | `full` | prompt 指南：`full`、`compact`、`off` |
 | `rules` | `true` | 在 prompt 前加上 shell 规则段 |
-| `rewriteToolDescriptions` | `true` | 只替换 `bash` / `pwsh` 工具描述里的 shell 说法，保留宿主自己的契约文本 |
-| `toolNames` | `["bash","pwsh"]` | 改写哪些工具 schema 的 shell 文本 |
+| `rewriteToolDescriptions`（shell 工具） | `true` | 只替换 `bash` / `pwsh` 工具描述里的 shell 说法，保留宿主自己的契约文本 |
+| `enableRunInBackground` / `promoteOnTimeout`（shell 工具） | `true` / `true` | dsh 自己 `tool-bash` / `tool-pwsh` 的设置，原样透传 |
+| `rewriteToolDescriptions`（teaching） | `true` | 对生成的 PTC `tools:sdk` 段做同样的 shell 说法替换 |
 | `timeoutMs` | `60000` | 单次调用默认超时；`maxTimeoutMs` 限制覆盖值 |
 | `requireNu` / `verifyNu` | `true` / `true` | nu 无法解析、报不出版本或无法运行预检时，启动直接失败 |
 | `verifyTimeoutMs` | `10000` | 版本探测的超时时间 |
@@ -147,6 +154,8 @@ bundle 的 patch 挂载一个 executor 行和一个 teaching 行；profile patch
 - `full` 保留完整语法参考，覆盖不常见写法和边界情况。
 
 沙箱预算（`cwd`、`timeoutMs` 等）配在 `nu-executor` 行上，不放进 dsh 共享的 `shell` 设置。要覆盖某一行，在 profile 自己的 `cordis.patch.yml` 里按 id 改。`examples/preset-nu-shell.md` 列出了需要关闭的 preset 级 shell 绕过项。
+
+shell 工具行运行的是 dsh 自己的 `bash` / `pwsh` 工具，只改它注册的描述，所以工具名、参数和结果都和 dsh 一致。原来写在 dsh `tool-bash` / `tool-pwsh` 行上的设置，改写到 `nu-tool-bash` / `nu-tool-pwsh` 上。native function call 和 dsh 的 PTC executor 读的是同一份注册描述，所以把 profile 切到 PTC 不需要任何 dsh-nu 配置。
 
 ## “只要 Nushell”覆盖不到的地方
 

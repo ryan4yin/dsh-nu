@@ -4,6 +4,25 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+
+- The tested pair is dsh `0.2.2-alpha.2` and Nushell `0.116.1`, and the dsh
+  peer ranges follow it. The package now requires Node 24.9 or newer, matching
+  the dsh alpha engine requirement; Node 22 is no longer accepted.
+- dsh alpha no longer passes tool schemas through `system-prompt/assemble`;
+  executors read them from the tool registry. The bundle replaces the
+  `tool-bash` / `tool-pwsh` rows with `nu-tool-bash` / `nu-tool-pwsh`, which
+  run dsh's own tool and rewrite only the description it registers, so native
+  and PTC executors both show Nushell text and PTC needs no dsh-nu setting.
+  Settings for dsh's `tool-bash` / `tool-pwsh` rows move to the new rows, which
+  also take `rewriteToolDescriptions`.
+- `toolNames` is removed: each shell tool row rewrites its own tool.
+  `nu-teaching` ignores a leftover `toolNames` and logs a warning. On
+  `nu-teaching`, `rewriteToolDescriptions` now controls only the PTC
+  `tools:sdk` rewrite.
+
 ## 0.6.1 (2026-10-22)
 
 ### Fixed

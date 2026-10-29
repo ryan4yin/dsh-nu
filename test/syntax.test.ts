@@ -95,6 +95,9 @@ const ALLOWED = [
   '[[size]; [2mb]] | where size < 1mb | length',
   '[[size]; [2mb]] | where size <= 1mb | length',
   'ls | where modified > 2024-01-01T00:00:00 | length',
+  'ls | where modified > (date now) | length',
+  // Preflight-only: Nushell 0.116 types the bare time as a string, but the
+  // colon token must never be mistaken for a redirect target.
   'ls | where modified > 12:30:00 | length',
   'let name = "b"; if $name > a.txt { print hit }',
   '[[name]; [readme.md]] | where name > a.md | length',
@@ -408,7 +411,7 @@ test('the preflight does not refuse commands the tested Nushell accepts', { skip
       '[[size]; [2mb]] | where size <= 1mb | length',
       'print (2 < 3)',
       'ls | where modified > 2024-01-01T00:00:00 | length',
-      'ls | where modified > 12:30:00 | length',
+      'ls | where modified > (date now) | length',
       'let name = "b"; if $name > a.txt { print hit }',
       '[[name]; [readme.md]] | where name > a.md | length',
       '[a b] | where $it in [a, b] | length',
