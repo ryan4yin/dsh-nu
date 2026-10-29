@@ -31,7 +31,7 @@ buildNpmPackage (finalAttrs: {
       ]);
   };
 
-  npmDepsHash = "sha256-Xp638bo5h5WmXeae0IPpmKlBO64p744w34dnGqXb2FE=";
+  npmDepsHash = "sha256-BSlOuqmKf7PUZ+3+yYIVvVxg4pgrtd0ymEqZuiZo9Kg=";
 
   dontNpmBuild = false;
 

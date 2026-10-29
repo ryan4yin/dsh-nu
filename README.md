@@ -12,7 +12,7 @@ dsh-nu forces DeepSeek Harness to run every shell command in Nushell, with the `
 
 ## Status
 
-0.6.1 is published on npm. dsh `0.2.1-rc.2` and Nushell `0.116.1` are the tested pair, recorded in `package.json` under `testedWith`.
+0.6.1 is published on npm. dsh `0.2.2-alpha.2` and Nushell `0.116.1` are the tested pair, recorded in `package.json` under `testedWith`.
 
 ## Compatibility
 
@@ -20,7 +20,7 @@ dsh-nu supports only that pair. The peer ranges cover the dsh family, and boot l
 
 ## Install
 
-Requires Node 22.19+, `pnpm` on `PATH` (the `dsh plugin` installer runs it), dsh `0.2.1-rc.2`, and Nushell `0.116.1` on `PATH`.
+Requires Node 24.9+, `pnpm` on `PATH` (the `dsh plugin` installer runs it), dsh `0.2.2-alpha.2`, and Nushell `0.116.1` on `PATH`.
 
 Add the bundle to a dsh profile:
 
@@ -52,7 +52,7 @@ npm run build
 
 `dev/link-peers.mjs` links the dsh peer packages into `node_modules`, so the tests can drive the real seams without publishing.
 
-The suite runs on Node 24. The package allows Node 22.19 and newer, but versions other than 24 are untested.
+The suite runs on Node 24. The package requires Node 24.9 and newer.
 
 Real-model teaching evals are separate from `npm test`; see [`eval/README.md`](./eval/README.md) for the three-arm harness, cross-model judging, and the dated results.
 

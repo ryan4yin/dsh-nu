@@ -57,4 +57,4 @@ When changing the Nushell or DSH pins:
    from old bash sessions.
 5. Re-check the source links and add a new source here when one is used.
 
-Last validated: Nushell 0.116.1 with DSH 0.2.1-rc.2.
+Last validated: Nushell 0.116.1 with DSH 0.2.2-alpha.2.

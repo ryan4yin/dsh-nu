@@ -12,7 +12,7 @@ dsh-nu 强制 DeepSeek Harness 用 Nushell 执行所有 shell 命令，禁用 `b
 
 ## 状态
 
-0.6.1 已发布到 npm。当前测试组合是 dsh `0.2.1-rc.2` 与 Nushell `0.116.1`，记录在 `package.json` 的 `testedWith` 里。
+0.6.1 已发布到 npm。当前测试组合是 dsh `0.2.2-alpha.2` 与 Nushell `0.116.1`，记录在 `package.json` 的 `testedWith` 里。
 
 ## 兼容性
 
@@ -20,7 +20,7 @@ dsh-nu 只支持这一组合。peer 依赖只覆盖 dsh 家族；启动时如果
 
 ## 安装
 
-需要 Node 22.19+、`PATH` 上的 `pnpm`（`dsh plugin` 安装器会调用它）、dsh `0.2.1-rc.2` 和 Nushell `0.116.1`。
+需要 Node 24.9+、`PATH` 上的 `pnpm`（`dsh plugin` 安装器会调用它）、dsh `0.2.2-alpha.2` 和 Nushell `0.116.1`。
 
 把 bundle 装进 dsh profile：
 
@@ -52,7 +52,7 @@ npm run build
 
 `dev/link-peers.mjs` 会把 dsh 的 peer 包链接到 `node_modules`，测试因此能直接使用真实的 shell seam，不需要先发布。
 
-测试跑在 Node 24 上。npm 允许安装到 Node 22.19 及以上，但除 24 之外的版本没有测试过。
+测试跑在 Node 24 上。包要求 Node 24.9 及以上。
 
 ## Nix
 
