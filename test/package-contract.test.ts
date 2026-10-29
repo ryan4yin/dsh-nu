@@ -16,12 +16,12 @@ const manifest = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8'))
   dsh: { bundle: { patch: string } }
 }
 
-test('the package allows Node 22 but is tested on Node 24', () => {
-  assert.equal(manifest.engines.node, '>=22.19.0')
+test('the package requires the Node version needed by dsh alpha', () => {
+  assert.equal(manifest.engines.node, '>=24.9.0')
 })
 
 test('the dsh peer ranges and the tested pair agree', () => {
-  assert.match(manifest.testedWith.dsh, /^\d+\.\d+\.\d+(-rc\.\d+)?$/)
+  assert.match(manifest.testedWith.dsh, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/)
   assert.match(manifest.testedWith.nushell, /^\d+\.\d+\.\d+$/)
   for (const [name, range] of Object.entries(manifest.peerDependencies)) {
     if (!name.startsWith('@deepseek-ai/dsh-')) continue
